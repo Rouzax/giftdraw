@@ -1,5 +1,5 @@
 import { html } from '../html.js';
-import { t } from '../i18n/index.js';
+import { LANGS, t } from '../i18n/index.js';
 
 const ERROR_KEYS = new Set([400, 403, 404, 429, 500]);
 
@@ -35,6 +35,30 @@ export function participantPage({ lang, title, body, assetVersion, scripts }) {
 ${body}
 </main>`;
   return shell({ lang, title, body: content, assetVersion, styles: ['base.css', 'participant.css'], scripts });
+}
+
+function langSwitch(lang) {
+  return html`<form method="post" action="/admin/lang" class="lang-switch" aria-label="${t(lang, 'lang.switch')}">
+${LANGS.map((code) => html`<button type="submit" name="lang" value="${code}"${code === lang ? html` aria-current="true"` : ''}>${t(code, `lang.${code}`)}</button>`)}
+</form>`;
+}
+
+// The organiser works on phone and desktop alike: one column that widens.
+export function renderAdminPage(lang, { title, body, assetVersion, showLangSwitch = true, showLogout = false }) {
+  const logout = showLogout
+    ? html`<form method="post" action="/admin/logout"><button type="submit">${t(lang, 'admin.logout')}</button></form>`
+    : '';
+  const content = html`<header class="admin-bar">
+<a class="admin-home" href="/admin">${t(lang, 'app.name')} <span>${t(lang, 'admin.role')}</span></a>
+<div class="admin-actions">
+${showLangSwitch ? langSwitch(lang) : ''}
+${logout}
+</div>
+</header>
+<main class="admin">
+${body}
+</main>`;
+  return shell({ lang, title, body: content, assetVersion, styles: ['base.css', 'admin.css'] });
 }
 
 // One plain sentence and nothing else: no status code, no detail.

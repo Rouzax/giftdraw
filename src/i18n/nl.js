@@ -96,4 +96,16 @@ export default {
 
   'card.givesTo': 'Jij geeft een cadeautje aan {name}',
   'card.wishesTitle': 'Wat {name} leuk vindt',
+
+  'admin.role': 'Organisator',
+  'admin.logout': 'Uitloggen',
+  'admin.login.title': 'Inloggen',
+  'admin.login.password': 'Wachtwoord',
+  'admin.login.submit': 'Inloggen',
+  'admin.login.wrong': 'Dat wachtwoord klopt niet.',
+  'admin.login.tooMany': 'Te veel pogingen. Probeer het later opnieuw.',
+  'admin.noAccess.title': 'Geen toegang',
+  'admin.noAccess.body': "De beheerpagina's zijn alleen bereikbaar via het inlogportaal.",
+  'admin.events.title': 'Evenementen',
+  'admin.events.empty': 'Er zijn nog geen evenementen.',
 };

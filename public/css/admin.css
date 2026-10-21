@@ -1,0 +1,117 @@
+/* Organiser pages: denser than the participant screens, still one column on a phone. */
+body {
+  font-size: 1.0625rem;
+}
+
+.admin-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  padding: 0.75rem 1rem;
+  background: var(--card);
+  border-bottom: 1px solid var(--line);
+}
+
+.admin-home {
+  color: var(--ribbon);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.admin-home span {
+  margin-left: 0.25rem;
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.admin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.admin-actions form {
+  display: flex;
+  gap: 0.25rem;
+  margin: 0;
+}
+
+.admin {
+  max-width: 60rem;
+  margin: 0 auto;
+  padding: 1rem 1rem 3rem;
+}
+
+h1 {
+  margin: 0.5rem 0 1rem;
+  font-size: 1.625rem;
+  line-height: 1.2;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  min-height: 2.75rem;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  background: var(--card);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+button[aria-current="true"] {
+  border-color: var(--ribbon);
+  font-weight: 700;
+}
+
+button.primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+button.primary:hover {
+  background: var(--accent-dark);
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-width: 24rem;
+}
+
+input {
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--muted);
+  border-radius: 0.5rem;
+  background: var(--card);
+  color: var(--ink);
+}
+
+.notice {
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  background: var(--card);
+  border-left: 4px solid var(--ribbon);
+}
+
+.notice.error {
+  border-left-color: var(--accent);
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.list {
+  padding-left: 1.25rem;
+}

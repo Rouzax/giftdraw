@@ -1,8 +1,10 @@
 import { fileURLToPath } from 'node:url';
 import Fastify from 'fastify';
+import cookie from '@fastify/cookie';
 import formbody from '@fastify/formbody';
 import fastifyStatic from '@fastify/static';
 import { normalisePath } from './context.js';
+import { registerAdminAuth } from './routes/admin-auth.js';
 import { participantRoutes } from './routes/participant.js';
 import { errorPage } from './views/layout.js';
 
@@ -19,6 +21,7 @@ const SECURITY_HEADERS = {
 
 const PRIVATE_PATH = /^\/(p|admin)(\/|$)/;
 const PARTICIPANT_PATH = /^\/p(\/|$)/;
+const ADMIN_PATH = /^\/admin(\/|$)/;
 
 // Both the matched route and the normalised URL are checked, so no spelling
 // of a path that reaches a handler escapes a rule meant for that handler.
@@ -61,6 +64,7 @@ export async function buildApp(ctx) {
 
   app.decorateRequest('participant', null);
 
+  await app.register(cookie);
   await app.register(formbody);
   await app.register(fastifyStatic, {
     root: PUBLIC_DIR,
@@ -101,6 +105,7 @@ export async function buildApp(ctx) {
 
   const isParticipantPath = (request) => pathMatches(request, PARTICIPANT_PATH);
   participantRoutes(app, ctx, { sendPage, sendError, isParticipantPath });
+  registerAdminAuth(app, ctx, { sendPage, isAdminPath: (request) => pathMatches(request, ADMIN_PATH) });
 
   return app;
 }

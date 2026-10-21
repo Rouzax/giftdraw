@@ -88,12 +88,12 @@ test('POST without Origin is judged by Referer', async () => {
 });
 
 test('POST without Origin and Referer passes under /p/ and fails under /admin', async () => {
-  const { post, token } = await setup();
+  const { post, token, adminCookie } = await setup();
   const participant = await post(`/p/${token}/lang`, { lang: 'en' }, { origin: undefined });
   assert.equal(participant.statusCode, 303);
-  const admin = await post('/admin/ping', {}, { origin: undefined });
+  const admin = await post('/admin/ping', {}, { origin: undefined, cookie: adminCookie() });
   assert.equal(admin.statusCode, 403);
-  const adminSameOrigin = await post('/admin/ping', {});
+  const adminSameOrigin = await post('/admin/ping', {}, { cookie: adminCookie() });
   assert.equal(adminSameOrigin.statusCode, 200);
 });
 

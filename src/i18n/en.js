@@ -95,4 +95,16 @@ export default {
 
   'card.givesTo': 'You give a present to {name}',
   'card.wishesTitle': 'What {name} likes',
+
+  'admin.role': 'Organiser',
+  'admin.logout': 'Log out',
+  'admin.login.title': 'Log in',
+  'admin.login.password': 'Password',
+  'admin.login.submit': 'Log in',
+  'admin.login.wrong': 'That password is not correct.',
+  'admin.login.tooMany': 'Too many attempts. Please try again later.',
+  'admin.noAccess.title': 'No access',
+  'admin.noAccess.body': 'Admin access goes through the login portal.',
+  'admin.events.title': 'Events',
+  'admin.events.empty': 'There are no events yet.',
 };

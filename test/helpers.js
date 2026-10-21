@@ -1,3 +1,4 @@
+import { createHash, createHmac } from 'node:crypto';
 import { Writable } from 'node:stream';
 import { buildApp } from '../src/app.js';
 import { loadConfig } from '../src/config.js';
@@ -20,6 +21,16 @@ export function formBody(form) {
     for (const item of Array.isArray(value) ? value : [value]) params.append(name, item);
   }
   return params.toString();
+}
+
+// Built from the documented cookie format rather than the app's own signer,
+// so tests also pin that format: <issuedAtMs>.<hmac>, keyed by the secret and
+// a digest of the password.
+export function adminCookieValue(config, issuedAtMs) {
+  const passwordDigest = createHash('sha256').update(config.adminPassword).digest();
+  const key = createHmac('sha256', config.sessionSecret).update(passwordDigest).digest();
+  const mac = createHmac('sha256', key).update(String(issuedAtMs)).digest('base64url');
+  return `${issuedAtMs}.${mac}`;
 }
 
 export async function makeTestApp({ configOverrides = {}, clock } = {}) {
@@ -50,7 +61,12 @@ export async function makeTestApp({ configOverrides = {}, clock } = {}) {
     return app.inject({ method: 'POST', url, payload: formBody(form), headers: merged });
   }
 
-  return { app, ctx, mails, logs, post };
+  // Password-mode organiser requests, signed at the app's current time.
+  const adminCookie = () => `giftdraw_admin=${adminCookieValue(config, ctx.now().getTime())}`;
+  const adminGet = (url, headers = {}) => app.inject({ method: 'GET', url, headers: { cookie: adminCookie(), ...headers } });
+  const adminPost = (url, form = {}, headers = {}) => post(url, form, { cookie: adminCookie(), ...headers });
+
+  return { app, ctx, mails, logs, post, adminCookie, adminGet, adminPost };
 }
 
 export function seedGroup(ctx, { names, withEmail = true, invited = true, opened = false }) {
