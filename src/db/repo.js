@@ -264,22 +264,46 @@ export function createRepo(db) {
     return { count: row.count, lastAt: row.last_at };
   }
 
+  // A failure that is still being retried is a pending (or, mid-attempt,
+  // sending) row that kept its error_code; its `at` is then the next attempt
+  // (the claim time while sending) rather than the time it gave up.
+  function inviteState(row) {
+    if (!row) return null;
+    if (row.status === 'sent') return 'sent';
+    if (row.status === 'gaveup' || row.status === 'failed') return 'failed';
+    return row.error_code ? 'retrying' : 'queued';
+  }
+
   function mailStatus(participantId) {
     const reminder = db
       .prepare(`SELECT max(created_at) AS at FROM outbox
                 WHERE participant_id = ? AND kind LIKE 'remind-%' AND status IN ('pending', 'sending', 'sent')`)
       .get(participantId);
     const failure = db
-      .prepare(`SELECT kind, error_code, next_attempt_at FROM outbox
-                WHERE participant_id = ? AND status IN ('failed', 'gaveup') ORDER BY id DESC LIMIT 1`)
+      .prepare(`SELECT kind, status, error_code, next_attempt_at FROM outbox
+                WHERE participant_id = ? AND (status IN ('failed', 'gaveup')
+                  OR (status IN ('pending', 'sending') AND error_code IS NOT NULL))
+                ORDER BY id DESC LIMIT 1`)
       .get(participantId);
     const pending = db
       .prepare(`SELECT count(*) AS n FROM outbox WHERE participant_id = ? AND status IN ('pending', 'sending')`)
       .get(participantId);
+    const invite = db
+      .prepare(`SELECT status, error_code FROM outbox WHERE participant_id = ? AND kind = 'invite'
+                ORDER BY id DESC LIMIT 1`)
+      .get(participantId);
     return {
       lastReminderAt: reminder.at,
-      lastFailure: failure ? { kind: failure.kind, errorCode: failure.error_code, at: failure.next_attempt_at } : null,
+      lastFailure: failure
+        ? {
+          kind: failure.kind,
+          errorCode: failure.error_code,
+          at: failure.next_attempt_at,
+          retrying: failure.status === 'pending' || failure.status === 'sending',
+        }
+        : null,
       pendingCount: pending.n,
+      invite: inviteState(invite),
     };
   }
 

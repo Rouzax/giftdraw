@@ -5,6 +5,7 @@ import formbody from '@fastify/formbody';
 import fastifyStatic from '@fastify/static';
 import { normalisePath } from './context.js';
 import { registerAdminAuth } from './routes/admin-auth.js';
+import { adminSetupRoutes } from './routes/admin-setup.js';
 import { participantRoutes } from './routes/participant.js';
 import { errorPage } from './views/layout.js';
 
@@ -106,6 +107,7 @@ export async function buildApp(ctx) {
   const isParticipantPath = (request) => pathMatches(request, PARTICIPANT_PATH);
   participantRoutes(app, ctx, { sendPage, sendError, isParticipantPath });
   registerAdminAuth(app, ctx, { sendPage, isAdminPath: (request) => pathMatches(request, ADMIN_PATH) });
+  adminSetupRoutes(app, ctx, { sendPage, sendError });
 
   return app;
 }
