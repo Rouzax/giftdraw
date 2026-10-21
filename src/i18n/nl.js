@@ -88,7 +88,7 @@ export default {
   'email.remindDraw.body': 'Je hebt nog geen naam getrokken. Dat kan nog steeds, met de knop hieronder.',
   'email.remindDraw.button': 'Trek een naam',
   'email.wishesUpdated.subject': '{name} heeft de wensen aangepast',
-  'email.wishesUpdated.body': '{name} heeft de wensen aangepast. Kijk op je pagina wat er nu staat.',
+  'email.wishesUpdated.body': '{name} heeft de wensen aangepast. Hieronder zie je wat er nu staat.',
   'email.wishesUpdated.button': 'Bekijk het',
   'email.reassigned.subject': 'Je lootje is veranderd',
   'email.reassigned.body': 'Je lootje is veranderd. Je geeft nu een cadeautje aan {name}.',

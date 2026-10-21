@@ -87,7 +87,7 @@ export default {
   'email.remindDraw.body': 'You have not drawn a name yet. You still can, with the button below.',
   'email.remindDraw.button': 'Draw a name',
   'email.wishesUpdated.subject': '{name} has changed their wishes',
-  'email.wishesUpdated.body': '{name} has changed their wishes. Have a look at your page to see what they are now.',
+  'email.wishesUpdated.body': '{name} has changed their wishes. You can see what they are now below.',
   'email.wishesUpdated.button': 'Have a look',
   'email.reassigned.subject': 'Your person has changed',
   'email.reassigned.body': 'Your person has changed. You now give a present to {name}.',

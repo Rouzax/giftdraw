@@ -4,11 +4,12 @@ import { buildApp } from './app.js';
 import { loadConfig } from './config.js';
 import { makeContext } from './context.js';
 import { openDb } from './db/open.js';
+import { createMailer } from './mail/mailer.js';
 
 const config = loadConfig(process.env);
 if (config.dbPath !== ':memory:') mkdirSync(dirname(config.dbPath), { recursive: true });
 const db = openDb(config.dbPath);
-const ctx = makeContext({ config, db, mailer: { enabled: false } });
+const ctx = makeContext({ config, db, mailer: createMailer(config) });
 const app = await buildApp(ctx);
 
 async function shutdown(signal) {

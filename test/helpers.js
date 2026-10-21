@@ -5,6 +5,7 @@ import { loadConfig } from '../src/config.js';
 import { makeContext } from '../src/context.js';
 import { openDb } from '../src/db/open.js';
 import { makeCycle } from '../src/draw/cycle.js';
+import { drainOutbox } from '../src/mail/outbox.js';
 
 export const TEST_ENV = {
   APP_URL: 'https://gifts.example.com',
@@ -36,9 +37,15 @@ export function adminCookieValue(config, issuedAtMs) {
 export async function makeTestApp({ configOverrides = {}, clock } = {}) {
   const config = { ...loadConfig(TEST_ENV), ...configOverrides };
   const mails = [];
+  // Tests steer the fake: delayMs slows every send, fail() returns an error
+  // to throw instead of recording the message.
   const mailer = {
     enabled: true,
+    delayMs: 0,
+    fail: null,
     async send(message) {
+      if (mailer.delayMs > 0) await new Promise((resolve) => setTimeout(resolve, mailer.delayMs));
+      if (mailer.fail) throw mailer.fail(message);
       mails.push(message);
     },
   };
@@ -49,7 +56,8 @@ export async function makeTestApp({ configOverrides = {}, clock } = {}) {
       done();
     },
   });
-  const ctx = makeContext({ config, db: openDb(':memory:'), mailer, clock, logStream });
+  const db = openDb(':memory:');
+  const ctx = makeContext({ config, db, mailer, clock, logStream });
   const app = await buildApp(ctx);
 
   // A header set to undefined or null is left out, so a test can drop Origin.
@@ -66,7 +74,9 @@ export async function makeTestApp({ configOverrides = {}, clock } = {}) {
   const adminGet = (url, headers = {}) => app.inject({ method: 'GET', url, headers: { cookie: adminCookie(), ...headers } });
   const adminPost = (url, form = {}, headers = {}) => post(url, form, { cookie: adminCookie(), ...headers });
 
-  return { app, ctx, mails, logs, post, adminCookie, adminGet, adminPost };
+  const drain = () => drainOutbox(ctx);
+
+  return { app, ctx, db, mails, mailer, logs, drain, post, adminCookie, adminGet, adminPost };
 }
 
 export function seedGroup(ctx, { names, withEmail = true, invited = true, opened = false }) {
