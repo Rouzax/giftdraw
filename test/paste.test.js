@@ -122,3 +122,44 @@ test('commitAddParticipants in a closed group builds or extends the cycle', asyn
   assert.ok(validateAssignment(ctx.repo.getAssignment(group.id), all.map((p) => p.id)));
   assert.ok(all.every((p) => !p.invitedAt || people.some((q) => q.id === p.id)));
 });
+
+test('commitAddParticipants with email off queues nothing and marks nobody invited, even in an open group', async () => {
+  const { ctx, group, people } = await setup({ names: ['Ada', 'Ben', 'Cor'], opened: true });
+  for (const p of people) ctx.repo.updateParticipant(p.id, { drawnAt: ctx.nowIso() });
+  ctx.mailer.enabled = false;
+  const plan = planAddParticipants(ctx, group.id, [{ name: 'Eva', email: 'eva@example.com' }]);
+  const { added } = commitAddParticipants(ctx, group.id, plan);
+  assert.equal(ctx.repo.getParticipant(added[0].id).invitedAt, null);
+  for (const p of [...people, added[0]]) assert.equal(ctx.repo.mailStatus(p.id).pendingCount, 0);
+});
+
+test('commitAddParticipants invites emailed newcomers to a closed group whose invitations went out', async () => {
+  const { ctx, group } = await setup({ names: ['Ada', 'Ben', 'Cor'] });
+  ctx.repo.markInvitationsSent(group.id, ctx.nowIso());
+  const plan = planAddParticipants(ctx, group.id, [{ name: 'Eva', email: 'eva@example.com' }, { name: 'Fem', email: null }]);
+  const { added } = commitAddParticipants(ctx, group.id, plan);
+  const [eva, fem] = added.map((p) => ctx.repo.getParticipant(p.id));
+  assert.ok(eva.invitedAt);
+  assert.equal(ctx.repo.mailStatus(eva.id).invite, 'queued');
+  assert.equal(ctx.repo.mailStatus(eva.id).pendingCount, 1);
+  assert.equal(fem.invitedAt, null);
+  assert.equal(ctx.repo.mailStatus(fem.id).pendingCount, 0);
+});
+
+test('commitAddParticipants leaves newcomers to a closed group uninvited before invitations went out', async () => {
+  const { ctx, group } = await setup({ names: ['Ada', 'Ben', 'Cor'] });
+  const plan = planAddParticipants(ctx, group.id, [{ name: 'Eva', email: 'eva@example.com' }]);
+  const { added } = commitAddParticipants(ctx, group.id, plan);
+  assert.equal(ctx.repo.getParticipant(added[0].id).invitedAt, null);
+  assert.equal(ctx.repo.mailStatus(added[0].id).pendingCount, 0);
+});
+
+test('planAddParticipants flags an email that appears twice in the pasted list', async () => {
+  const { ctx, group } = await setup({ names: ['Ada', 'Ben', 'Cor'] });
+  const plan = planAddParticipants(ctx, group.id, [
+    { name: 'Eva', email: 'eva@example.com' },
+    { name: 'Fem', email: null },
+    { name: 'Eva Two', email: 'eva@example.com' },
+  ]);
+  assert.deepEqual(plan.duplicates, [{ row: 2, otherGroupName: null }]);
+});

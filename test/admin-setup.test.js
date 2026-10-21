@@ -350,3 +350,71 @@ test('unknown events and groups give the not-found page', async () => {
   assert.equal((await t.adminGet('/admin/groups/abc')).statusCode, 404);
   assert.equal((await t.adminPost('/admin/groups/999/invite')).statusCode, 404);
 });
+
+test('the same email twice in one pasted list needs confirmation', async () => {
+  const t = await setup();
+  const groupId = await createGroup(t, await createEvent(t));
+  const res = await t.adminPost(`/admin/groups/${groupId}/participants`, {
+    text: 'Ada, ada@example.com\nBen\nCor\nAda Two, ADA@example.com',
+  });
+  assert.equal(res.statusCode, 200);
+  assert.ok(res.body.includes('ada@example.com staat twee keer in de lijst.'));
+  assert.equal(t.ctx.repo.listParticipants(groupId).length, 0);
+  const confirm = await t.adminPost(`/admin/groups/${groupId}/participants`, { confirm: '1', plan: hiddenPlan(res.body) });
+  assert.equal(confirm.statusCode, 303);
+  assert.equal(t.ctx.repo.listParticipants(groupId).length, 4);
+});
+
+test('pasting more people than the cap is refused with a form error', async () => {
+  const t = await setup();
+  const groupId = await createGroup(t, await createEvent(t));
+  const lines = Array.from({ length: 501 }, (_, i) => `Person ${i}`).join('\n');
+  const res = await t.adminPost(`/admin/groups/${groupId}/participants`, { text: lines });
+  assert.equal(res.statusCode, 400);
+  assert.ok(res.body.includes('Plak maximaal 500 mensen tegelijk.'));
+  assert.equal(t.ctx.repo.listParticipants(groupId).length, 0);
+  const en = await t.adminPost(`/admin/groups/${groupId}/participants`, { text: lines }, { cookie: `${t.adminCookie()}; giftdraw_lang=en` });
+  assert.ok(en.body.includes('Paste at most 500 people at a time.'));
+});
+
+test('paste text over the length limit is refused, not truncated', async () => {
+  const t = await setup();
+  const groupId = await createGroup(t, await createEvent(t));
+  const text = `Ada, ada@example.com\n${'x'.repeat(200000)}`;
+  const res = await t.adminPost(`/admin/groups/${groupId}/participants`, { text });
+  assert.equal(res.statusCode, 400);
+  assert.ok(res.body.includes('Deze lijst is te lang.'));
+  assert.equal(t.ctx.repo.listParticipants(groupId).length, 0);
+});
+
+test('a maximal confirmation plan is accepted in full', async () => {
+  const t = await setup();
+  const groupId = await createGroup(t, await createEvent(t));
+  const name = 'N'.repeat(100);
+  // The longest address normaliseEmail accepts: 254 characters.
+  const lines = Array.from({ length: 500 }, (_, i) => `${name}, ${String(i).padStart(3, '0')}${'e'.repeat(239)}@example.com`);
+  lines.push('Bad, bad@');
+  const res = await t.adminPost(`/admin/groups/${groupId}/participants`, { text: lines.join('\n') });
+  assert.equal(res.statusCode, 200);
+  const plan = hiddenPlan(res.body);
+  assert.equal(JSON.parse(plan).rows.length, 500);
+  const confirm = await t.adminPost(`/admin/groups/${groupId}/participants`, { confirm: '1', plan });
+  assert.equal(confirm.statusCode, 303);
+  assert.equal(t.ctx.repo.listParticipants(groupId).length, 500);
+});
+
+test('a past exchange date is refused for a new group but a stored one may stay', async () => {
+  const t = await setup();
+  const eventId = await createEvent(t);
+  const refused = await t.adminPost(`/admin/events/${eventId}/groups`, { name: 'Oud', exchangeDate: '2026-10-31', autoOpenAt: '' });
+  assert.equal(refused.statusCode, 400);
+  assert.ok(refused.body.includes('De ruildatum ligt in het verleden.'));
+  assert.equal(t.ctx.repo.listGroups(eventId).length, 0);
+
+  const groupId = t.ctx.repo.createGroup(eventId, { name: 'Oud', exchangeDate: '2026-10-30' }, t.ctx.nowIso());
+  const rename = await t.adminPost(`/admin/groups/${groupId}`, { name: 'Ouder', exchangeDate: '2026-10-30', autoOpenAt: '' });
+  assert.equal(rename.statusCode, 303);
+  const moved = await t.adminPost(`/admin/groups/${groupId}`, { name: 'Ouder', exchangeDate: '2026-10-29', autoOpenAt: '' });
+  assert.equal(moved.statusCode, 400);
+  assert.equal(t.ctx.repo.getGroup(groupId).exchangeDate, '2026-10-30');
+});

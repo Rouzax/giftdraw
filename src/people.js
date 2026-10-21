@@ -6,7 +6,13 @@ import { parseWishesForm, wishOptions } from './wishes.js';
 const MIN_GROUP = 3;
 const NAME_MAX = 100;
 const EMAIL_MAX = 254;
-const PLAN_ROWS_MAX = 500;
+export const PASTE_ROWS_MAX = 500;
+// Longest text a full paste can need: every row at the name and email caps.
+export const PASTE_TEXT_MAX = PASTE_ROWS_MAX * (NAME_MAX + EMAIL_MAX + 4);
+// Longest plan JSON a full paste can produce. JSON.stringify writes at most
+// six characters per UTF-16 unit (\uXXXX), a name code point is at most two
+// units, and each row adds fixed keys and a giver id.
+export const PLAN_JSON_MAX = 64 + PASTE_ROWS_MAX * ((NAME_MAX * 2 + EMAIL_MAX) * 6 + 96);
 const EMAIL = /^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/;
 const SEPARATOR = /[\t;,]/;
 
@@ -37,6 +43,18 @@ export function drawFor(ctx, participantId) {
 }
 
 const cut = (value, max) => Array.from(value).slice(0, max).join('');
+
+// Every outgoing mail goes through here: with mail off nothing is queued,
+// and callers skip any invitedAt they would set alongside.
+export function mailOn(ctx) {
+  return ctx.mailer.enabled === true;
+}
+
+export function enqueueMail(ctx, participantId, kind, now, options) {
+  if (!mailOn(ctx)) return false;
+  ctx.repo.enqueue(participantId, kind, now, options);
+  return true;
+}
 
 export function normaliseEmail(value) {
   const email = String(value ?? '').trim().toLowerCase();
@@ -90,10 +108,14 @@ export function planAddParticipants(ctx, groupId, rows) {
       if (p.email && !known.has(p.email.toLowerCase())) known.set(p.email.toLowerCase(), other.name);
     }
   }
+  // otherGroupName null means the address came earlier in the same list.
   const duplicates = [];
+  const inList = new Set();
   const planned = rows.map((row, index) => {
-    const otherGroupName = row.email ? known.get(row.email.toLowerCase()) : undefined;
-    if (otherGroupName !== undefined) duplicates.push({ row: index, otherGroupName });
+    const email = row.email?.toLowerCase();
+    if (email && known.has(email)) duplicates.push({ row: index, otherGroupName: known.get(email) });
+    else if (email && inList.has(email)) duplicates.push({ row: index, otherGroupName: null });
+    if (email) inList.add(email);
     return { name: row.name, email: row.email ?? null, insertGiverId: open ? chooseInsertGiver(map, notDrawn) : null };
   });
   const changedGivers = [...new Set(planned.map((r) => r.insertGiverId).filter((id) => id !== null))];
@@ -104,7 +126,7 @@ export function planAddParticipants(ctx, groupId, rows) {
 // again here rather than trusted.
 function cleanPlanRows(plan) {
   if (!plan || typeof plan !== 'object' || typeof plan.version !== 'string') return null;
-  if (!Array.isArray(plan.rows) || plan.rows.length === 0 || plan.rows.length > PLAN_ROWS_MAX) return null;
+  if (!Array.isArray(plan.rows) || plan.rows.length === 0 || plan.rows.length > PASTE_ROWS_MAX) return null;
   const rows = [];
   for (const row of plan.rows) {
     if (!row || typeof row !== 'object' || typeof row.name !== 'string') return null;
@@ -160,22 +182,29 @@ export function commitAddParticipants(ctx, groupId, plan) {
     if (after.size > 0 && !validateAssignment(after, everyone)) {
       throw new Error('commitAddParticipants: assignment is not a single valid pairing');
     }
-    if (state.open) {
+    // Once a group's invitations are out, a newcomer is invited straight
+    // away; in an open group they can draw at once as well.
+    const invite = state.open || Boolean(state.group.invitationsSentAt);
+    let queued = 0;
+    if (invite && mailOn(ctx)) {
       for (const p of added) {
         if (!p.email) continue;
         repo.updateParticipant(p.id, { invitedAt: now });
-        repo.enqueue(p.id, 'invite', now);
-        repo.enqueue(p.id, 'draw-open', now);
+        enqueueMail(ctx, p.id, 'invite', now);
+        queued += 1;
+        if (state.open && enqueueMail(ctx, p.id, 'draw-open', now)) queued += 1;
       }
+    }
+    if (state.open) {
       for (const giver of state.people) {
         if (giver.drawnAt && giver.email && state.map.get(giver.id) !== after.get(giver.id)) {
-          repo.enqueue(giver.id, 'reassigned', now);
+          if (enqueueMail(ctx, giver.id, 'reassigned', now)) queued += 1;
         }
       }
     }
-    return { added };
+    return { added, queued };
   });
-  if (result.added) kickDrain(ctx);
+  if (result.queued) kickDrain(ctx);
   return result;
 }
 
@@ -187,11 +216,11 @@ export function sendInvitations(ctx, groupId) {
   const now = ctx.nowIso();
   return repo.tx(() => {
     let queued = 0;
-    if (ctx.mailer.enabled) {
+    if (mailOn(ctx)) {
       for (const p of repo.listParticipants(groupId)) {
         if (!p.email || p.invitedAt) continue;
         repo.updateParticipant(p.id, { invitedAt: now });
-        repo.enqueue(p.id, 'invite', now);
+        enqueueMail(ctx, p.id, 'invite', now);
         queued += 1;
       }
     }

@@ -1,7 +1,10 @@
 import { insertIntoCycle } from '../draw/cycle.js';
 import { isLang, t } from '../i18n/index.js';
 import { kickDrain } from '../mail/outbox.js';
-import { commitAddParticipants, parsePasteList, planAddParticipants, sendInvitations } from '../people.js';
+import {
+  commitAddParticipants, parsePasteList, PASTE_ROWS_MAX, PASTE_TEXT_MAX, PLAN_JSON_MAX, planAddParticipants,
+  sendInvitations,
+} from '../people.js';
 import { cardOutOfDate, groupWarnings } from '../status.js';
 import { todayIn } from '../time.js';
 import { hasWishes, mergeOptionLabels, wishOptions } from '../wishes.js';
@@ -14,15 +17,16 @@ const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const NAME_MAX = 100;
 const THEME_MAX = 2000;
 const OPTIONS_MAX = 4000;
-const PASTE_MAX = 20000;
 
 function field(body, name, max = 1000) {
   const value = body?.[name];
   return typeof value === 'string' ? value.slice(0, max) : '';
 }
 
-// Malformed JSON becomes null, which commitAddParticipants refuses as invalid.
+// Malformed or oversized JSON becomes null, which commitAddParticipants
+// refuses as invalid; it is never cut short.
 function parsePlan(value) {
+  if (typeof value !== 'string' || value.length > PLAN_JSON_MAX) return null;
   try {
     return JSON.parse(value);
   } catch {
@@ -60,8 +64,8 @@ export function adminSetupRoutes(app, ctx, { sendPage, sendError }) {
   const loadEvent = { preHandler: load(repo.getEvent) };
   const loadGroup = { preHandler: load(repo.getGroup) };
 
-  // Returns {values} or {error}. An auto-open date that is already stored may
-  // stay as it is, so renaming a group whose date has passed still works.
+  // Returns {values} or {error}. Dates already stored may stay as they are,
+  // so renaming a group whose dates have passed still works.
   function readGroupForm(body, current = null) {
     const values = {
       name: field(body, 'name', NAME_MAX).trim(),
@@ -70,6 +74,8 @@ export function adminSetupRoutes(app, ctx, { sendPage, sendError }) {
     };
     if (!values.name) return { values, error: 'admin.group.error.name' };
     if (!isDate(values.exchangeDate)) return { values, error: 'admin.group.error.exchangeDate' };
+    const sameExchange = current && current.exchangeDate === values.exchangeDate;
+    if (!sameExchange && values.exchangeDate < today()) return { values, error: 'admin.group.error.exchangePast' };
     if (values.autoOpenAt !== null) {
       if (!isDate(values.autoOpenAt)) return { values, error: 'admin.group.error.autoOpenAt' };
       const unchanged = current && current.autoOpenAt === values.autoOpenAt;
@@ -212,7 +218,7 @@ export function adminSetupRoutes(app, ctx, { sendPage, sendError }) {
     const lang = adminLang(request);
     const dashboard = `/admin/groups/${group.id}`;
     if (request.body?.confirm === '1') {
-      const result = commitAddParticipants(ctx, group.id, parsePlan(field(request.body, 'plan', 200_000)));
+      const result = commitAddParticipants(ctx, group.id, parsePlan(request.body?.plan));
       if (result.error) {
         request.log.info({ group_id: group.id, reason: result.error }, 'participants_add_refused');
         const stale = result.error === 'stale';
@@ -228,8 +234,12 @@ export function adminSetupRoutes(app, ctx, { sendPage, sendError }) {
       return reply.redirect(dashboard, 303);
     }
 
-    const text = field(request.body, 'text', PASTE_MAX);
-    const { rows, errors } = parsePasteList(text);
+    const raw = typeof request.body?.text === 'string' ? request.body.text : '';
+    const refuse = (message, pasteText) =>
+      render(request, reply, groupPage(lang, group, { pasteError: message, pasteText }), 400);
+    if (raw.length > PASTE_TEXT_MAX) return refuse(t(lang, 'admin.paste.tooLong', { max: PASTE_ROWS_MAX }), '');
+    const { rows, errors } = parsePasteList(raw);
+    if (rows.length > PASTE_ROWS_MAX) return refuse(t(lang, 'admin.paste.tooMany', { max: PASTE_ROWS_MAX }), raw);
     if (rows.length === 0 && errors.length === 0) return reply.redirect(dashboard, 303);
     const plan = planAddParticipants(ctx, group.id, rows);
     const open = plan.changedGivers.length > 0;
@@ -240,7 +250,7 @@ export function adminSetupRoutes(app, ctx, { sendPage, sendError }) {
       return reply.redirect(dashboard, 303);
     }
     const changes = open ? previewChanges(plan, repo.listParticipants(group.id)) : null;
-    return render(request, reply, pasteConfirmView(lang, { group, plan, errors, changes, text }));
+    return render(request, reply, pasteConfirmView(lang, { group, plan, errors, changes, text: raw }));
   });
 
   app.post('/admin/groups/:id/invite', loadGroup, async (request, reply) => {

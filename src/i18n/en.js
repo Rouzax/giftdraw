@@ -222,4 +222,8 @@ export default {
   'admin.paste.refusedTitle': 'Not added',
   'admin.paste.stale': 'Something changed in this group in the meantime. Paste the list again and check it.',
   'admin.paste.invalid': 'This confirmation is not valid. Paste the list again and check it.',
+  'admin.paste.duplicateInList': '{email} appears twice in the list.',
+  'admin.paste.tooMany': 'Paste at most {max} people at a time.',
+  'admin.paste.tooLong': 'This list is too long. Paste at most {max} people at a time.',
+  'admin.group.error.exchangePast': 'The exchange date is in the past.',
 };

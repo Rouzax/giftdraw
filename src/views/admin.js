@@ -1,10 +1,10 @@
 import { html, raw } from '../html.js';
 import { formatDate, LANGS, t } from '../i18n/index.js';
+import { PASTE_TEXT_MAX } from '../people.js';
 
 const LOCALES = { nl: 'nl-NL', en: 'en-GB' };
 const THEME_MAX = 2000;
 const OPTIONS_MAX = 4000;
-const PASTE_MAX = 20000;
 
 export function loginView(lang, { error = null } = {}) {
   const title = t(lang, 'admin.login.title');
@@ -37,7 +37,7 @@ function errorNotice(lang, error) {
   return error ? html`<p class="notice error" role="alert">${t(lang, error)}</p>` : '';
 }
 
-function languageSelect(lang, id, value) {
+function languageSelect(id, value) {
   return html`<select id="${id}" name="language">
 ${LANGS.map((code) => html`<option value="${code}"${selected(code === value)}>${t(code, `lang.${code}`)}</option>`)}
 </select>`;
@@ -61,7 +61,7 @@ ${errorNotice(lang, error)}
 <label for="event-name">${t(lang, 'admin.event.name')}</label>
 <input id="event-name" name="name" type="text" maxlength="100" required value="${values.name ?? ''}">
 <label for="event-language">${t(lang, 'admin.event.language')}</label>
-${languageSelect(lang, 'event-language', values.language ?? 'nl')}
+${languageSelect('event-language', values.language ?? 'nl')}
 <button type="submit" class="primary">${t(lang, 'admin.events.create')}</button>
 </form>
 </section>`;
@@ -122,7 +122,7 @@ ${errorNotice(lang, error)}
 <label for="event-name">${t(lang, 'admin.event.name')}</label>
 <input id="event-name" name="name" type="text" maxlength="100" required value="${event.name}">
 <label for="event-language">${t(lang, 'admin.event.language')}</label>
-${languageSelect(lang, 'event-language', event.language)}
+${languageSelect('event-language', event.language)}
 <label for="event-cleanup">${t(lang, 'admin.event.cleanupWeeks')}</label>
 <p class="hint" id="event-cleanup-hint">${t(lang, 'admin.event.cleanupHint')}</p>
 <input id="event-cleanup" name="cleanupWeeks" type="number" min="1" max="52" required value="${event.cleanupWeeks}" aria-describedby="event-cleanup-hint">
@@ -232,7 +232,9 @@ function groupStatus(lang, group, tz) {
   return html`<ul class="facts">${lines.map((line) => html`<li>${line}</li>`)}</ul>`;
 }
 
-export function groupView(lang, { event, group, rows, warnings, mailEnabled, tz, error = null, values = null }) {
+export function groupView(lang, {
+  event, group, rows, warnings, mailEnabled, tz, error = null, values = null, pasteError = null, pasteText = '',
+}) {
   const title = group.name;
   const uninvited = rows.filter((r) => r.participant.email && !r.participant.invitedAt).length;
   const banners = [
@@ -258,7 +260,8 @@ ${participantTable(lang, rows, tz)}
 </section>
 <section class="panel">
 <h2>${t(lang, 'admin.paste.title')}</h2>
-${pasteForm(lang, group.id, '')}
+${pasteError ? html`<p class="notice error" role="alert">${pasteError}</p>` : ''}
+${pasteForm(lang, group.id, pasteText)}
 </section>
 <section class="panel">
 <h2>${t(lang, 'admin.group.settings')}</h2>
@@ -276,7 +279,7 @@ function pasteForm(lang, groupId, text) {
   return html`<form method="post" action="/admin/groups/${groupId}/participants" class="stack">
 <label for="paste-text">${t(lang, 'admin.paste.label')}</label>
 <p class="hint" id="paste-hint">${t(lang, 'admin.paste.hint')}</p>
-<textarea id="paste-text" name="text" rows="8" maxlength="${PASTE_MAX}" aria-describedby="paste-hint">${text}</textarea>
+<textarea id="paste-text" name="text" rows="8" maxlength="${PASTE_TEXT_MAX}" aria-describedby="paste-hint">${text}</textarea>
 <button type="submit" class="primary">${t(lang, 'admin.paste.check')}</button>
 </form>`;
 }
@@ -297,7 +300,9 @@ export function pasteConfirmView(lang, { group, plan, errors, changes, text }) {
   const duplicates = plan.duplicates.length
     ? html`<section class="panel">
 <h2>${t(lang, 'admin.paste.duplicatesTitle')}</h2>
-<ul>${plan.duplicates.map((d) => html`<li>${t(lang, 'admin.paste.duplicate', { email: plan.rows[d.row].email, group: d.otherGroupName })}</li>`)}</ul>
+<ul>${plan.duplicates.map((d) => html`<li>${d.otherGroupName === null
+    ? t(lang, 'admin.paste.duplicateInList', { email: plan.rows[d.row].email })
+    : t(lang, 'admin.paste.duplicate', { email: plan.rows[d.row].email, group: d.otherGroupName })}</li>`)}</ul>
 </section>`
     : '';
   const changeNote = (c) => {

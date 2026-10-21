@@ -224,4 +224,8 @@ export default {
   'admin.paste.refusedTitle': 'Niet toegevoegd',
   'admin.paste.stale': 'Er is intussen iets veranderd in deze groep. Plak de lijst opnieuw en controleer hem.',
   'admin.paste.invalid': 'Deze bevestiging klopt niet. Plak de lijst opnieuw en controleer hem.',
+  'admin.paste.duplicateInList': '{email} staat twee keer in de lijst.',
+  'admin.paste.tooMany': 'Plak maximaal {max} mensen tegelijk.',
+  'admin.paste.tooLong': 'Deze lijst is te lang. Plak maximaal {max} mensen tegelijk.',
+  'admin.group.error.exchangePast': 'De ruildatum ligt in het verleden.',
 };
