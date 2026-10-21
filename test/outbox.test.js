@@ -108,7 +108,9 @@ test('backoff grows and after five failures the row is gaveup', async () => {
 });
 
 test('a row whose participant lookup throws does not stop the next row', async () => {
-  const { ctx, db, mails, ada, ben, drain } = await setup();
+  const { ctx, db, mails, ada, ben, cor, group, drain } = await setup();
+  // Ben's receiver is Ada, the participant whose lookup throws.
+  ctx.repo.setAssignment(group.id, new Map([[ada.id, cor.id], [cor.id, ben.id], [ben.id, ada.id]]), ctx.nowIso());
   const bad = ctx.repo.enqueue(ada.id, 'invite', ctx.nowIso());
   const good = ctx.repo.enqueue(ben.id, 'invite', ctx.nowIso());
   const real = ctx.repo.getParticipant;
@@ -122,6 +124,20 @@ test('a row whose participant lookup throws does not stop the next row', async (
   assert.equal(outboxRow(db, bad).status, 'pending');
   assert.equal(outboxRow(db, bad).error_code, 'error');
   assert.equal(outboxRow(db, good).status, 'sent');
+});
+
+test('an invite is sent even when the receiver lookup would throw', async () => {
+  const { ctx, db, mails, ada, ben, cor, group, drain } = await setup();
+  ctx.repo.setAssignment(group.id, new Map([[ada.id, cor.id], [cor.id, ben.id], [ben.id, ada.id]]), ctx.nowIso());
+  const id = ctx.repo.enqueue(ben.id, 'invite', ctx.nowIso());
+  const real = ctx.repo.getParticipant;
+  ctx.repo.getParticipant = (pid) => {
+    if (pid === ada.id) throw new Error('disk on fire');
+    return real(pid);
+  };
+  assert.deepEqual(await drain(), { sent: 1, failed: 0 });
+  assert.equal(mails[0].to, 'ben@example.com');
+  assert.equal(outboxRow(db, id).status, 'sent');
 });
 
 test('with the mailer disabled nothing is sent and rows stay pending', async () => {

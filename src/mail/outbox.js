@@ -31,8 +31,13 @@ function prepare(ctx, row) {
   const group = repo.getGroup(participant.groupId);
   const event = group && repo.getEvent(group.eventId);
   if (!event) throw new Skip('no-group');
-  const receiver = participant.receiverId ? repo.getParticipant(participant.receiverId) : null;
-  if (RECEIVER_KINDS.has(row.kind) && !receiver) throw new Skip('no-receiver');
+  // Only receiver kinds load the receiver, so a failing lookup of someone
+  // else's row cannot take down a mail that never uses it.
+  let receiver = null;
+  if (RECEIVER_KINDS.has(row.kind)) {
+    receiver = participant.receiverId ? repo.getParticipant(participant.receiverId) : null;
+    if (!receiver) throw new Skip('no-receiver');
+  }
   const lang = participant.language;
   const link = `${config.appUrl}/p/${participant.token}`;
   const mail = renderEmail(row.kind, { lang, participant, receiver, event, group, link, tz: config.tz });
