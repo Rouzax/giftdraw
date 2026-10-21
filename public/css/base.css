@@ -9,6 +9,8 @@
   --card: #ffffff;
   --line: #d9c7b4;
   --focus: #1d4ed8;
+  --warn: #b7791f;
+  --warn-bg: #fff4dc;
   --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 

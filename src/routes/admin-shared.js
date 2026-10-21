@@ -38,11 +38,11 @@ export function adminShared(ctx, { sendPage, sendError }) {
 
   // view comes in the participant's language; note and back link are the
   // organiser's.
-  function renderBehalf(request, reply, participant, view, { note, back }, status = 200) {
+  function renderBehalf(request, reply, participant, view, { note, back }) {
     const page = behalfPage({
       ...view, lang: participant.language, adminLang: adminLang(request), assetVersion: config.assetVersion, note, back,
     });
-    return sendPage(reply.code(status), page);
+    return sendPage(reply, page);
   }
 
   function renderPrint(reply, participant, view) {

@@ -46,9 +46,22 @@ ${footer({ lang, langAction, showLangSwitch })}`;
   return { title: t(lang, 'waiting.title'), body };
 }
 
+// Enough rows to show prefilled text whole, so no line sits half under the
+// edge. Characters per row are counted for a phone, where rows are shortest;
+// participant.css lets browsers that can size to the content do so instead.
+const ROW_CHARS = 24;
+const ROWS_MIN = 3;
+const ROWS_MAX = 20;
+
+function rowsFor(value) {
+  const lines = String(value ?? '').split('\n')
+    .reduce((sum, line) => sum + Math.max(1, Math.ceil(Array.from(line).length / ROW_CHARS)), 0);
+  return Math.min(ROWS_MAX, Math.max(ROWS_MIN, lines));
+}
+
 function textArea(name, label, value) {
   return html`<label class="field-label" for="${name}">${label}</label>
-<textarea id="${name}" name="${name}" rows="3" maxlength="${TEXT_MAX}">${value ?? ''}</textarea>`;
+<textarea id="${name}" name="${name}" rows="${rowsFor(value)}" maxlength="${TEXT_MAX}">${value ?? ''}</textarea>`;
 }
 
 function textInput(name, label, value) {
@@ -142,7 +155,11 @@ ${content}
 // With reveal, CSS plays the bowl, slip and confetti over about three
 // seconds. The name is in the markup from the start, so without script or
 // animation support the result simply shows.
-export function resultView({ receiver, event, group, lang, tz, reveal, editHref, langAction, showLangSwitch }) {
+// editText replaces the participant's own wording when the organiser shows
+// this screen on their behalf.
+export function resultView({
+  receiver, event, group, lang, tz, reveal, editHref, editText = null, langAction, showLangSwitch,
+}) {
   const heading = givesTo(lang, receiver.name, reveal);
   const top = reveal
     ? html`<div class="reveal" data-reveal>
@@ -156,7 +173,7 @@ ${heading}
 <div class="result-rest">
 ${themeBlock({ event, group, lang, tz })}
 ${wishCard({ receiver, event, lang })}
-<a class="edit-link" href="${editHref}">${t(lang, 'result.edit')}</a>
+<a class="edit-link" href="${editHref}">${editText ?? t(lang, 'result.edit')}</a>
 ${footer({ lang, langAction, showLangSwitch })}
 </div>`;
   return { title: t(lang, 'result.title'), body, scripts: reveal ? ['reveal.js'] : [] };

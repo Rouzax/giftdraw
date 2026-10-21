@@ -344,6 +344,7 @@ export default {
   'admin.behalf.cardAfterDraw': 'Het kaartje kan geprint worden na het trekken.',
   'admin.behalf.printed': 'Geprint op {date}.',
   'admin.behalf.bar': 'Je vult dit in voor {name}.',
+  'admin.behalf.editWishes': 'Wensen van {name} aanpassen',
   'admin.behalf.back': 'Terug naar {name}',
   'admin.card.notDrawnTitle': 'Nog geen kaartje',
   'admin.card.notDrawn': 'Er is nog geen kaartje: eerst trekken, dan het kaartje printen.',

@@ -43,8 +43,8 @@ body {
 
 .card-note {
   padding: 0.5rem 0.75rem;
-  border-left: 4px solid #b7791f;
-  background: #fff4dc;
+  border-left: 4px solid var(--warn);
+  background: var(--warn-bg);
 }
 
 .card-hint {

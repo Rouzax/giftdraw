@@ -177,7 +177,8 @@ export function adminPeopleRoutes(app, ctx, { render, renderBehalf, renderPrint,
     }
     const { receiver, firstTime } = drawFor(ctx, participant.id);
     if (firstTime) request.log.info({ participant_id: participant.id }, 'participant_drawn_on_behalf');
-    const view = resultView({ ...data, receiver, reveal: firstTime });
+    const editText = t(adminLang(request), 'admin.behalf.editWishes', { name: participant.name });
+    const view = resultView({ ...data, receiver, reveal: firstTime, editText });
     return renderBehalf(request, reply, participant, view, behalfFrame(request, participant));
   });
 

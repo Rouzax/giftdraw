@@ -342,6 +342,7 @@ export default {
   'admin.behalf.cardAfterDraw': 'The card can be printed after the draw.',
   'admin.behalf.printed': 'Printed on {date}.',
   'admin.behalf.bar': 'You are filling this in for {name}.',
+  'admin.behalf.editWishes': "Change {name}'s wishes",
   'admin.behalf.back': 'Back to {name}',
   'admin.card.notDrawnTitle': 'No card yet',
   'admin.card.notDrawn': 'There is no card yet: draw first, then print the card.',

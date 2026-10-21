@@ -173,11 +173,12 @@ test('a tampered remove plan is refused', async () => {
   const dropout = t.people[0];
   const preview = await t.adminGet(`/admin/participants/${dropout.id}/remove`);
   const plan = JSON.parse(hidden(preview.body, 'plan'));
-  const others = t.people.filter((p) => p.id !== dropout.id).map((p) => p.id);
-  // A valid cycle over the rest, but not the one the preview showed.
-  const rotated = others.map((id, i) => [id, others[(i + 1) % others.length]]);
+  // The previewed cycle run backwards: still one valid cycle over the rest,
+  // and with five people never the same as the preview.
+  const reversed = plan.map.map(([giver, receiver]) => [receiver, giver]);
+  assert.equal(plan.map.length, 5);
   const bad = [
-    { ...plan, map: rotated },
+    { ...plan, map: reversed },
     { ...plan, map: null },
     { ...plan, map: 'x' },
     { version: plan.version },

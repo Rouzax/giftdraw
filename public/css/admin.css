@@ -157,8 +157,8 @@ code {
 }
 
 .notice.warn {
-  border-left-color: #b7791f;
-  background: #fff4dc;
+  border-left-color: var(--warn);
+  background: var(--warn-bg);
 }
 
 .back {

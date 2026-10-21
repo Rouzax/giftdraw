@@ -74,7 +74,8 @@ test('drawing on behalf sets drawnAt and reveals the receiver with the participa
   assert.ok(res.body.includes('data-reveal'));
   assert.ok(res.body.includes('/static/js/reveal.js'));
   assert.ok(res.body.includes('/static/css/participant.css'));
-  assert.ok(res.body.includes(`href="/admin/participants/${t.ada.id}/about"`));
+  assert.ok(res.body.includes(`href="/admin/participants/${t.ada.id}/about">${tr('nl', 'admin.behalf.editWishes', { name: 'Ada' })}</a>`));
+  assert.equal(res.body.includes(tr('nl', 'result.edit')), false);
   assert.equal(res.body.includes(`/p/${t.ada.token}`), false);
 
   // A second time shows the result without the reveal and keeps the first date.
@@ -85,6 +86,18 @@ test('drawing on behalf sets drawnAt and reveals the receiver with the participa
   assert.equal(again.body.includes('data-reveal'), false);
   assert.ok(again.body.includes(receiver.name));
   assert.equal(t.ctx.repo.getParticipant(t.ada.id).drawnAt, firstDrawn);
+});
+
+test('prefilled textareas get enough rows for their text, within bounds', async () => {
+  const t = await withNoEmailAda({ names: ['Ada', 'Ben', 'Cor'] });
+  saveWishes(t.ctx, t.ada.id, { hobbies: 'gardening', avoid: 'long text '.repeat(40), other: 'x '.repeat(500) });
+  const form = await t.adminGet(`/admin/participants/${t.ada.id}/about`);
+  const rows = (name) => Number(new RegExp(`<textarea id="${name}"[^>]* rows="(\\d+)"`).exec(form.body)[1]);
+  assert.equal(rows('hobbies'), 3);
+  assert.ok(rows('avoid') > 3 && rows('avoid') < 20, String(rows('avoid')));
+  assert.equal(rows('other'), 20);
+  const own = await t.app.inject({ url: `/p/${t.ada.token}/about` });
+  assert.ok(own.body.includes('<textarea id="avoid" name="avoid" rows="' + rows('avoid') + '"'));
 });
 
 test('drawing on behalf is refused while the group is closed', async () => {
