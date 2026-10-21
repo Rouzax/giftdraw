@@ -2,3 +2,6 @@ CLAUDE.md
 .claude/
 docs/superpowers/
 .superpowers/
+node_modules/
+data/
+coverage/

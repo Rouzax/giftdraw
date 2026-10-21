@@ -10,8 +10,8 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
-    "test": "NODE_ENV=test node --test",
-    "test:coverage": "NODE_ENV=test node --test --experimental-test-coverage",
+    "test": "NODE_ENV=test node --disable-warning=ExperimentalWarning --test",
+    "test:coverage": "NODE_ENV=test node --disable-warning=ExperimentalWarning --test --experimental-test-coverage",
     "lint": "eslint ."
   },
   "dependencies": {
