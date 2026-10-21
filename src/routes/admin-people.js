@@ -38,7 +38,7 @@ export function adminPeopleRoutes(app, ctx, { render, renderBehalf, renderPrint,
       participant,
       group,
       receiver,
-      cardOutOfDate: cardOutOfDate(participant, receiver),
+      cardOutOfDate: cardOutOfDate(participant, receiver, group, repo.getEvent(group.eventId)),
       mail: repo.mailStatus(participant.id),
       link: personalLink(participant),
       remindKind: reminderKind(participant, group),
@@ -190,8 +190,11 @@ export function adminPeopleRoutes(app, ctx, { render, renderBehalf, renderPrint,
     const participant = request.record;
     const receiver = cardReceiver(participant);
     if (!receiver) return refuse(request, reply, participant, 'admin.card.notDrawnTitle', 'admin.card.notDrawn');
-    const card = cardView({ ...screenData(participant), receiver });
-    const tools = cardTools(adminLang(request), { participant, cardOutOfDate: cardOutOfDate(participant, receiver) });
+    const data = screenData(participant);
+    const card = cardView({ ...data, receiver });
+    const tools = cardTools(adminLang(request), {
+      participant, cardOutOfDate: cardOutOfDate(participant, receiver, data.group, data.event),
+    });
     return renderPrint(reply, participant, { title: card.title, body: html`${tools}${card.body}` });
   });
 

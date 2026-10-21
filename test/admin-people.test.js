@@ -281,6 +281,59 @@ test('resend failed mail sends the failed kind again', async () => {
   assert.deepEqual(outbox(t).map((r) => [r.kind, r.status]), [['invite', 'sent']]);
 });
 
+test('the dashboard sends all given-up mail of the group again with one button', async () => {
+  const t = await setup({ names: ['Ada', 'Ben', 'Cor', 'Dirk'] });
+  const [ada, ben, cor] = t.people;
+  const action = `action="/admin/groups/${t.groupId}/resend-failed"`;
+  assert.equal((await t.adminGet(`/admin/groups/${t.groupId}`)).body.includes(action), false, 'hidden without failures');
+
+  const giveUp = (id, kind) => {
+    const row = t.ctx.repo.enqueue(id, kind, t.ctx.nowIso());
+    t.ctx.repo.claimDue(t.ctx.nowIso(), 10);
+    t.ctx.repo.markFailed(row, 'smtp-550', null, t.ctx.nowIso());
+  };
+  giveUp(ada.id, 'invite');
+  giveUp(ada.id, 'remind-wishes');
+  giveUp(ben.id, 'invite');
+  // Still being retried: it goes out by itself and is left alone.
+  const retrying = t.ctx.repo.enqueue(cor.id, 'invite', t.ctx.nowIso());
+  t.ctx.repo.claimDue(t.ctx.nowIso(), 10);
+  t.ctx.repo.markFailed(retrying, 'smtp-421', new Date(t.clock.ms + 60 * 60_000).toISOString(), t.ctx.nowIso());
+  // Another group's failure stays as it is.
+  const other = seedGroup(t.ctx, { names: ['Eva', 'Fem', 'Gijs'] }).people[0];
+  giveUp(other.id, 'invite');
+
+  const dashboard = await t.adminGet(`/admin/groups/${t.groupId}`);
+  assert.ok(dashboard.body.includes(action));
+  assert.ok(dashboard.body.includes(tr('nl', 'admin.failure.groupCount', { count: 3 })));
+  const en = await t.adminGet(`/admin/groups/${t.groupId}`, { cookie: `${t.adminCookie()}; giftdraw_lang=en` });
+  assert.ok(en.body.includes(tr('en', 'admin.failure.resendAll')));
+
+  const res = await t.adminPost(`/admin/groups/${t.groupId}/resend-failed`);
+  assert.equal(res.statusCode, 303);
+  assert.equal(res.headers.location, `/admin/groups/${t.groupId}?done=all-requeued`);
+  const rows = t.db.prepare('SELECT participant_id, status, attempts, error_code FROM outbox ORDER BY id').all();
+  assert.deepEqual(rows.map((r) => [r.participant_id, r.status, r.attempts, r.error_code]), [
+    [ada.id, 'pending', 0, null],
+    [ada.id, 'pending', 0, null],
+    [ben.id, 'pending', 0, null],
+    [cor.id, 'pending', 1, 'smtp-421'],
+    [other.id, 'gaveup', 1, 'smtp-550'],
+  ]);
+  const back = await t.adminGet(res.headers.location);
+  assert.ok(back.body.includes(tr('nl', 'admin.person.done.all-requeued')));
+  assert.equal(back.body.includes(action), false);
+  await settle(t);
+  // The wishes reminder still applies, so all three go out.
+  assert.deepEqual(t.mails.map((m) => m.to).sort(), [ada.email, ada.email, ben.email].sort());
+
+  const none = await t.adminPost(`/admin/groups/${t.groupId}/resend-failed`);
+  assert.equal(none.headers.location, `/admin/groups/${t.groupId}?done=no-failure`);
+  t.mailer.enabled = false;
+  const off = await t.adminPost(`/admin/groups/${t.groupId}/resend-failed`);
+  assert.equal(off.headers.location, `/admin/groups/${t.groupId}?done=mail-off`);
+});
+
 test('send again from the dashboard reports nothing to send and mail off on the dashboard', async () => {
   const t = await setup({ names: ['Ada', 'Ben', 'Cor'] });
   const ada = t.people[0];
@@ -320,6 +373,42 @@ test('resend invite queues an invitation and marks the participant invited', asy
   assert.equal(res.statusCode, 303);
   assert.deepEqual(kindsFor(t, ada.id), ['invite']);
   assert.ok(t.ctx.repo.getParticipant(ada.id).invitedAt);
+});
+
+test('a double tap on remind now queues one reminder and says the second is already on its way', async () => {
+  const t = await setup({ names: ['Ada', 'Ben', 'Cor'], opened: true });
+  const ada = t.people[0];
+  // A slow send keeps the first row in the outbox while the second tap lands.
+  t.mailer.delayMs = 200;
+  const first = await t.adminPost(`/admin/participants/${ada.id}/remind`);
+  const second = await t.adminPost(`/admin/participants/${ada.id}/remind`);
+  assert.equal(first.headers.location, `/admin/participants/${ada.id}?done=remind-queued`);
+  assert.equal(second.headers.location, `/admin/participants/${ada.id}?done=already-queued`);
+  assert.deepEqual(kindsFor(t, ada.id), ['remind-draw']);
+  const page = await t.adminGet(second.headers.location);
+  assert.ok(page.body.includes(tr('nl', 'admin.person.done.already-queued')));
+  const en = await t.adminGet(second.headers.location, { cookie: `${t.adminCookie()}; giftdraw_lang=en` });
+  assert.ok(en.body.includes(tr('en', 'admin.person.done.already-queued')));
+  await settle(t);
+  assert.equal(t.mails.length, 1);
+  // Once the first has gone, a new press is a new reminder.
+  const later = await t.adminPost(`/admin/participants/${ada.id}/remind`);
+  assert.equal(later.headers.location, `/admin/participants/${ada.id}?done=remind-queued`);
+});
+
+test('a double tap on resend invite queues one invitation, also from the dashboard', async () => {
+  const t = await setup({ names: ['Ada', 'Ben', 'Cor'], invited: false });
+  const ada = t.people[0];
+  t.mailer.delayMs = 200;
+  const first = await t.adminPost(`/admin/participants/${ada.id}/resend-invite`);
+  const second = await t.adminPost(`/admin/participants/${ada.id}/resend-invite`, { back: 'group' });
+  assert.equal(first.headers.location, `/admin/participants/${ada.id}?done=invite-queued`);
+  assert.equal(second.headers.location, `/admin/groups/${t.groupId}?done=already-queued`);
+  assert.deepEqual(kindsFor(t, ada.id), ['invite']);
+  const dashboard = await t.adminGet(second.headers.location);
+  assert.ok(dashboard.body.includes(tr('nl', 'admin.person.done.already-queued')));
+  await settle(t);
+  assert.equal(t.mails.length, 1);
 });
 
 test('with email off the mail actions queue nothing', async () => {

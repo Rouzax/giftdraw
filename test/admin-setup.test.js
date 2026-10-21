@@ -343,6 +343,32 @@ test('deleting a group and an event needs the confirmation box', async () => {
   assert.equal(t.ctx.repo.getEvent(eventId), null);
 });
 
+test('deleting a group or an event truncates the WAL, and a failing checkpoint does not fail the delete', async () => {
+  const t = await setup();
+  const calls = [];
+  const real = t.ctx.repo.checkpoint;
+  t.ctx.repo.checkpoint = () => {
+    calls.push('checkpoint');
+    real();
+  };
+  const eventId = await createEvent(t);
+  const groupId = await createGroup(t, eventId);
+  assert.equal((await t.adminPost(`/admin/groups/${groupId}/delete`)).statusCode, 400);
+  assert.deepEqual(calls, [], 'nothing deleted, no checkpoint');
+  assert.equal((await t.adminPost(`/admin/groups/${groupId}/delete`, { confirm: '1' })).statusCode, 303);
+  assert.deepEqual(calls, ['checkpoint']);
+
+  t.ctx.repo.checkpoint = () => {
+    calls.push('checkpoint');
+    throw new Error('database is locked');
+  };
+  const res = await t.adminPost(`/admin/events/${eventId}/delete`, { confirm: '1' });
+  assert.equal(res.statusCode, 303);
+  assert.equal(t.ctx.repo.getEvent(eventId), null);
+  assert.deepEqual(calls, ['checkpoint', 'checkpoint']);
+  assert.ok(t.logs.some((line) => line.includes('"msg":"checkpoint_failed"')));
+});
+
 test('unknown events and groups give the not-found page', async () => {
   const t = await setup();
   assert.equal((await t.adminGet('/admin/events/999')).statusCode, 404);
@@ -459,6 +485,43 @@ test('a group keeps an exchange time and a one-line place, and empty values are 
   group = t.ctx.repo.getGroup(groupId);
   assert.equal(group.exchangeTime, null);
   assert.equal(group.exchangePlace, null);
+});
+
+test('a printed card goes out of date when the exchange details or the theme change, not on an unchanged save', async () => {
+  const t = await setup();
+  const eventId = await createEvent(t);
+  const groupId = await createGroup(t, eventId, { exchangeTime: '10:30', exchangePlace: 'Studio' });
+  await t.adminPost(`/admin/groups/${groupId}/participants`, { text: 'Ada\nBen\nCor' });
+  const [ada] = t.ctx.repo.listParticipants(groupId);
+  const reprint = 'Opnieuw printen';
+  const outOfDate = async () => (await t.adminGet(`/admin/groups/${groupId}`)).body.includes(reprint);
+  const print = () => {
+    t.clock.ms += 60_000;
+    t.ctx.repo.updateParticipant(ada.id, { printedAt: t.ctx.nowIso() });
+    t.clock.ms += 60_000;
+  };
+  const group = { name: 'Maandag', exchangeDate: '2026-12-18', autoOpenAt: '', exchangeTime: '10:30', exchangePlace: 'Studio' };
+  const event = { name: 'Lootjes 2026', language: 'nl', cleanupWeeks: '4', themeText: '', wishOptions: '' };
+
+  print();
+  await t.adminPost(`/admin/groups/${groupId}`, { ...group, name: 'Maandagochtend' });
+  await t.adminPost(`/admin/events/${eventId}`, { ...event, name: 'Lootjes' });
+  assert.equal(await outOfDate(), false, 'name changes are not on the card');
+
+  for (const change of [{ exchangeDate: '2026-12-19' }, { exchangeTime: '11:00' }, { exchangePlace: 'Zaal' }]) {
+    print();
+    assert.equal(await outOfDate(), false);
+    await t.adminPost(`/admin/groups/${groupId}`, { ...group, ...change });
+    assert.equal(await outOfDate(), true, JSON.stringify(change));
+    Object.assign(group, change);
+  }
+
+  print();
+  await t.adminPost(`/admin/events/${eventId}`, { ...event, themeText: 'Neem iets moois mee.' });
+  assert.equal(await outOfDate(), true, 'theme change');
+  print();
+  await t.adminPost(`/admin/events/${eventId}`, { ...event, themeText: 'Neem iets moois mee.' });
+  assert.equal(await outOfDate(), false, 'same theme again');
 });
 
 test('an invalid exchange time or an overlong place is refused with a form error', async () => {

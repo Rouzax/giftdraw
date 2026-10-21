@@ -31,16 +31,15 @@ export function dueReminder({ participant, group, history, now, tz }) {
   // Nothing is sent from the exchange date on.
   if (now >= instantAt(group.exchangeDate, '00:00', tz)) return null;
 
-  const notBefore = [];
+  // A late invitation, close to auto-open or into an open group, must not be
+  // chased by a reminder on the next scheduler tick.
+  const notBefore = [morningAfter(participant.invitedAt, 3, tz)];
   if (kind === 'remind-wishes') {
     notBefore.push(
       group.autoOpenAt
         ? instantAt(addDays(group.autoOpenAt, -3), SEND_AT, tz)
         : morningAfter(participant.invitedAt, 5, tz),
     );
-    // A late invitation close to auto-open must not be chased by a reminder
-    // on the next scheduler tick.
-    notBefore.push(morningAfter(participant.invitedAt, 3, tz));
     if (history.lastAt) notBefore.push(spacedAfter(history.lastAt, WISHES_SPACING_DAYS));
   } else {
     notBefore.push(

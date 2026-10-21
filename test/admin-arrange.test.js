@@ -201,6 +201,21 @@ test('opening sends one draw-open per participant with email', async () => {
   assert.ok(t.logs.some((line) => line.includes('"msg":"group_opened"')));
 });
 
+test('opening invites anyone with email who was never invited, before the draw-open mail', async () => {
+  const t = await setup();
+  // An address added after the invitations went out is not mailed by itself.
+  const late = t.people[4];
+  t.db.prepare('UPDATE participants SET invited_at = NULL WHERE id = ?').run(late.id);
+  t.ctx.repo.markInvitationsSent(t.groupId, t.ctx.nowIso());
+  t.clock.ms += 60_000;
+  assert.deepEqual(openGroup(t.ctx, t.groupId), { opened: true });
+  assert.equal(t.ctx.repo.getParticipant(late.id).invitedAt, t.ctx.nowIso());
+  const rows = t.db.prepare('SELECT participant_id, kind FROM outbox ORDER BY id').all();
+  assert.deepEqual(rows.filter((r) => r.participant_id === late.id).map((r) => r.kind), ['invite', 'draw-open']);
+  assert.equal(rows.filter((r) => r.kind === 'invite').length, 1);
+  assert.equal(drawOpenRows(t), FIVE.length);
+});
+
 test('opening twice, including two overlapping posts, sends no more', async () => {
   const t = await setup();
   t.ctx.repo.markInvitationsSent(t.groupId, t.ctx.nowIso());
@@ -224,9 +239,11 @@ test('opening with mail off opens the group and queues nothing', async () => {
   const t = await setup();
   t.mailer.enabled = false;
   t.ctx.repo.markInvitationsSent(t.groupId, t.ctx.nowIso());
+  t.db.prepare('UPDATE participants SET invited_at = NULL').run();
   assert.deepEqual(openGroup(t.ctx, t.groupId), { opened: true });
   assert.ok(t.ctx.repo.getGroup(t.groupId).openedAt);
   assert.equal(count(t, 'SELECT count(*) AS n FROM outbox'), 0);
+  assert.equal(count(t, 'SELECT count(*) AS n FROM participants WHERE invited_at IS NOT NULL'), 0);
 });
 
 test('the dashboard offers opening and arranging until the group opens', async () => {

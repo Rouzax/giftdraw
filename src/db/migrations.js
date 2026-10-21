@@ -9,6 +9,7 @@ export const migrations = [
     cleanup_weeks INTEGER NOT NULL DEFAULT 4,
     theme_text TEXT,
     wish_options TEXT,
+    theme_changed_at TEXT,
     created_at TEXT NOT NULL
   );
 
@@ -22,6 +23,7 @@ export const migrations = [
     auto_open_at TEXT,
     opened_at TEXT,
     invitations_sent_at TEXT,
+    details_changed_at TEXT,
     created_at TEXT NOT NULL
   );
   CREATE INDEX groups_event_id ON groups (event_id);

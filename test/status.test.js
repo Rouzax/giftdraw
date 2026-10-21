@@ -31,6 +31,18 @@ test('cardOutOfDate is true when the giver got a new receiver after the print', 
   assert.equal(cardOutOfDate(giver, { wishesUpdatedAt: null }), true);
 });
 
+test('cardOutOfDate is true when the exchange details or the theme changed after the print', () => {
+  const giver = { printedAt: '2026-11-05T10:00:00.000Z', receiverChangedAt: '2026-11-02T10:00:00.000Z' };
+  const receiver = { wishesUpdatedAt: null };
+  const before = '2026-11-04T10:00:00.000Z';
+  const after = '2026-11-05T10:00:01.000Z';
+  assert.equal(cardOutOfDate(giver, receiver, { detailsChangedAt: before }, { themeChangedAt: before }), false);
+  assert.equal(cardOutOfDate(giver, receiver, { detailsChangedAt: null }, { themeChangedAt: null }), false);
+  assert.equal(cardOutOfDate(giver, receiver, { detailsChangedAt: after }, { themeChangedAt: null }), true);
+  assert.equal(cardOutOfDate(giver, receiver, { detailsChangedAt: null }, { themeChangedAt: after }), true);
+  assert.equal(cardOutOfDate({ ...giver, printedAt: null }, receiver, { detailsChangedAt: after }, { themeChangedAt: after }), false);
+});
+
 test('groupWarnings', () => {
   const sent = { autoOpenAt: '2026-12-01', invitationsSentAt: '2026-11-01T10:00:00.000Z' };
   const unsent = { autoOpenAt: '2026-12-01', invitationsSentAt: null };

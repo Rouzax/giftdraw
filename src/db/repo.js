@@ -44,6 +44,9 @@ const UPDATABLE = {
 
 const STORE_AS_JSON = new Set(['wishes', 'wishOptions']);
 
+// Matches the skip code in mail/outbox.js.
+const NOT_STALE = "error_code IS NOT 'stale-reminder'";
+
 function defaultNow(now) {
   return now ?? new Date().toISOString();
 }
@@ -99,9 +102,22 @@ export function createRepo(db) {
     return Number(result.lastInsertRowid);
   }
 
+  // A printed card shows the theme and the exchange date, time and place, so
+  // the update records when any of those really changed; the card is then
+  // out of date. Saving the same values again leaves the time alone.
+  function changedAt(table, id, fields, cardFields, column, now) {
+    tx(() => {
+      const before = one(`SELECT * FROM ${table} WHERE id = ?`, id);
+      update(table, id, fields);
+      if (!before) return;
+      const changed = cardFields.some((field) => fields[field] !== undefined && fields[field] !== before[field]);
+      if (changed) db.prepare(`UPDATE ${table} SET ${column} = ? WHERE id = ?`).run(defaultNow(now), id);
+    });
+  }
+
   const getEvent = (id) => one('SELECT * FROM events WHERE id = ?', id);
   const listEvents = () => many('SELECT * FROM events ORDER BY id');
-  const updateEvent = (id, fields) => update('events', id, fields);
+  const updateEvent = (id, fields, now) => changedAt('events', id, fields, ['themeText'], 'theme_changed_at', now);
   const deleteEvent = (id) => db.prepare('DELETE FROM events WHERE id = ?').run(id).changes > 0;
 
   // Groups
@@ -118,7 +134,8 @@ export function createRepo(db) {
   const listGroups = (eventId) => many('SELECT * FROM groups WHERE event_id = ? ORDER BY id', eventId);
   const latestGroup = (eventId) =>
     one('SELECT * FROM groups WHERE event_id = ? ORDER BY created_at DESC, id DESC LIMIT 1', eventId);
-  const updateGroup = (id, fields) => update('groups', id, fields);
+  const updateGroup = (id, fields, now) =>
+    changedAt('groups', id, fields, ['exchangeDate', 'exchangeTime', 'exchangePlace'], 'details_changed_at', now);
   const deleteGroup = (id) => db.prepare('DELETE FROM groups WHERE id = ?').run(id).changes > 0;
 
   // The IS NULL guard makes opening idempotent: when the button and the
@@ -259,6 +276,12 @@ export function createRepo(db) {
     return db.prepare(`UPDATE outbox SET status = 'pending' WHERE status = 'sending'`).run().changes;
   }
 
+  function hasQueuedMail(participantId, kind) {
+    return db
+      .prepare(`SELECT 1 FROM outbox WHERE participant_id = ? AND kind = ? AND status IN ('pending', 'sending') LIMIT 1`)
+      .get(participantId, kind) !== undefined;
+  }
+
   function reminderHistory(participantId, kind) {
     const row = db
       .prepare(`SELECT
@@ -271,7 +294,8 @@ export function createRepo(db) {
 
   // A failure that is still being retried is a pending (or, mid-attempt,
   // sending) row that kept its error_code; its `at` is then the next attempt
-  // (the claim time while sending) rather than the time it gave up.
+  // (the claim time while sending) rather than the time it gave up. A
+  // reminder dropped because it no longer applied is no failure.
   function inviteState(row) {
     if (!row) return null;
     if (row.status === 'sent') return 'sent';
@@ -286,7 +310,7 @@ export function createRepo(db) {
       .get(participantId);
     const failure = db
       .prepare(`SELECT kind, status, error_code, next_attempt_at FROM outbox
-                WHERE participant_id = ? AND (status IN ('failed', 'gaveup')
+                WHERE participant_id = ? AND ((status IN ('failed', 'gaveup') AND ${NOT_STALE})
                   OR (status IN ('pending', 'sending') AND error_code IS NOT NULL))
                 ORDER BY id DESC LIMIT 1`)
       .get(participantId);
@@ -316,7 +340,7 @@ export function createRepo(db) {
   function requeueLastFailed(participantId, now) {
     return tx(() => {
       const row = db
-        .prepare(`SELECT id FROM outbox WHERE participant_id = ? AND status IN ('failed', 'gaveup')
+        .prepare(`SELECT id FROM outbox WHERE participant_id = ? AND status IN ('failed', 'gaveup') AND ${NOT_STALE}
                   ORDER BY id DESC LIMIT 1`)
         .get(participantId);
       if (!row) return false;
@@ -324,6 +348,20 @@ export function createRepo(db) {
                   WHERE id = ?`).run(now, row.id);
       return true;
     });
+  }
+
+  const GIVEN_UP_IN_GROUP = `status IN ('failed', 'gaveup') AND ${NOT_STALE}
+    AND participant_id IN (SELECT id FROM participants WHERE group_id = ?)`;
+
+  const countGivenUp = (groupId) =>
+    db.prepare(`SELECT count(*) AS n FROM outbox WHERE ${GIVEN_UP_IN_GROUP}`).get(groupId).n;
+
+  // As requeueLastFailed, for every given-up mail of the group at once.
+  function requeueGroupFailed(groupId, now) {
+    return db
+      .prepare(`UPDATE outbox SET status = 'pending', attempts = 0, error_code = NULL, next_attempt_at = ?
+                WHERE ${GIVEN_UP_IN_GROUP}`)
+      .run(now, groupId).changes;
   }
 
   // Maintenance
@@ -351,7 +389,7 @@ export function createRepo(db) {
     getParticipant, getParticipantByToken, listParticipants, listAllParticipants, updateParticipant,
     findEmailInEvent, giverOf,
     addParticipantsWithAssignment, removeParticipantWithAssignment, setAssignment, getAssignment,
-    enqueue, claimDue, markSent, markFailed, requeueStale, requeueAllSending, reminderHistory, mailStatus,
-    requeueLastFailed, deleteExpiredGroups, checkpoint, ping,
+    enqueue, hasQueuedMail, claimDue, markSent, markFailed, requeueStale, requeueAllSending, reminderHistory, mailStatus,
+    requeueLastFailed, countGivenUp, requeueGroupFailed, deleteExpiredGroups, checkpoint, ping,
   };
 }

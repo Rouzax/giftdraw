@@ -1,3 +1,4 @@
+import { reminderKind } from '../reminders.js';
 import { RECEIVER_KINDS, renderEmail } from './templates.js';
 
 const BATCH = 50;
@@ -7,6 +8,7 @@ const MINUTE = 60_000;
 const BACKOFF_MS = [1, 5, 30, 120].map((m) => m * MINUTE);
 const MAX_ATTEMPTS = BACKOFF_MS.length + 1;
 const SAFE_CODE = /^[A-Z0-9_-]{1,40}$/i;
+const REMINDER_KINDS = new Set(['remind-wishes', 'remind-draw']);
 
 // Only a short code is kept: SMTP error messages and objects quote addresses
 // and server replies, which must stay out of the database and the logs.
@@ -31,6 +33,9 @@ function prepare(ctx, row) {
   const group = repo.getGroup(participant.groupId);
   const event = group && repo.getEvent(group.eventId);
   if (!event) throw new Skip('no-group');
+  // A reminder waits in the queue for a retry or a busy drain; by then the
+  // wishes may be in, the draw open or done, and it would ask the wrong thing.
+  if (REMINDER_KINDS.has(row.kind) && reminderKind(participant, group) !== row.kind) throw new Skip('stale-reminder');
   // Only receiver kinds load the receiver, so a failing lookup of someone
   // else's row cannot take down a mail that never uses it.
   let receiver = null;

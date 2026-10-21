@@ -320,8 +320,9 @@ h1 {
 }
 
 /* The reveal. Only transform and opacity animate, so old phones can keep it
-   on the compositor. Browsers without @supports or animation get the plain
-   result, which is already in the markup. */
+   on the compositor; the fades also switch visibility, so nothing that
+   cannot be seen yet (or any more) takes a tap. Browsers without @supports
+   or animation get the plain result, which is already in the markup. */
 .reveal .scene,
 .reveal .confetti,
 .reveal .skip {
@@ -546,13 +547,13 @@ h1 {
 }
 
 @keyframes fade-in {
-  from { opacity: 0; transform: translateY(0.75rem); }
-  to { opacity: 1; transform: translateY(0); }
+  from { visibility: hidden; opacity: 0; transform: translateY(0.75rem); }
+  to { visibility: visible; opacity: 1; transform: translateY(0); }
 }
 
 @keyframes fade-out {
-  from { opacity: 1; }
-  to { opacity: 0; }
+  from { visibility: visible; opacity: 1; }
+  to { visibility: hidden; opacity: 0; }
 }
 
 @keyframes fade-in-plain {

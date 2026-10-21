@@ -2,7 +2,7 @@ import { chooseInsertGiver, insertIntoCycle, makeCycle, planRemoval, validateAss
 import { kickDrain } from './mail/outbox.js';
 import { reminderKind } from './reminders.js';
 import { assignmentVersion } from './status.js';
-import { parseWishesForm, wishOptions } from './wishes.js';
+import { hasWishes, parseWishesForm, wishOptions } from './wishes.js';
 
 const MIN_GROUP = 3;
 const NAME_MAX = 100;
@@ -18,12 +18,29 @@ export const PLAN_JSON_MAX = 64 + PASTE_ROWS_MAX * ((NAME_MAX * 2 + EMAIL_MAX) *
 const EMAIL = /^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/;
 const SEPARATOR = /[\t;,]/;
 
+// Likes and pets are sets, so their order does not make a change.
+function canonical(value) {
+  if (Array.isArray(value)) return value.map(canonical).sort();
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonical(value[key])]));
+  }
+  return value;
+}
+
+function sameWishes(a, b) {
+  if (!hasWishes(a) && !hasWishes(b)) return true;
+  return JSON.stringify(canonical(a)) === JSON.stringify(canonical(b));
+}
+
 export function saveWishes(ctx, participantId, body) {
   const { repo } = ctx;
   return repo.tx(() => {
     const participant = repo.getParticipant(participantId);
     const event = repo.getEvent(repo.getGroup(participant.groupId).eventId);
     const wishes = parseWishesForm(body, wishOptions(event));
+    // A save without a change must not mark a printed card out of date or
+    // mail the giver about nothing.
+    if (sameWishes(participant.wishes, wishes)) return wishes;
     const fields = { wishes, wishesUpdatedAt: ctx.nowIso() };
     // Saves within the window share one mail to the giver: the flag is set by
     // the first save and the scheduler sends once it is due.
@@ -320,6 +337,8 @@ export function sendInvitations(ctx, groupId) {
 
 // The organiser's per-participant mail buttons. Each returns the outcome key
 // the participant page reports; a queued mail is handed to the drain at once.
+// The queued check shares the transaction with the enqueue, so a double tap
+// sends one mail.
 export function resendInvite(ctx, participantId) {
   const { repo } = ctx;
   if (!mailOn(ctx)) return 'mail-off';
@@ -327,6 +346,7 @@ export function resendInvite(ctx, participantId) {
   const outcome = repo.tx(() => {
     const participant = repo.getParticipant(participantId);
     if (!participant.email) return 'no-email';
+    if (repo.hasQueuedMail(participantId, 'invite')) return 'already-queued';
     if (!participant.invitedAt) repo.updateParticipant(participantId, { invitedAt: now });
     enqueueMail(ctx, participantId, 'invite', now);
     return 'invite-queued';
@@ -339,15 +359,19 @@ export function resendInvite(ctx, participantId) {
 export function remindNow(ctx, participantId) {
   const { repo } = ctx;
   if (!mailOn(ctx)) return 'mail-off';
-  const participant = repo.getParticipant(participantId);
-  if (!participant.email) return 'no-email';
-  // A reminder before the invitation would be the first mail they get.
-  if (!participant.invitedAt) return 'not-invited';
-  const kind = reminderKind(participant, repo.getGroup(participant.groupId));
-  if (!kind) return 'nothing-to-remind';
-  enqueueMail(ctx, participantId, kind, ctx.nowIso(), { manual: true });
-  kickDrain(ctx);
-  return 'remind-queued';
+  const outcome = repo.tx(() => {
+    const participant = repo.getParticipant(participantId);
+    if (!participant.email) return 'no-email';
+    // A reminder before the invitation would be the first mail they get.
+    if (!participant.invitedAt) return 'not-invited';
+    const kind = reminderKind(participant, repo.getGroup(participant.groupId));
+    if (!kind) return 'nothing-to-remind';
+    if (repo.hasQueuedMail(participantId, kind)) return 'already-queued';
+    enqueueMail(ctx, participantId, kind, ctx.nowIso(), { manual: true });
+    return 'remind-queued';
+  });
+  if (outcome === 'remind-queued') kickDrain(ctx);
+  return outcome;
 }
 
 export function resendFailed(ctx, participantId) {
@@ -355,4 +379,11 @@ export function resendFailed(ctx, participantId) {
   if (!ctx.repo.requeueLastFailed(participantId, ctx.nowIso())) return 'no-failure';
   kickDrain(ctx);
   return 'failed-requeued';
+}
+
+export function resendGroupFailed(ctx, groupId) {
+  if (!mailOn(ctx)) return 'mail-off';
+  if (ctx.repo.requeueGroupFailed(groupId, ctx.nowIso()) === 0) return 'no-failure';
+  kickDrain(ctx);
+  return 'all-requeued';
 }

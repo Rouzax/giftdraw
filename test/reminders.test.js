@@ -138,8 +138,32 @@ const cases = [
   ['no draw reminder on the exchange date', { group: open({ openedAt: '2026-12-08T10:00:00.000Z' }) }, '2026-12-11T23:00:00.000Z', null],
   ['draw reminder the evening before', { group: open({ openedAt: '2026-12-08T10:00:00.000Z' }) }, '2026-12-11T22:59:59.000Z', 'remind-draw'],
   // Across the October daylight-saving change, 09:00 local is 08:00Z.
-  ['draw reminder across DST, just before', { group: open({ openedAt: '2026-10-22T10:00:00.000Z' }) }, '2026-10-25T07:59:59.000Z', null],
-  ['draw reminder across DST, at', { group: open({ openedAt: '2026-10-22T10:00:00.000Z' }) }, '2026-10-25T08:00:00.000Z', 'remind-draw'],
+  ...[['just before', '2026-10-25T07:59:59.000Z', null], ['at', '2026-10-25T08:00:00.000Z', 'remind-draw']].map(([when, now, expected]) => [
+    `draw reminder across DST, ${when}`,
+    { group: open({ openedAt: '2026-10-22T10:00:00.000Z' }), participant: person({ invitedAt: '2026-10-15T10:00:00.000Z' }) },
+    now,
+    expected,
+  ]),
+  // A late joiner, invited long after the group opened, gets the draw-open
+  // mail with the invitation and is not chased on the next tick.
+  [
+    'late joiner in an open group, a minute after the invitation',
+    { participant: person({ invitedAt: '2026-11-25T13:00:00.000Z' }), group: open({ openedAt: '2026-11-01T10:00:00.000Z' }) },
+    '2026-11-25T13:01:00.000Z',
+    null,
+  ],
+  [
+    'late joiner in an open group, just before 3 days',
+    { participant: person({ invitedAt: '2026-11-25T13:00:00.000Z' }), group: open({ openedAt: '2026-11-01T10:00:00.000Z' }) },
+    '2026-11-28T07:59:59.000Z',
+    null,
+  ],
+  [
+    'late joiner in an open group, at 3 days',
+    { participant: person({ invitedAt: '2026-11-25T13:00:00.000Z' }), group: open({ openedAt: '2026-11-01T10:00:00.000Z' }) },
+    '2026-11-28T08:00:00.000Z',
+    'remind-draw',
+  ],
 ];
 
 for (const [name, input, now, expected] of cases) {

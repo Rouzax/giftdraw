@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { setTimeout as wait } from 'node:timers/promises';
 import { saveWishes } from '../src/people.js';
+import { cardOutOfDate } from '../src/status.js';
 import { startScheduler, tick } from '../src/scheduler.js';
 import { makeTestApp, seedGroup } from './helpers.js';
 
@@ -125,6 +126,37 @@ test('a flag set before a reassignment to a giver who has not drawn sends nothin
   assert.equal((await tick(ctx)).wishUpdates, 0);
   assert.equal(outboxRows(db, 'wishes-updated').length, 0);
   assert.equal(ctx.repo.getParticipant(ben.id).notifyGiverDueAt, null);
+});
+
+test('saving the same wishes again changes nothing: no flag, no update time, card still current', async () => {
+  const t = await setup({ opened: true });
+  const { ctx, clock, db, people } = t;
+  const ben = people[1];
+  const form = { hobbies: 'reading', likes: ['tea', 'chocolate'], detail_chocolate: 'dark', pets: 'cat' };
+  saveWishes(ctx, ben.id, form);
+  const savedAt = ctx.repo.getParticipant(ben.id).wishesUpdatedAt;
+  const giver = markGiverDrawn(t, ben);
+  clock.ms += MINUTE;
+  ctx.repo.updateParticipant(giver.id, { printedAt: ctx.nowIso() });
+
+  clock.ms += MINUTE;
+  saveWishes(ctx, ben.id, form);
+  // Never filled in and saved empty is no change either.
+  saveWishes(ctx, people[2].id, {});
+  const after = ctx.repo.getParticipant(ben.id);
+  assert.equal(after.wishesUpdatedAt, savedAt);
+  assert.equal(after.notifyGiverDueAt, null);
+  assert.equal(cardOutOfDate(ctx.repo.getParticipant(giver.id), after, ctx.repo.getGroup(t.group.id), t.event), false);
+  assert.equal(ctx.repo.getParticipant(people[2].id).wishesUpdatedAt, null);
+  clock.ms += 20 * MINUTE;
+  assert.equal((await tick(ctx)).wishUpdates, 0);
+  assert.equal(outboxRows(db, 'wishes-updated').length, 0);
+
+  saveWishes(ctx, ben.id, { ...form, hobbies: 'reading, walking' });
+  const changed = ctx.repo.getParticipant(ben.id);
+  assert.equal(changed.wishesUpdatedAt, ctx.nowIso());
+  assert.ok(changed.notifyGiverDueAt);
+  assert.equal(cardOutOfDate(ctx.repo.getParticipant(giver.id), changed, ctx.repo.getGroup(t.group.id), t.event), true);
 });
 
 test('a reminder is enqueued once per rule', async () => {

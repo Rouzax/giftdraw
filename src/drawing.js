@@ -1,6 +1,6 @@
 import { PairingError, swapReceivers, validateAssignment } from './draw/cycle.js';
 import { kickDrain } from './mail/outbox.js';
-import { enqueueMail } from './people.js';
+import { enqueueMail, mailOn } from './people.js';
 import { assignmentVersion } from './status.js';
 
 const MIN_GROUP = 3;
@@ -54,7 +54,16 @@ export function openGroup(ctx, groupId) {
     if (!repo.markGroupOpened(groupId, now)) return { opened: false, reason: 'already-open' };
     let queued = 0;
     for (const p of people) {
-      if (p.email && enqueueMail(ctx, p.id, 'draw-open', now)) queued += 1;
+      if (!p.email || !mailOn(ctx)) continue;
+      // An address added after the invitations went out was never mailed:
+      // the invitation goes first, and it starts that person's reminders.
+      if (!p.invitedAt) {
+        repo.updateParticipant(p.id, { invitedAt: now });
+        enqueueMail(ctx, p.id, 'invite', now);
+        queued += 1;
+      }
+      enqueueMail(ctx, p.id, 'draw-open', now);
+      queued += 1;
     }
     return { opened: true, queued };
   });

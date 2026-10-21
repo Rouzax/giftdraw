@@ -35,10 +35,14 @@ test('event round trip', () => {
     cleanupWeeks: 4,
     themeText: null,
     wishOptions: null,
+    themeChangedAt: null,
     createdAt: T0,
   });
   const options = [{ id: 'book', label: 'A book', detail: null }];
-  repo.updateEvent(eventId, { name: 'Friends', cleanupWeeks: 6, themeText: 'Regift', wishOptions: options });
+  repo.updateEvent(eventId, { name: 'Friends', cleanupWeeks: 6, themeText: null, wishOptions: options }, T1);
+  assert.equal(repo.getEvent(eventId).themeChangedAt, null, 'an unchanged theme keeps no change time');
+  repo.updateEvent(eventId, { themeText: 'Regift' }, T1);
+  assert.equal(repo.getEvent(eventId).themeChangedAt, T1);
   const updated = repo.getEvent(eventId);
   assert.equal(updated.name, 'Friends');
   assert.equal(updated.cleanupWeeks, 6);
@@ -65,6 +69,7 @@ test('group round trip', () => {
     autoOpenAt: null,
     openedAt: null,
     invitationsSentAt: null,
+    detailsChangedAt: null,
     createdAt: T0,
   });
   const second = repo.createGroup(eventId, { name: 'Work', exchangeDate: '2026-12-18', autoOpenAt: '2026-12-01' }, T1);
@@ -74,7 +79,11 @@ test('group round trip', () => {
   assert.equal(repo.getGroup(groupId).name, 'House');
   assert.equal(repo.getGroup(groupId).autoOpenAt, '2026-12-05');
   assert.throws(() => repo.updateGroup(groupId, { openedAt: T1 }), /openedAt/);
-  repo.updateGroup(groupId, { exchangeTime: '10:30', exchangePlace: 'Studio' });
+  assert.equal(repo.getGroup(groupId).detailsChangedAt, null, 'name and auto-open are not on the card');
+  repo.updateGroup(groupId, { exchangeDate: '2026-12-20', exchangeTime: null }, T1);
+  assert.equal(repo.getGroup(groupId).detailsChangedAt, null, 'the same details again are no change');
+  repo.updateGroup(groupId, { exchangeTime: '10:30', exchangePlace: 'Studio' }, T2);
+  assert.equal(repo.getGroup(groupId).detailsChangedAt, T2);
   assert.equal(repo.getGroup(groupId).exchangeTime, '10:30');
   assert.equal(repo.getGroup(groupId).exchangePlace, 'Studio');
   const third = repo.createGroup(eventId, {

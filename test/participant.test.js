@@ -70,7 +70,7 @@ test('saving wishes in a closed group leads to the waiting screen', async () => 
   assert.equal(stored.wishesUpdatedAt, new Date(clock.ms).toISOString());
 
   const page = await app.inject(`/p/${ada.token}`);
-  assert.ok(page.body.includes('Het trekken begint binnenkort'));
+  assert.ok(page.body.includes('Het trekken begint binnenkort, je krijgt een e-mail.'));
   assert.ok(page.body.includes(`href="/p/${ada.token}/about"`));
   assert.ok(page.body.includes(NL_THEME));
   assert.ok(page.body.includes('vrijdag 18 december'));
@@ -178,6 +178,15 @@ test('the waiting screen does not promise an email to someone without one', asyn
   const { people } = seedGroup(t.ctx, { names: ['Ada', 'Ben', 'Cor'], withEmail: false });
   await t.post(`/p/${people[0].token}/about`, { hobbies: 'Yoga' });
   const page = await t.app.inject(`/p/${people[0].token}`);
+  assert.ok(page.body.includes('De organisator laat je weten'));
+  assert.ok(!page.body.includes('e-mail'));
+});
+
+test('with email off the waiting screen does not promise an email, even to someone with an address', async () => {
+  const t = await setup();
+  t.mailer.enabled = false;
+  await t.post(`/p/${t.ada.token}/about`, { hobbies: 'Yoga' });
+  const page = await t.app.inject(`/p/${t.ada.token}`);
   assert.ok(page.body.includes('De organisator laat je weten'));
   assert.ok(!page.body.includes('e-mail'));
 });

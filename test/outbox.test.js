@@ -173,6 +173,30 @@ test('a receiver-bound kind without a receiver is given up with no-receiver', as
   assert.equal(outboxRow(db, invite).status, 'sent');
 });
 
+test('a reminder that no longer fits by send time is given up with stale-reminder', async () => {
+  const { ctx, db, mails, ada, ben, cor, group, drain } = await setup();
+  // Ada filled in her wishes, the group opened for Ben, and Cor drew: none
+  // of the queued reminders asks for the right thing any more.
+  const wishes = ctx.repo.enqueue(ada.id, 'remind-wishes', ctx.nowIso());
+  const draw = ctx.repo.enqueue(ben.id, 'remind-wishes', ctx.nowIso());
+  const drawn = ctx.repo.enqueue(cor.id, 'remind-draw', ctx.nowIso());
+  const fits = ctx.repo.enqueue(ben.id, 'remind-draw', ctx.nowIso());
+  ctx.repo.updateParticipant(ada.id, { wishes: { hobbies: 'Yoga' } });
+  ctx.repo.markInvitationsSent(group.id, ctx.nowIso());
+  ctx.repo.markGroupOpened(group.id, ctx.nowIso());
+  ctx.repo.updateParticipant(cor.id, { drawnAt: ctx.nowIso() });
+  assert.deepEqual(await drain(), { sent: 1, failed: 3 });
+  assert.deepEqual(mails.map((m) => m.to), [ben.email]);
+  for (const id of [wishes, draw, drawn]) {
+    assert.equal(outboxRow(db, id).status, 'gaveup');
+    assert.equal(outboxRow(db, id).error_code, 'stale-reminder');
+  }
+  assert.equal(outboxRow(db, fits).status, 'sent');
+  // Nothing went wrong, so the organiser sees no failure and nothing to send again.
+  assert.equal(ctx.repo.mailStatus(ada.id).lastFailure, null);
+  assert.equal(ctx.repo.requeueLastFailed(ada.id, ctx.nowIso()), false);
+});
+
 test('reassigned renders with the current receiver at send time', async () => {
   const { ctx, mails, ada, ben, cor, group, drain } = await setup();
   ctx.repo.enqueue(ada.id, 'reassigned', ctx.nowIso());

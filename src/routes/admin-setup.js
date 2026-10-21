@@ -3,7 +3,7 @@ import { isLang, t } from '../i18n/index.js';
 import { kickDrain } from '../mail/outbox.js';
 import {
   commitAddParticipants, parsePasteList, PASTE_ROWS_MAX, PASTE_TEXT_MAX, PLAN_JSON_MAX, planAddParticipants,
-  sendInvitations,
+  resendGroupFailed, sendInvitations,
 } from '../people.js';
 import { todayIn } from '../time.js';
 import { mergeOptionLabels, wishOptions } from '../wishes.js';
@@ -28,6 +28,16 @@ export function adminSetupRoutes(app, ctx, { render, sendError, groupPage, loadE
   const { repo, config } = ctx;
 
   const today = () => todayIn(ctx.now(), config.tz);
+
+  // Truncating the WAL keeps deleted participant data out of the log file.
+  // The delete has already happened, so a busy database only costs that.
+  function truncateLog(request) {
+    try {
+      repo.checkpoint();
+    } catch (err) {
+      request.log.warn({ error_class: err?.name ?? typeof err }, 'checkpoint_failed');
+    }
+  }
 
   // Returns {values} or {error}. Dates already stored may stay as they are,
   // so renaming a group whose dates have passed still works.
@@ -120,7 +130,7 @@ export function adminSetupRoutes(app, ctx, { render, sendError, groupPage, loadE
       cleanupWeeks: Number(weeks),
       themeText: theme && !isDefault ? theme : null,
       wishOptions: options.length ? options : null,
-    });
+    }, ctx.nowIso());
     request.log.info({ event_id: event.id }, 'event_updated');
     return reply.redirect(`/admin/events/${event.id}`, 303);
   });
@@ -129,6 +139,7 @@ export function adminSetupRoutes(app, ctx, { render, sendError, groupPage, loadE
     if (request.body?.confirm !== '1') return sendError(reply, 400, adminLang(request));
     repo.deleteEvent(request.record.id);
     request.log.info({ event_id: request.record.id }, 'event_deleted');
+    truncateLog(request);
     return reply.redirect('/admin', 303);
   });
 
@@ -153,7 +164,7 @@ export function adminSetupRoutes(app, ctx, { render, sendError, groupPage, loadE
     const group = request.record;
     const { values, error } = readGroupForm(request.body, group);
     if (error) return render(request, reply, groupPage(adminLang(request), group, { error, values }), 400);
-    repo.updateGroup(group.id, values);
+    repo.updateGroup(group.id, values, ctx.nowIso());
     request.log.info({ group_id: group.id }, 'group_updated');
     return reply.redirect(`/admin/groups/${group.id}`, 303);
   });
@@ -162,6 +173,7 @@ export function adminSetupRoutes(app, ctx, { render, sendError, groupPage, loadE
     if (request.body?.confirm !== '1') return sendError(reply, 400, adminLang(request));
     repo.deleteGroup(request.record.id);
     request.log.info({ group_id: request.record.id }, 'group_deleted');
+    truncateLog(request);
     return reply.redirect(`/admin/events/${request.record.eventId}`, 303);
   });
 
@@ -211,6 +223,13 @@ export function adminSetupRoutes(app, ctx, { render, sendError, groupPage, loadE
     request.log.info({ group_id: group.id, queued, mail_enabled: ctx.mailer.enabled }, 'invitations_sent');
     if (queued > 0) kickDrain(ctx);
     return reply.redirect(`/admin/groups/${group.id}`, 303);
+  });
+
+  app.post('/admin/groups/:id/resend-failed', loadGroup, async (request, reply) => {
+    const group = request.record;
+    const outcome = resendGroupFailed(ctx, group.id);
+    request.log.info({ group_id: group.id, outcome }, 'group_failed_mail_requeued');
+    return reply.redirect(`/admin/groups/${group.id}?done=${outcome}`, 303);
   });
 
   // Placeholder ids stand in for newcomers who do not exist yet, so the page

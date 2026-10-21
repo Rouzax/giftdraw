@@ -1,6 +1,6 @@
 import { isLang } from '../i18n/index.js';
 import { createLimiter } from '../limiter.js';
-import { drawFor, saveWishes } from '../people.js';
+import { drawFor, mailOn, saveWishes } from '../people.js';
 import { hasWishes } from '../wishes.js';
 import { participantScreen } from '../status.js';
 import { participantPage } from '../views/layout.js';
@@ -56,6 +56,7 @@ export function participantRoutes(app, ctx, { sendPage, sendError, isParticipant
       drawAction: `${base}/draw`,
       langAction: `${base}/lang`,
       showLangSwitch: true,
+      emailOn: mailOn(ctx),
     };
   }
 

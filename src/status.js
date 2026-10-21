@@ -10,9 +10,11 @@ export function participantScreen({ hasWishes, groupOpen, drawn }) {
 
 const after = (later, earlier) => Boolean(later) && Date.parse(later) > Date.parse(earlier);
 
-export function cardOutOfDate(giver, receiver) {
+// The card shows the receiver's wishes, the theme and the exchange details.
+export function cardOutOfDate(giver, receiver, group, event) {
   if (!giver.printedAt) return false;
-  return after(receiver?.wishesUpdatedAt, giver.printedAt) || after(giver.receiverChangedAt, giver.printedAt);
+  return [receiver?.wishesUpdatedAt, giver.receiverChangedAt, group?.detailsChangedAt, event?.themeChangedAt]
+    .some((at) => after(at, giver.printedAt));
 }
 
 export function groupWarnings(group, participantCount) {

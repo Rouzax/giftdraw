@@ -298,12 +298,23 @@ ${arrange}
 </section>`;
 }
 
-// Outcomes of the dashboard's "Send again", reported back on the dashboard.
-export const GROUP_DONE = new Set(['failed-requeued', 'no-failure', 'mail-off']);
+// Outcomes of mail buttons posted with back=group, reported on the dashboard.
+export const GROUP_DONE = new Set(['failed-requeued', 'all-requeued', 'no-failure', 'mail-off', 'already-queued']);
+
+// Mail still being retried goes out by itself, so only given-up mail counts.
+function resendAllPanel(lang, groupId, count, mailEnabled) {
+  if (!count || !mailEnabled) return '';
+  return html`<div class="notice warn resend-all">
+<p>${t(lang, 'admin.failure.groupCount', { count })}</p>
+<form method="post" action="/admin/groups/${groupId}/resend-failed">
+<button type="submit">${t(lang, 'admin.failure.resendAll')}</button>
+</form>
+</div>`;
+}
 
 export function groupView(lang, {
   event, group, rows, warnings, mailEnabled, tz, error = null, values = null, pasteError = null, pasteText = '',
-  openError = null, done = null,
+  openError = null, done = null, givenUpCount = 0,
 }) {
   const title = group.name;
   const uninvited = rows.filter((r) => r.participant.email && !r.participant.invitedAt).length;
@@ -325,6 +336,7 @@ ${invitePanelBody(lang, { group, mailEnabled, uninvited })}
 ${drawPanel(lang, { group, rows, openError, mailEnabled })}
 <section class="panel wide">
 <h2>${t(lang, 'admin.participants.title')}</h2>
+${resendAllPanel(lang, group.id, givenUpCount, mailEnabled)}
 ${participantTable(lang, rows, tz, mailEnabled)}
 </section>
 <section class="panel">
@@ -505,8 +517,12 @@ ${list}`;
   return { title, body, scripts: canSwap ? ['arrange.js'] : [] };
 }
 
-const DONE_OK = new Set(['saved', 'wishes-saved', 'link-regenerated', 'invite-queued', 'remind-queued', 'failed-requeued']);
-export const PERSON_DONE = new Set([...DONE_OK, 'nothing-to-remind', 'no-email', 'not-invited', 'mail-off', 'no-failure']);
+const DONE_OK = new Set([
+  'saved', 'wishes-saved', 'link-regenerated', 'invite-queued', 'remind-queued', 'failed-requeued', 'all-requeued',
+]);
+export const PERSON_DONE = new Set([
+  ...DONE_OK, 'nothing-to-remind', 'no-email', 'not-invited', 'mail-off', 'no-failure', 'already-queued',
+]);
 
 function doneNotice(lang, done) {
   if (!done) return '';

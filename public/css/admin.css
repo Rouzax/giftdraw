@@ -410,6 +410,14 @@ table.people .email {
   border-left-color: var(--ribbon);
 }
 
+.resend-all p {
+  margin: 0 0 0.5rem;
+}
+
+.resend-all form {
+  margin: 0;
+}
+
 /* Arranging pairs: one card per giver. Without script each card carries its
    own swap form; arrange.js hides the forms and makes the cards pickable. */
 .pairs {

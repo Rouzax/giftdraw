@@ -36,9 +36,11 @@ ${footer({ lang, langAction, showLangSwitch })}`;
   return { title: t(lang, 'welcome.title'), body };
 }
 
-export function waitingView({ participant, event, group, lang, tz, editHref, langAction, showLangSwitch }) {
+// emailOn is false when the app sends no mail at all: an address alone does
+// not mean an email will come.
+export function waitingView({ participant, event, group, lang, tz, editHref, langAction, showLangSwitch, emailOn }) {
   const body = html`<h1>${t(lang, 'welcome.greeting', { name: participant.name })}</h1>
-<p class="lead">${t(lang, participant.email ? 'waiting.thanks' : 'waiting.thanksNoEmail')}</p>
+<p class="lead">${t(lang, participant.email && emailOn ? 'waiting.thanks' : 'waiting.thanksNoEmail')}</p>
 ${themeBlock({ event, group, lang, tz })}
 <a class="button" href="${editHref}">${t(lang, 'waiting.edit')}</a>
 ${footer({ lang, langAction, showLangSwitch })}`;

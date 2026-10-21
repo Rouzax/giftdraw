@@ -68,7 +68,7 @@ export function adminShared(ctx, { sendPage, sendError }) {
         receiver,
         hasWishes: hasWishes(participant.wishes),
         mail: repo.mailStatus(participant.id),
-        cardOutOfDate: cardOutOfDate(participant, receiver),
+        cardOutOfDate: cardOutOfDate(participant, receiver, group, event),
       };
     });
     return groupView(lang, {
@@ -77,6 +77,7 @@ export function adminShared(ctx, { sendPage, sendError }) {
       rows,
       warnings: groupWarnings(group, people.length),
       mailEnabled: ctx.mailer.enabled,
+      givenUpCount: repo.countGivenUp(group.id),
       tz: config.tz,
       ...extra,
     });
