@@ -1,6 +1,7 @@
 import { errorCode } from './mail/outbox.js';
 
-const SHUTDOWN_DEADLINE_MS = 10_000;
+// Below Docker's default 10 s stop timeout, so the forced exit is ours.
+const SHUTDOWN_DEADLINE_MS = 8_000;
 
 // Order matters: nothing may touch the database or the mail pool after they
 // close, so first the timer and the request handlers stop, then the send in
@@ -22,7 +23,6 @@ export function createShutdown({ ctx, app, mailer, db, scheduler, exit = process
     stopping = true;
     ctx.log.info({ signal }, 'server_stopping');
     const deadline = setTimeout(() => force('deadline'), deadlineMs);
-    deadline.unref();
     try {
       ctx.state.stopping = true;
       await scheduler()?.stop();

@@ -4,7 +4,8 @@ FROM node:22.23.3-alpine@sha256:0a7108bf6c7bf5de370ffb1a3ed6be93d405b43ff159f681
 
 # tini runs as PID 1 so SIGTERM from docker stop reaches Node and the app can
 # finish its shutdown instead of being killed after the stop timeout.
-RUN apk add --no-cache tini
+# Version from the Alpine 3.24 repository of the pinned base; bump with it.
+RUN apk add --no-cache tini=0.19.0-r3
 
 WORKDIR /app
 

@@ -86,7 +86,7 @@ person has changed and who the new one is, never who dropped out.
 docker build -t giftdraw .
 ```
 
-The image is based on `node:22-alpine` pinned by digest, installs only
+The image is based on `node:22.23.3-alpine` (Alpine 3.24) pinned by digest, installs only
 production dependencies with install scripts disabled, runs as the
 unprivileged `node` user, and uses `tini` so `docker stop` shuts the app
 down cleanly.
@@ -99,9 +99,14 @@ mode without email:
 ```sh
 APP_URL=https://gifts.example.com
 ADMIN_AUTH=password
-ADMIN_PASSWORD=a-long-password-of-your-own
-SESSION_SECRET=output-of-openssl-rand-base64-48
+ADMIN_PASSWORD=
+SESSION_SECRET=
 ```
+
+Fill in both: `ADMIN_PASSWORD` is a password of your own of at least 12
+characters, and `SESSION_SECRET` the output of `openssl rand -base64 48`.
+While either is empty or too short the app refuses to start and names the
+setting.
 
 Keep `.env` private: it holds the admin password and the SMTP login.
 
@@ -121,7 +126,9 @@ What happens:
 
 - The database is created at `/data/giftdraw.db` inside the volume on
   first start. Keep the volume: removing it deletes every event, group
-  and wish. Back up the volume to keep a copy.
+  and wish. Back up the volume to keep a copy. If you mount a host
+  directory on `/data` instead of a named volume, it must be writable by
+  uid 1000 (the `node` user): `sudo chown 1000:1000 <directory>`.
 - The app listens on port 3000 and logs one `server_listening` line.
   Logs are JSON lines on standard output (`docker logs giftdraw`); they
   never contain email addresses, links or wish text.
@@ -136,7 +143,7 @@ setting that is wrong, for example
 `Invalid configuration: SESSION_SECRET must be at least 32 characters`.
 
 `docker stop giftdraw` lets a mail that is being sent finish first. If the
-mail server does not answer, the app stops anyway after about 10 seconds,
+mail server does not answer, the app stops anyway after about 8 seconds,
 or at once on a second stop signal. A mail cut off that way is sent again
 after the next start.
 

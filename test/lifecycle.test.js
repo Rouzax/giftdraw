@@ -59,6 +59,13 @@ test('a hung shutdown is forced to exit 1 after the deadline', async () => {
   assert.ok(calls.includes('shutdown_forced'));
 });
 
+test('a clean shutdown exits 0 once, before the deadline fires', async () => {
+  const { exits, parts } = fakeParts();
+  await createShutdown({ ...parts, deadlineMs: 20 })('SIGTERM');
+  await wait(60);
+  assert.deepEqual(exits, [0]);
+});
+
 test('a failing step exits 1', async () => {
   const { exits, parts } = fakeParts();
   parts.app.close = () => Promise.reject(new Error('boom'));
