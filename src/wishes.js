@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import { t } from './i18n/index.js';
+import { LANGS, t } from './i18n/index.js';
 
 export const DEFAULT_LIKE_IDS = ['chocolate', 'tea', 'coffee', 'bath', 'candles', 'books', 'plants', 'wine'];
 export const PET_IDS = ['dog', 'cat', 'other'];
@@ -10,6 +10,7 @@ const TEXT_MAX = 1000;
 const SLUG_MAX = 32;
 
 const defaultLabel = (id) => (lang) => t(lang, `wish.like.${id}`);
+const allTranslations = (id) => LANGS.map(defaultLabel(id));
 
 // Default ids keep their shipped translations even when the organiser has
 // edited the list; organiser-typed labels are shown as typed in every language.
@@ -53,12 +54,17 @@ function newId(label, taken) {
   return id;
 }
 
-// Matching against the shipped labels as well lets a re-added "Thee" get the
-// translated `tea` option back instead of a typed-only one.
+// A default id matches its label in every language, so the result does not
+// depend on whether options arrive raw or via wishOptions(), and a typed
+// "Thee" in an English event keeps stored `tea` likes. Matching the shipped
+// labels too lets a re-added "Thee" get the translated option back.
 export function mergeOptionLabels(text, currentOptions, lang) {
   const candidates = [
-    ...currentOptions.map((o) => ({ id: o.id, label: labelOf(o, lang) })),
-    ...DEFAULT_LIKE_IDS.map((id) => ({ id, label: defaultLabel(id)(lang) })),
+    ...currentOptions.map((o) => ({
+      id: o.id,
+      labels: DEFAULT_IDS.has(o.id) ? [labelOf(o, lang), ...allTranslations(o.id)] : [labelOf(o, lang)],
+    })),
+    ...DEFAULT_LIKE_IDS.map((id) => ({ id, labels: allTranslations(id) })),
   ];
   const taken = new Set(currentOptions.map((o) => o.id));
   const used = new Set();
@@ -68,7 +74,7 @@ export function mergeOptionLabels(text, currentOptions, lang) {
     const detail = label.endsWith('?');
     if (detail) label = label.slice(0, -1).trim();
     if (!label) continue;
-    const match = candidates.find((c) => !used.has(c.id) && sameLabel(c.label, label));
+    const match = candidates.find((c) => !used.has(c.id) && c.labels.some((l) => sameLabel(l, label)));
     const id = match ? match.id : newId(label, taken);
     used.add(id);
     taken.add(id);
@@ -83,7 +89,9 @@ function field(body, name) {
 
 function text(value) {
   const first = Array.isArray(value) ? value[0] : value;
-  return typeof first === 'string' ? first.trim().slice(0, TEXT_MAX) : '';
+  if (typeof first !== 'string') return '';
+  // Cut by code points so an emoji at the limit is not split into half a pair.
+  return Array.from(first.trim()).slice(0, TEXT_MAX).join('');
 }
 
 function pickIds(value, allowed) {

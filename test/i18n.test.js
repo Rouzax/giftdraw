@@ -67,6 +67,11 @@ test('t replaces placeholders and leaves unknown ones alone', () => {
   assert.equal(t('en', 'result.givesTo', { name: '$& {name}' }), 'You give a present to $& {name}');
 });
 
+test('the reassignment mail speaks of the slip, naming only the new person', () => {
+  assert.equal(t('nl', 'email.reassigned.body', { name: 'Ben' }), 'Je lootje is veranderd. Je geeft nu een cadeautje aan Ben.');
+  assert.equal(t('nl', 'email.reassigned.subject'), 'Je lootje is veranderd');
+});
+
 test('themeText uses the exact default when the event has none', () => {
   assert.equal(themeText({ themeText: null }, 'nl'), NL_THEME);
   assert.equal(themeText({ themeText: null }, 'en'), EN_THEME);

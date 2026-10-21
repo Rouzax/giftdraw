@@ -88,8 +88,8 @@ export default {
   'email.wishesUpdated.subject': '{name} heeft de wensen aangepast',
   'email.wishesUpdated.body': '{name} heeft de wensen aangepast. Kijk op je pagina wat er nu staat.',
   'email.wishesUpdated.button': 'Bekijk het',
-  'email.reassigned.subject': 'Je persoon is veranderd',
-  'email.reassigned.body': 'Je persoon is veranderd. Je geeft nu een cadeautje aan {name}.',
+  'email.reassigned.subject': 'Je lootje is veranderd',
+  'email.reassigned.body': 'Je lootje is veranderd. Je geeft nu een cadeautje aan {name}.',
   'email.reassigned.button': 'Bekijk het',
 
   'card.givesTo': 'Jij geeft een cadeautje aan {name}',

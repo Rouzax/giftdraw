@@ -50,17 +50,36 @@ const cases = [
     null,
   ],
   ['second wishes reminder, at', { history: { count: 1, lastAt: '2026-11-07T08:00:00.000Z' } }, '2026-11-11T08:00:00.000Z', 'remind-wishes'],
-  // A last reminder later in the day pushes the next to the following 09:00, so the gap is never short.
+  // Spacing is a plain 4 x 24 hours from the last reminder, whatever its time of day.
   [
-    'second wishes reminder after an afternoon one, day 4',
+    'second wishes reminder after an afternoon one, just before',
     { history: { count: 1, lastAt: '2026-11-07T13:00:00.000Z' } },
-    '2026-11-11T15:00:00.000Z',
+    '2026-11-11T12:59:59.000Z',
     null,
   ],
   [
-    'second wishes reminder after an afternoon one, day 5',
+    'second wishes reminder after an afternoon one, at',
     { history: { count: 1, lastAt: '2026-11-07T13:00:00.000Z' } },
-    '2026-11-12T08:00:00.000Z',
+    '2026-11-11T13:00:00.000Z',
+    'remind-wishes',
+  ],
+  // A late invitation close to auto-open: not before the invitation day plus 3 at 09:00.
+  [
+    'late invitation, same day',
+    { participant: person({ invitedAt: '2026-11-25T10:00:00.000Z' }), group: closed({ autoOpenAt: '2026-11-27' }) },
+    '2026-11-25T10:01:00.000Z',
+    null,
+  ],
+  [
+    'late invitation, just before 3 days',
+    { participant: person({ invitedAt: '2026-11-25T10:00:00.000Z' }), group: closed({ autoOpenAt: '2026-11-30' }) },
+    '2026-11-28T07:59:59.000Z',
+    null,
+  ],
+  [
+    'late invitation, at 3 days',
+    { participant: person({ invitedAt: '2026-11-25T10:00:00.000Z' }), group: closed({ autoOpenAt: '2026-11-30' }) },
+    '2026-11-28T08:00:00.000Z',
     'remind-wishes',
   ],
   ['wishes cap of 2', { history: { count: 2, lastAt: '2026-11-07T08:00:00.000Z' } }, '2026-11-30T08:00:00.000Z', null],
@@ -79,6 +98,25 @@ const cases = [
     'second draw reminder, at',
     { group: open(), history: { count: 1, lastAt: '2026-11-23T08:00:00.000Z' } },
     '2026-12-05T08:00:00.000Z',
+    'remind-draw',
+  ],
+  // A first reminder queued at 09:01 does not push the second past exchange minus 7.
+  [
+    'second draw reminder after a 09:01 first one',
+    { group: open(), history: { count: 1, lastAt: '2026-11-23T08:01:00.000Z' } },
+    '2026-12-05T08:00:00.000Z',
+    'remind-draw',
+  ],
+  [
+    'second draw reminder 3 x 24 hours after a 09:01 first one, just before',
+    { group: open(), history: { count: 1, lastAt: '2026-12-04T08:01:00.000Z' } },
+    '2026-12-07T08:00:59.000Z',
+    null,
+  ],
+  [
+    'second draw reminder 3 x 24 hours after a 09:01 first one, at',
+    { group: open(), history: { count: 1, lastAt: '2026-12-04T08:01:00.000Z' } },
+    '2026-12-07T08:01:00.000Z',
     'remind-draw',
   ],
   // Second draw reminder also waits 3 days after the first.

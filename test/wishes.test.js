@@ -85,6 +85,12 @@ test('parseWishesForm caps text at 1000 characters', () => {
   assert.equal(wishes.likeDetails.chocolate.length, 1000);
 });
 
+test('parseWishesForm does not split an emoji at the limit', () => {
+  const hobbies = parseWishesForm({ hobbies: `${'a'.repeat(999)}\u{1F600}b` }, defaults).hobbies;
+  assert.equal(hobbies, `${'a'.repeat(999)}\u{1F600}`);
+  assert.equal(Array.from(hobbies).length, 1000);
+});
+
 test('parseWishesForm keeps markup verbatim for the view to escape', () => {
   assert.equal(parseWishesForm({ other: '<script>' }, defaults).other, '<script>');
 });
@@ -159,6 +165,15 @@ test('mergeOptionLabels matches case-insensitively and maps Thee to tea', () => 
   assert.deepEqual(merged[0], { id: 'tea', label: 'thee', detail: false });
   assert.match(merged[1].id, /^wol-[0-9a-f]{4}$/);
   assert.deepEqual({ ...merged[1], id: null }, { id: null, label: 'WOL', detail: true });
+});
+
+test('mergeOptionLabels matches a default option in any language and input shape', () => {
+  const stored = [{ id: 'tea', label: 'Thee', detail: false }];
+  for (const current of [defaults, stored, wishOptions({ wishOptions: stored })]) {
+    assert.equal(mergeOptionLabels('Thee', current, 'en')[0].id, 'tea');
+    assert.equal(mergeOptionLabels('Tea', current, 'nl')[0].id, 'tea');
+    assert.equal(mergeOptionLabels('thee', current, 'nl')[0].id, 'tea');
+  }
 });
 
 test('mergeOptionLabels keeps a custom id and makes new slugs', () => {
