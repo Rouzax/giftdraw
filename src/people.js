@@ -1,5 +1,6 @@
-import { chooseInsertGiver, insertIntoCycle, makeCycle, validateAssignment } from './draw/cycle.js';
+import { chooseInsertGiver, insertIntoCycle, makeCycle, planRemoval, validateAssignment } from './draw/cycle.js';
 import { kickDrain } from './mail/outbox.js';
+import { reminderKind } from './reminders.js';
 import { assignmentVersion } from './status.js';
 import { parseWishesForm, wishOptions } from './wishes.js';
 
@@ -208,6 +209,87 @@ export function commitAddParticipants(ctx, groupId, plan) {
   return result;
 }
 
+// In an open group the dropout's giver takes over the dropout's receiver;
+// planRemoval re-inserts a giver left alone by a two-person loop, preferably
+// in front of someone who has not drawn. A closed group too small to keep an
+// assignment loses it until people are added.
+export function planRemoveParticipant(ctx, id) {
+  const { repo } = ctx;
+  const participant = repo.getParticipant(id);
+  const state = groupState(repo, participant.groupId);
+  const remaining = state.people.filter((p) => p.id !== id).map((p) => p.id);
+  const base = { version: state.version, map: null, changedGivers: [] };
+  if (remaining.length < MIN_GROUP) return state.open ? { ...base, refused: 'too-small' } : base;
+  let map;
+  if (state.open || validateAssignment(state.map, state.people.map((p) => p.id))) {
+    const notDrawn = new Set(state.people.filter((p) => !p.drawnAt).map((p) => p.id));
+    map = planRemoval(state.map, id, state.open ? notDrawn : new Set()).map;
+  } else {
+    map = makeCycle(remaining);
+  }
+  const changedGivers = remaining.filter((giver) => state.map.get(giver) !== map.get(giver));
+  return { ...base, map, changedGivers };
+}
+
+// The map comes back from a hidden form field. Where the group had a full
+// assignment, the only freedom planRemoval has is where a lone giver is
+// re-inserted, so recomputing with that choice must give the same map; any
+// other map would move pairs the preview never showed.
+function removalMapAllowed(state, id, map) {
+  const everyone = state.people.map((p) => p.id);
+  const remaining = everyone.filter((p) => p !== id);
+  if (!validateAssignment(map, remaining)) return false;
+  if (!validateAssignment(state.map, everyone)) return !state.open;
+  const lone = [...state.map].find(([, r]) => r === id)[0];
+  const insertAt = [...map].find(([, r]) => r === lone)?.[0];
+  const expected = planRemoval(state.map, id, new Set([insertAt])).map;
+  return expected.size === map.size && [...expected].every(([g, r]) => map.get(g) === r);
+}
+
+function cleanRemovalMap(value) {
+  if (value === null) return null;
+  if (!Array.isArray(value)) return undefined;
+  const map = new Map();
+  for (const pair of value) {
+    if (!Array.isArray(pair) || pair.length !== 2 || !pair.every(Number.isSafeInteger)) return undefined;
+    if (map.has(pair[0])) return undefined;
+    map.set(pair[0], pair[1]);
+  }
+  return map;
+}
+
+// plan: {version, map} with map as [giver, receiver] pairs or null. Returns
+// {removed, changed} or {error: 'stale' | 'too-small' | 'invalid'}. A
+// participant already gone counts as stale, so a repeated confirm reads as
+// "something changed" rather than as a missing page.
+export function commitRemoveParticipant(ctx, id, plan) {
+  const { repo } = ctx;
+  if (!plan || typeof plan !== 'object' || typeof plan.version !== 'string') return { error: 'invalid' };
+  const map = cleanRemovalMap(plan.map);
+  if (map === undefined) return { error: 'invalid' };
+  const now = ctx.nowIso();
+  const result = repo.tx(() => {
+    const participant = repo.getParticipant(id);
+    if (!participant) return { error: 'stale' };
+    const state = groupState(repo, participant.groupId);
+    if (state.version !== plan.version) return { error: 'stale' };
+    const remaining = state.people.length - 1;
+    if (state.open && remaining < MIN_GROUP) return { error: 'too-small' };
+    if (remaining < MIN_GROUP ? map !== null : map === null || !removalMapAllowed(state, id, map)) {
+      return { error: 'invalid' };
+    }
+    repo.removeParticipantWithAssignment(id, map, now);
+    const changed = state.people.filter((p) => p.id !== id && state.map.get(p.id) !== map?.get(p.id));
+    let queued = 0;
+    for (const giver of changed) {
+      if (giver.drawnAt && giver.email && enqueueMail(ctx, giver.id, 'reassigned', now)) queued += 1;
+    }
+    return { removed: participant, changed: changed.map((p) => p.id), queued };
+  });
+  if (result.queued) kickDrain(ctx);
+  return result;
+}
+
 // Runs in one transaction with the invitedAt check, so two overlapping
 // presses queue each invitation once. With mail off nobody is marked as
 // invited: the organiser shares the links herself.
@@ -227,4 +309,41 @@ export function sendInvitations(ctx, groupId) {
     repo.markInvitationsSent(groupId, now);
     return { queued };
   });
+}
+
+// The organiser's per-participant mail buttons. Each returns the outcome key
+// the participant page reports; a queued mail is handed to the drain at once.
+export function resendInvite(ctx, participantId) {
+  const { repo } = ctx;
+  if (!mailOn(ctx)) return 'mail-off';
+  const now = ctx.nowIso();
+  const outcome = repo.tx(() => {
+    const participant = repo.getParticipant(participantId);
+    if (!participant.email) return 'no-email';
+    if (!participant.invitedAt) repo.updateParticipant(participantId, { invitedAt: now });
+    enqueueMail(ctx, participantId, 'invite', now);
+    return 'invite-queued';
+  });
+  if (outcome === 'invite-queued') kickDrain(ctx);
+  return outcome;
+}
+
+// Manual reminders are flagged so they do not use up the automatic ones.
+export function remindNow(ctx, participantId) {
+  const { repo } = ctx;
+  if (!mailOn(ctx)) return 'mail-off';
+  const participant = repo.getParticipant(participantId);
+  if (!participant.email) return 'no-email';
+  const kind = reminderKind(participant, repo.getGroup(participant.groupId));
+  if (!kind) return 'nothing-to-remind';
+  enqueueMail(ctx, participantId, kind, ctx.nowIso(), { manual: true });
+  kickDrain(ctx);
+  return 'remind-queued';
+}
+
+export function resendFailed(ctx, participantId) {
+  if (!mailOn(ctx)) return 'mail-off';
+  if (!ctx.repo.requeueLastFailed(participantId, ctx.nowIso())) return 'no-failure';
+  kickDrain(ctx);
+  return 'failed-requeued';
 }

@@ -5,34 +5,16 @@ import {
   commitAddParticipants, parsePasteList, PASTE_ROWS_MAX, PASTE_TEXT_MAX, PLAN_JSON_MAX, planAddParticipants,
   sendInvitations,
 } from '../people.js';
-import { cardOutOfDate, groupWarnings } from '../status.js';
 import { todayIn } from '../time.js';
-import { hasWishes, mergeOptionLabels, wishOptions } from '../wishes.js';
+import { mergeOptionLabels, wishOptions } from '../wishes.js';
 import { adminLang } from './admin-auth.js';
-import { renderAdminPage } from '../views/layout.js';
-import { eventsView, eventView, groupView, messageView, pasteConfirmView } from '../views/admin.js';
+import { field, parseJsonField } from './admin-shared.js';
+import { eventsView, eventView, messageView, pasteConfirmView } from '../views/admin.js';
 
-const ID = /^\d{1,15}$/;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const NAME_MAX = 100;
 const THEME_MAX = 2000;
 const OPTIONS_MAX = 4000;
-
-function field(body, name, max = 1000) {
-  const value = body?.[name];
-  return typeof value === 'string' ? value.slice(0, max) : '';
-}
-
-// Malformed or oversized JSON becomes null, which commitAddParticipants
-// refuses as invalid; it is never cut short.
-function parsePlan(value) {
-  if (typeof value !== 'string' || value.length > PLAN_JSON_MAX) return null;
-  try {
-    return JSON.parse(value);
-  } catch {
-    return null;
-  }
-}
 
 function isDate(value) {
   if (!DATE.test(value)) return false;
@@ -40,29 +22,10 @@ function isDate(value) {
   return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
 }
 
-export function adminSetupRoutes(app, ctx, { sendPage, sendError }) {
+export function adminSetupRoutes(app, ctx, { render, sendError, groupPage, loadEvent, loadGroup }) {
   const { repo, config } = ctx;
 
-  function render(request, reply, view, status = 200) {
-    const page = renderAdminPage(adminLang(request), {
-      ...view,
-      assetVersion: config.assetVersion,
-      showLogout: request.adminSession === true,
-    });
-    return sendPage(reply.code(status), page);
-  }
-
   const today = () => todayIn(ctx.now(), config.tz);
-
-  function load(getter) {
-    return async (request, reply) => {
-      const record = ID.test(request.params.id) ? getter(Number(request.params.id)) : null;
-      if (!record) return sendError(reply, 404, adminLang(request));
-      request.record = record;
-    };
-  }
-  const loadEvent = { preHandler: load(repo.getEvent) };
-  const loadGroup = { preHandler: load(repo.getGroup) };
 
   // Returns {values} or {error}. Dates already stored may stay as they are,
   // so renaming a group whose dates have passed still works.
@@ -100,31 +63,6 @@ export function adminSetupRoutes(app, ctx, { sendPage, sendError }) {
       newGroup,
       themeValue: event.themeText ?? t(event.language, 'theme.default'),
       optionsValue: options,
-      tz: config.tz,
-      ...extra,
-    });
-  }
-
-  function groupPage(lang, group, extra = {}) {
-    const event = repo.getEvent(group.eventId);
-    const people = repo.listParticipants(group.id);
-    const byId = new Map(people.map((p) => [p.id, p]));
-    const rows = people.map((participant) => {
-      const receiver = participant.receiverId ? byId.get(participant.receiverId) ?? null : null;
-      return {
-        participant,
-        receiver,
-        hasWishes: hasWishes(participant.wishes),
-        mail: repo.mailStatus(participant.id),
-        cardOutOfDate: cardOutOfDate(participant, receiver),
-      };
-    });
-    return groupView(lang, {
-      event,
-      group,
-      rows,
-      warnings: groupWarnings(group, people.length),
-      mailEnabled: ctx.mailer.enabled,
       tz: config.tz,
       ...extra,
     });
@@ -218,7 +156,7 @@ export function adminSetupRoutes(app, ctx, { sendPage, sendError }) {
     const lang = adminLang(request);
     const dashboard = `/admin/groups/${group.id}`;
     if (request.body?.confirm === '1') {
-      const result = commitAddParticipants(ctx, group.id, parsePlan(request.body?.plan));
+      const result = commitAddParticipants(ctx, group.id, parseJsonField(request.body?.plan, PLAN_JSON_MAX));
       if (result.error) {
         request.log.info({ group_id: group.id, reason: result.error }, 'participants_add_refused');
         const stale = result.error === 'stale';
@@ -281,7 +219,4 @@ export function adminSetupRoutes(app, ctx, { sendPage, sendError }) {
       };
     });
   }
-
-  // The arrange routes share the page shell, the id check and the dashboard.
-  return { render, loadGroup, groupPage };
 }

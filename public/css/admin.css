@@ -153,6 +153,7 @@ code {
 
 .notice {
   margin: 0 0 0.75rem;
+  overflow-wrap: anywhere;
 }
 
 .notice.warn {
@@ -568,4 +569,84 @@ table.people .email {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
+}
+
+/* Participant page and the per-participant actions on the dashboard. */
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  margin: 0.5rem 0;
+}
+
+.inline-form {
+  margin: 0;
+}
+
+td .inline-form {
+  margin-top: 0.375rem;
+}
+
+td .inline-form button {
+  min-height: 2.25rem;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.875rem;
+}
+
+h3 {
+  margin: 1.25rem 0 0;
+  font-size: 1.0625rem;
+}
+
+.copy-link {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-width: 48rem;
+}
+
+.copy-link label {
+  font-weight: 600;
+}
+
+.copy-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.copy-row input {
+  flex: 1 1 16rem;
+  min-width: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.875rem;
+}
+
+.copy-row button[hidden] {
+  display: none;
+}
+
+.copy-link .small:empty {
+  display: none;
+}
+
+.button-link {
+  display: inline-block;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--accent);
+  border-radius: 0.5rem;
+  color: var(--accent-dark);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.panel > :first-child {
+  margin-top: 0;
+}
+
+/* Names break between words rather than anywhere, so a narrow name column
+   does not split a name mid-word. */
+table.people th a {
+  overflow-wrap: break-word;
 }

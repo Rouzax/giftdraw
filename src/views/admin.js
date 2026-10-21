@@ -152,11 +152,25 @@ function dateOrNo(lang, iso, tz, noKey = 'admin.status.no') {
   return iso ? shortDate(lang, iso, tz) : html`<span class="muted">${t(lang, noKey)}</span>`;
 }
 
-function failureCell(lang, failure, tz) {
-  if (!failure) return html`<span class="muted">${t(lang, 'admin.status.none')}</span>`;
+function failureText(lang, failure, tz) {
   const kind = t(lang, `admin.mailKind.${failure.kind}`);
   const state = failure.retrying ? t(lang, 'admin.failure.retrying') : t(lang, 'admin.failure.gaveUp', { date: shortDate(lang, failure.at, tz) });
   return html`<span class="state-failed">${kind}: <code>${failure.errorCode}</code></span> <span class="small">${state}</span>`;
+}
+
+// A mail still being retried goes out by itself; only one given up on can be
+// sent again by hand.
+function resendFailedForm(lang, participantId, { back = null } = {}) {
+  return html`<form method="post" action="/admin/participants/${participantId}/resend-failed" class="inline-form">
+${back ? html`<input type="hidden" name="back" value="${back}">` : ''}
+<button type="submit">${t(lang, 'admin.failure.resend')}</button>
+</form>`;
+}
+
+function failureCell(lang, failure, tz, participantId, mailEnabled) {
+  if (!failure) return html`<span class="muted">${t(lang, 'admin.status.none')}</span>`;
+  const resend = !failure.retrying && mailEnabled ? resendFailedForm(lang, participantId, { back: 'group' }) : '';
+  return html`${failureText(lang, failure, tz)}${resend}`;
 }
 
 function cardCell(lang, row) {
@@ -172,13 +186,13 @@ function emailText(email) {
   return html`<span class="email">${email.slice(0, at)}<wbr>${email.slice(at)}</span>`;
 }
 
-function participantRow(lang, row, tz) {
+function participantRow(lang, row, tz, mailEnabled) {
   const { participant: p, receiver } = row;
   const label = (key) => t(lang, `admin.col.${key}`);
   // One wrapper per cell: the phone layout is a two-column grid of label and value.
   const cell = (key, content, text = label(key)) => html`<td data-label="${text}"><div>${content}</div></td>`;
   return html`<tr>
-<th scope="row">${p.name}</th>
+<th scope="row"><a href="/admin/participants/${p.id}">${p.name}</a></th>
 ${cell('email', p.email ? emailText(p.email) : html`<span class="muted">${t(lang, 'admin.noEmail')}</span>`)}
 ${cell('invited', inviteCell(lang, row))}
 ${cell('visited', dateOrNo(lang, p.visitedAt, tz), `${label('visited')} ${label('visitedNote')}`)}
@@ -186,15 +200,16 @@ ${cell('wishes', row.hasWishes ? t(lang, 'admin.status.yes') : html`<span class=
 ${cell('drawn', dateOrNo(lang, p.drawnAt, tz))}
 ${cell('givesTo', receiver ? receiver.name : html`<span class="muted">${t(lang, 'admin.status.unpaired')}</span>`)}
 ${cell('reminder', dateOrNo(lang, row.mail.lastReminderAt, tz, 'admin.status.none'))}
-${cell('failure', failureCell(lang, row.mail.lastFailure, tz))}
+${cell('failure', failureCell(lang, row.mail.lastFailure, tz, p.id, mailEnabled))}
 ${cell('card', cardCell(lang, row))}
 </tr>`;
 }
 
-function participantTable(lang, rows, tz) {
+function participantTable(lang, rows, tz, mailEnabled) {
   if (rows.length === 0) return html`<p class="muted">${t(lang, 'admin.participants.empty')}</p>`;
   const heading = (key) => html`<th scope="col">${t(lang, `admin.col.${key}`)}</th>`;
-  return html`<div class="table-wrap">
+  return html`<p class="hint">${t(lang, 'admin.participants.hint')}</p>
+<div class="table-wrap">
 <table class="people">
 <thead><tr>
 ${heading('name')}${heading('email')}${heading('invited')}
@@ -202,7 +217,7 @@ ${heading('name')}${heading('email')}${heading('invited')}
 ${heading('wishes')}${heading('drawn')}${heading('givesTo')}${heading('reminder')}${heading('failure')}${heading('card')}
 </tr></thead>
 <tbody>
-${rows.map((row) => participantRow(lang, row, tz))}
+${rows.map((row) => participantRow(lang, row, tz, mailEnabled))}
 </tbody>
 </table>
 </div>`;
@@ -278,7 +293,7 @@ ${groupStatus(lang, group, tz)}
 ${drawPanel(lang, { group, rows, openError, mailEnabled })}
 <section class="panel wide">
 <h2>${t(lang, 'admin.participants.title')}</h2>
-${participantTable(lang, rows, tz)}
+${participantTable(lang, rows, tz, mailEnabled)}
 </section>
 <section class="panel">
 <h2>${t(lang, 'admin.paste.title')}</h2>
@@ -310,7 +325,16 @@ function personLabel(lang, row) {
   return row.email ? `${row.name} (${row.email})` : `${row.name} (${t(lang, 'admin.noEmail')})`;
 }
 
-// changes: [{giverName, newReceiverName, drawn, hasEmail}] for an open group.
+// changes: [{giverName, newReceiverName, drawn, hasEmail}], givers whose
+// receiver changes in an open group.
+function changeList(lang, changes) {
+  const note = (c) => {
+    if (!c.drawn) return '';
+    return c.hasEmail ? t(lang, 'admin.paste.changeMailed') : t(lang, 'admin.paste.changeReprint');
+  };
+  return html`<ul>${changes.map((c) => html`<li>${t(lang, 'admin.paste.change', { giver: c.giverName, receiver: c.newReceiverName })} ${note(c)}</li>`)}</ul>`;
+}
+
 export function pasteConfirmView(lang, { group, plan, errors, changes, text }) {
   const title = t(lang, 'admin.paste.confirmTitle');
   const errorList = errors.length
@@ -327,15 +351,11 @@ export function pasteConfirmView(lang, { group, plan, errors, changes, text }) {
     : t(lang, 'admin.paste.duplicate', { email: plan.rows[d.row].email, group: d.otherGroupName })}</li>`)}</ul>
 </section>`
     : '';
-  const changeNote = (c) => {
-    if (!c.drawn) return '';
-    return c.hasEmail ? t(lang, 'admin.paste.changeMailed') : t(lang, 'admin.paste.changeReprint');
-  };
   const openNotice = changes
     ? html`<section class="panel">
 <h2>${t(lang, 'admin.paste.openTitle')}</h2>
 <p>${t(lang, 'admin.paste.openIntro')}</p>
-<ul>${changes.map((c) => html`<li>${t(lang, 'admin.paste.change', { giver: c.giverName, receiver: c.newReceiverName })} ${changeNote(c)}</li>`)}</ul>
+${changeList(lang, changes)}
 </section>`
     : '';
   const confirm = plan.rows.length
@@ -451,4 +471,147 @@ ${done}
 ${how}
 ${list}`;
   return { title, body, scripts: canSwap ? ['arrange.js'] : [] };
+}
+
+const DONE_OK = new Set(['saved', 'link-regenerated', 'invite-queued', 'remind-queued', 'failed-requeued']);
+export const PERSON_DONE = new Set([...DONE_OK, 'nothing-to-remind', 'no-email', 'mail-off', 'no-failure']);
+
+function personFacts(lang, { participant: p, group, receiver, tz }) {
+  const lines = [
+    t(lang, 'admin.person.group', { group: group.name }),
+    p.email ? t(lang, 'admin.person.email', { email: p.email }) : t(lang, 'admin.noEmail'),
+    p.drawnAt ? t(lang, 'admin.person.drawn', { date: shortDate(lang, p.drawnAt, tz) }) : t(lang, 'admin.person.notDrawn'),
+    receiver ? t(lang, 'admin.person.givesTo', { name: receiver.name }) : t(lang, 'admin.status.unpaired'),
+  ];
+  return html`<ul class="facts">${lines.map((line) => html`<li>${line}</li>`)}</ul>`;
+}
+
+// Without script the field is still there to select and copy by hand;
+// copy-link.js reveals the button.
+function linkPanel(lang, { participant: p, link }) {
+  return html`<section class="panel">
+<h2>${t(lang, 'admin.person.link.title')}</h2>
+<div class="copy-link" data-copy-link data-copied="${t(lang, 'admin.person.link.copied')}" data-failed="${t(lang, 'admin.person.link.copyFailed')}">
+<label for="person-link">${t(lang, 'admin.person.link.label')}</label>
+<p class="hint" id="person-link-hint">${t(lang, 'admin.person.link.hint', { name: p.name })}</p>
+<div class="copy-row">
+<input id="person-link" type="text" readonly value="${link}" spellcheck="false" autocomplete="off" aria-describedby="person-link-hint" data-copy-source>
+<button type="button" data-copy hidden>${t(lang, 'admin.person.link.copy')}</button>
+</div>
+<p class="small" aria-live="polite" data-copy-status></p>
+</div>
+<form method="post" action="/admin/participants/${p.id}/regenerate-link" class="stack">
+<h3>${t(lang, 'admin.person.regenerate.title')}</h3>
+<p class="hint">${t(lang, 'admin.person.regenerate.warning')}</p>
+<label class="check"><input type="checkbox" name="confirm" value="1" required> <span>${t(lang, 'admin.person.regenerate.confirm')}</span></label>
+<button type="submit">${t(lang, 'admin.person.regenerate.button')}</button>
+</form>
+</section>`;
+}
+
+function mailPanel(lang, { participant: p, mail, remindKind, mailEnabled, tz }) {
+  let content;
+  if (!p.email) content = html`<p class="muted">${t(lang, 'admin.person.mail.noEmail')}</p>`;
+  else if (!mailEnabled) content = html`<p class="muted">${t(lang, 'admin.mailOff')}</p>`;
+  else {
+    const failure = mail.lastFailure;
+    const remind = remindKind
+      ? html`<form method="post" action="/admin/participants/${p.id}/remind" class="inline-form">
+<button type="submit">${t(lang, 'admin.person.mail.remind')}</button>
+</form>`
+      : '';
+    content = html`${failure ? html`<p>${t(lang, 'admin.person.mail.failure')} ${failureText(lang, failure, tz)}</p>` : ''}
+<div class="button-row">
+<form method="post" action="/admin/participants/${p.id}/resend-invite" class="inline-form">
+<button type="submit">${t(lang, 'admin.person.mail.resendInvite')}</button>
+</form>
+${remind}
+${failure && !failure.retrying ? resendFailedForm(lang, p.id) : ''}
+</div>
+<p class="hint">${remindKind ? t(lang, `admin.person.mail.remindHint.${remindKind}`) : t(lang, 'admin.person.mail.nothingToRemind')}</p>`;
+  }
+  return html`<section class="panel">
+<h2>${t(lang, 'admin.person.mail.title')}</h2>
+${content}
+</section>`;
+}
+
+// duplicate: {email, groupName} when the entered address is already used
+// elsewhere in the event; saving again with confirmDuplicate goes ahead.
+function editPanel(lang, { participant: p, values, error, duplicate }) {
+  const form = values ?? { name: p.name, email: p.email ?? '', language: p.language };
+  return html`<section class="panel" id="edit">
+<h2>${t(lang, 'admin.person.edit.title')}</h2>
+${errorNotice(lang, error)}
+${duplicate ? html`<p class="notice warn" role="alert">${t(lang, 'admin.paste.duplicate', { email: duplicate.email, group: duplicate.groupName })}</p>` : ''}
+<form method="post" action="/admin/participants/${p.id}" class="stack">
+<label for="person-name">${t(lang, 'admin.person.edit.name')}</label>
+<input id="person-name" name="name" type="text" maxlength="100" required value="${form.name}">
+<label for="person-email">${t(lang, 'admin.person.edit.email')}</label>
+<p class="hint" id="person-email-hint">${t(lang, 'admin.person.edit.emailHint')}</p>
+<input id="person-email" name="email" type="email" maxlength="254" value="${form.email}" aria-describedby="person-email-hint">
+<label for="person-language">${t(lang, 'admin.person.edit.language')}</label>
+${languageSelect('person-language', form.language)}
+${duplicate ? html`<input type="hidden" name="confirmDuplicate" value="1">` : ''}
+<button type="submit" class="primary">${t(lang, duplicate ? 'admin.person.edit.saveAnyway' : 'admin.save')}</button>
+</form>
+</section>`;
+}
+
+export function participantView(lang, {
+  participant, group, receiver, mail, link, remindKind, mailEnabled, tz,
+  done = null, error = null, values = null, duplicate = null,
+}) {
+  const title = participant.name;
+  const notice = done
+    ? html`<p class="notice ${DONE_OK.has(done) ? 'done' : 'warn'}" role="status">${t(lang, `admin.person.done.${done}`)}</p>`
+    : '';
+  const body = html`${backLink(`/admin/groups/${group.id}`, group.name)}
+<h1>${title}</h1>
+${notice}
+${personFacts(lang, { participant, group, receiver, tz })}
+${linkPanel(lang, { participant, link })}
+${mailPanel(lang, { participant, mail, remindKind, mailEnabled, tz })}
+${editPanel(lang, { participant, values, error, duplicate })}
+<section class="panel danger">
+<h2>${t(lang, 'admin.person.remove.title')}</h2>
+<p>${t(lang, 'admin.person.remove.intro', { name: participant.name })}</p>
+<p><a class="button-link" href="/admin/participants/${participant.id}/remove">${t(lang, 'admin.person.remove.link')}</a></p>
+</section>`;
+  return { title, body, scripts: ['copy-link.js'] };
+}
+
+// plan: {version, map: [[giver, receiver]] | null, refused?}; changes as in
+// changeList, only for an open group.
+export function removeView(lang, { participant, group, plan, open, changes }) {
+  const title = t(lang, 'admin.remove.title', { name: participant.name });
+  const back = backLink(`/admin/participants/${participant.id}`, participant.name);
+  if (plan.refused) {
+    const body = html`${back}
+<h1>${title}</h1>
+<p class="notice warn">${t(lang, 'admin.remove.tooSmall')}</p>
+<p><a href="/admin/groups/${group.id}">${group.name}</a></p>`;
+    return { title, body };
+  }
+  let effect;
+  if (open) {
+    effect = html`<h2>${t(lang, 'admin.remove.openTitle')}</h2>
+<p>${t(lang, 'admin.remove.openIntro')}</p>
+${changeList(lang, changes)}`;
+  } else {
+    effect = html`<p>${t(lang, plan.map ? 'admin.remove.closedPairs' : 'admin.remove.closedNoPairs')}</p>`;
+  }
+  const body = html`${back}
+<h1>${title}</h1>
+<section class="panel danger">
+<p>${t(lang, 'admin.remove.intro', { name: participant.name, group: group.name })}</p>
+${effect}
+<form method="post" action="/admin/participants/${participant.id}/remove" class="button-row">
+<input type="hidden" name="group" value="${group.id}">
+<input type="hidden" name="plan" value="${JSON.stringify({ version: plan.version, map: plan.map })}">
+<button type="submit" class="danger">${t(lang, 'admin.remove.confirm', { name: participant.name })}</button>
+<a href="/admin/participants/${participant.id}">${t(lang, 'admin.remove.cancel')}</a>
+</form>
+</section>`;
+  return { title, body };
 }
