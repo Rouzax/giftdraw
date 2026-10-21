@@ -562,3 +562,21 @@ h1 {
   70% { opacity: 1; transform: translateY(-6.75rem) rotate(-280deg) scale(1); }
   100% { opacity: 0; transform: translateY(-7.25rem) rotate(-400deg) scale(1); }
 }
+
+/* The organiser's strip above a screen she shows on behalf of a participant:
+   smaller than the screen itself so it reads as hers, not theirs. */
+.behalf-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 1.25rem;
+  padding: 0.625rem 1rem;
+  background: var(--card);
+  border-bottom: 1px solid var(--line);
+  font-size: 1.0625rem;
+}
+
+.behalf-bar p {
+  margin: 0;
+  color: var(--muted);
+}

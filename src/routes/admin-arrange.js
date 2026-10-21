@@ -1,8 +1,8 @@
 import { arrangeState, openGroup, swapPair } from '../drawing.js';
 import { arrangeView } from '../views/admin.js';
 import { adminLang } from './admin-auth.js';
+import { ID } from './admin-shared.js';
 
-const ID = /^\d{1,15}$/;
 const SWAPPED = /^(\d{1,15})-(\d{1,15})$/;
 const VERSION_MAX = 64;
 const SWAP_STATUS = { stale: 409, drawn: 409, self: 400, unknown: 400 };

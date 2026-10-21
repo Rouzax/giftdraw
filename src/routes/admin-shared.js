@@ -1,7 +1,7 @@
 import { cardOutOfDate, groupWarnings } from '../status.js';
 import { hasWishes } from '../wishes.js';
 import { adminLang } from './admin-auth.js';
-import { renderAdminPage } from '../views/layout.js';
+import { behalfPage, printPage, renderAdminPage } from '../views/layout.js';
 import { groupView } from '../views/admin.js';
 
 export const ID = /^\d{1,15}$/;
@@ -34,6 +34,19 @@ export function adminShared(ctx, { sendPage, sendError }) {
       showLogout: request.adminSession === true,
     });
     return sendPage(reply.code(status), page);
+  }
+
+  // view comes in the participant's language; note and back link are the
+  // organiser's.
+  function renderBehalf(request, reply, participant, view, { note, back }, status = 200) {
+    const page = behalfPage({
+      ...view, lang: participant.language, adminLang: adminLang(request), assetVersion: config.assetVersion, note, back,
+    });
+    return sendPage(reply.code(status), page);
+  }
+
+  function renderPrint(reply, participant, view) {
+    return sendPage(reply, printPage({ ...view, lang: participant.language, assetVersion: config.assetVersion }));
   }
 
   function load(getter) {
@@ -72,6 +85,8 @@ export function adminShared(ctx, { sendPage, sendError }) {
   return {
     sendError,
     render,
+    renderBehalf,
+    renderPrint,
     groupPage,
     loadEvent: { preHandler: load(repo.getEvent) },
     loadGroup: { preHandler: load(repo.getGroup) },

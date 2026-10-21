@@ -271,11 +271,45 @@ test('resend failed mail sends the failed kind again', async () => {
 
   const res = await t.adminPost(`/admin/participants/${ada.id}/resend-failed`, { back: 'group' });
   assert.equal(res.statusCode, 303);
-  assert.equal(res.headers.location, `/admin/groups/${t.groupId}`);
+  assert.equal(res.headers.location, `/admin/groups/${t.groupId}?done=failed-requeued`);
+  const back = await t.adminGet(res.headers.location);
+  assert.ok(back.body.includes(tr('nl', 'admin.person.done.failed-requeued')));
   await settle(t);
   assert.equal(t.mails.length, 1);
   assert.equal(t.mails[0].to, ada.email);
   assert.deepEqual(outbox(t).map((r) => [r.kind, r.status]), [['invite', 'sent']]);
+});
+
+test('send again from the dashboard reports nothing to send and mail off on the dashboard', async () => {
+  const t = await setup({ names: ['Ada', 'Ben', 'Cor'] });
+  const ada = t.people[0];
+  const none = await t.adminPost(`/admin/participants/${ada.id}/resend-failed`, { back: 'group' });
+  assert.equal(none.headers.location, `/admin/groups/${t.groupId}?done=no-failure`);
+  const page = await t.adminGet(none.headers.location);
+  assert.ok(page.body.includes(tr('nl', 'admin.person.done.no-failure')));
+
+  t.mailer.enabled = false;
+  const off = await t.adminPost(`/admin/participants/${ada.id}/resend-failed`, { back: 'group' });
+  assert.equal(off.headers.location, `/admin/groups/${t.groupId}?done=mail-off`);
+  assert.ok((await t.adminGet(off.headers.location)).body.includes(tr('nl', 'admin.person.done.mail-off')));
+
+  // Unknown outcomes in the query show nothing.
+  const odd = await t.adminGet(`/admin/groups/${t.groupId}?done=%3Cb%3E`);
+  assert.equal(odd.statusCode, 200);
+  assert.equal(odd.body.includes('role="status"'), false);
+});
+
+test('remind now refuses someone not invited yet and the page explains why', async () => {
+  const t = await setup({ names: ['Ada', 'Ben', 'Cor'], invited: false });
+  const ada = t.people[0];
+  const page = await t.adminGet(`/admin/participants/${ada.id}`);
+  assert.equal(page.body.includes(`action="/admin/participants/${ada.id}/remind"`), false);
+  assert.ok(page.body.includes(tr('nl', 'admin.person.mail.notInvited')));
+
+  const res = await t.adminPost(`/admin/participants/${ada.id}/remind`);
+  assert.equal(res.headers.location, `/admin/participants/${ada.id}?done=not-invited`);
+  assert.deepEqual(outbox(t), []);
+  assert.ok((await t.adminGet(res.headers.location)).body.includes(tr('nl', 'admin.person.done.not-invited')));
 });
 
 test('resend invite queues an invitation and marks the participant invited', async () => {

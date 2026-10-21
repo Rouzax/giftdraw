@@ -334,6 +334,8 @@ export function remindNow(ctx, participantId) {
   if (!mailOn(ctx)) return 'mail-off';
   const participant = repo.getParticipant(participantId);
   if (!participant.email) return 'no-email';
+  // A reminder before the invitation would be the first mail they get.
+  if (!participant.invitedAt) return 'not-invited';
   const kind = reminderKind(participant, repo.getGroup(participant.groupId));
   if (!kind) return 'nothing-to-remind';
   enqueueMail(ctx, participantId, kind, ctx.nowIso(), { manual: true });

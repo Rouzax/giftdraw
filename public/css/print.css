@@ -1,0 +1,194 @@
+/* The printed card for someone without a device: one A5 page in large type.
+   On screen the same card is previewed at A5 width under the organiser's
+   print controls, which never reach the paper. */
+@page {
+  size: A5 portrait;
+  margin: 12mm;
+}
+
+body {
+  font-size: 1.25rem;
+}
+
+.card-tools {
+  max-width: 36rem;
+  margin: 0 auto;
+  padding: 1rem;
+  font-size: 1.0625rem;
+}
+
+.card-tools p {
+  margin: 0 0 0.75rem;
+}
+
+.card-tools form {
+  margin: 0 0 0.5rem;
+}
+
+.card-tools button {
+  min-height: 3rem;
+  padding: 0.5rem 2rem;
+  border: 0;
+  border-radius: 0.5rem;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.card-tools button:hover {
+  background: var(--accent-dark);
+}
+
+.card-note {
+  padding: 0.5rem 0.75rem;
+  border-left: 4px solid #b7791f;
+  background: #fff4dc;
+}
+
+.card-hint {
+  color: var(--muted);
+}
+
+/* 148mm wide minus the page margins. */
+.card {
+  max-width: 124mm;
+  margin: 0 auto 2rem;
+  padding: 1rem;
+  background: var(--card);
+  border: 1px solid var(--line);
+}
+
+.card-for {
+  margin: 0 0 0.5rem;
+  color: var(--muted);
+}
+
+.card h1 {
+  margin: 0 0 1rem;
+  font-size: 1.5rem;
+  font-weight: 400;
+  line-height: 1.25;
+}
+
+.card-lead,
+.card-name {
+  display: block;
+}
+
+.card-name {
+  margin-top: 0.25rem;
+  font-size: 2.5rem;
+  font-weight: 800;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+}
+
+.card .theme {
+  margin: 0 0 1rem;
+  padding: 0.5rem 0.75rem;
+  border-left: 4px solid var(--ink);
+}
+
+.card .theme p {
+  margin: 0 0 0.375rem;
+}
+
+.card .theme .date {
+  margin: 0;
+  font-weight: 700;
+}
+
+.card .wishes h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.375rem;
+}
+
+.card .wishes p,
+.card .wishes dl {
+  margin: 0;
+}
+
+.card .wishes dl div {
+  margin: 0 0 0.375rem;
+}
+
+.card .wishes dt {
+  display: inline;
+  font-weight: 700;
+}
+
+.card .wishes dt::after {
+  content: ": ";
+}
+
+.card .wishes dd {
+  display: inline;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.card.card-smaller {
+  font-size: 1.0625rem;
+}
+
+.card.card-smallest {
+  font-size: 0.875rem;
+}
+
+@media (max-width: 30rem) {
+  .card {
+    border-width: 1px 0;
+  }
+
+  .card-name {
+    font-size: 2rem;
+  }
+}
+
+/* Paper: black on white, sizes in points, and nothing but the card. */
+@media print {
+  body {
+    background: #fff;
+    color: #000;
+    font-size: 14pt;
+    line-height: 1.4;
+  }
+
+  .card-tools {
+    display: none;
+  }
+
+  .card {
+    max-width: none;
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+
+  .card-for {
+    color: #000;
+    font-size: 11pt;
+  }
+
+  .card h1 {
+    font-size: 16pt;
+  }
+
+  .card-name {
+    font-size: 30pt;
+  }
+
+  .card .wishes h2 {
+    font-size: 16pt;
+  }
+
+  .card.card-smaller {
+    font-size: 12pt;
+  }
+
+  .card.card-smallest {
+    font-size: 10pt;
+  }
+}

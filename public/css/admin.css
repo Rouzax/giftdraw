@@ -650,3 +650,34 @@ h3 {
 table.people th a {
   overflow-wrap: break-word;
 }
+
+/* On-behalf actions: the organiser's main job for someone without email. */
+.panel.behalf h3 {
+  margin: 1rem 0 0.25rem;
+  font-size: 1.0625rem;
+}
+
+.panel.behalf p {
+  margin: 0.25rem 0;
+}
+
+.panel.behalf .stack {
+  margin: 0.25rem 0;
+}
+
+.panel.behalf.emphasis {
+  border: 2px solid var(--ribbon);
+  border-left-width: 6px;
+}
+
+.qr {
+  margin-top: 1rem;
+}
+
+.qr img {
+  display: block;
+  width: 11.25rem;
+  height: auto;
+  max-width: 100%;
+  margin-bottom: 0.5rem;
+}

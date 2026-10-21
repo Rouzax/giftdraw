@@ -61,6 +61,25 @@ ${body}
   return shell({ lang, title, body: content, assetVersion, styles: ['base.css', 'admin.css'], scripts });
 }
 
+// On-behalf screens: the participant's own screen at participant sizes and in
+// their language, under a slim organiser bar in the organiser's language.
+export function behalfPage({ lang, adminLang, title, body, assetVersion, scripts, note, back }) {
+  const content = html`<header class="behalf-bar" lang="${adminLang}">
+<a href="${back.href}">${back.label}</a>
+<p>${note}</p>
+</header>
+<main class="screen">
+${body}
+</main>`;
+  return shell({ lang, title, body: content, assetVersion, styles: ['base.css', 'participant.css'], scripts });
+}
+
+// The printed card: no app chrome, only the card and, on screen, the
+// organiser's print controls.
+export function printPage({ lang, title, body, assetVersion }) {
+  return shell({ lang, title, body, assetVersion, styles: ['base.css', 'print.css'], scripts: ['print.js'] });
+}
+
 // One plain sentence and nothing else: no status code, no detail.
 export function errorPage({ status, lang = 'nl', assetVersion }) {
   const key = ERROR_KEYS.has(status) ? status : status >= 500 ? 500 : 400;

@@ -175,7 +175,9 @@ function failureCell(lang, failure, tz, participantId, mailEnabled) {
 
 function cardCell(lang, row) {
   if (!row.participant.printedAt) return html`<span class="muted">${t(lang, 'admin.card.notPrinted')}</span>`;
-  if (row.cardOutOfDate) return html`<span class="state-failed">${t(lang, 'admin.card.outOfDate')}</span>`;
+  if (row.cardOutOfDate) {
+    return html`<a class="state-failed" href="/admin/participants/${row.participant.id}/card">${t(lang, 'admin.card.outOfDate')}</a>`;
+  }
   return t(lang, 'admin.card.current');
 }
 
@@ -267,9 +269,12 @@ ${arrange}
 </section>`;
 }
 
+// Outcomes of the dashboard's "Send again", reported back on the dashboard.
+export const GROUP_DONE = new Set(['failed-requeued', 'no-failure', 'mail-off']);
+
 export function groupView(lang, {
   event, group, rows, warnings, mailEnabled, tz, error = null, values = null, pasteError = null, pasteText = '',
-  openError = null,
+  openError = null, done = null,
 }) {
   const title = group.name;
   const uninvited = rows.filter((r) => r.participant.email && !r.participant.invitedAt).length;
@@ -280,6 +285,7 @@ export function groupView(lang, {
   const form = values ?? group;
   const body = html`${backLink(`/admin/events/${event.id}`, event.name)}
 <h1>${title}</h1>
+${doneNotice(lang, done)}
 ${banners}
 ${summary(lang, rows)}
 ${groupStatus(lang, group, tz)}
@@ -473,8 +479,13 @@ ${list}`;
   return { title, body, scripts: canSwap ? ['arrange.js'] : [] };
 }
 
-const DONE_OK = new Set(['saved', 'link-regenerated', 'invite-queued', 'remind-queued', 'failed-requeued']);
-export const PERSON_DONE = new Set([...DONE_OK, 'nothing-to-remind', 'no-email', 'mail-off', 'no-failure']);
+const DONE_OK = new Set(['saved', 'wishes-saved', 'link-regenerated', 'invite-queued', 'remind-queued', 'failed-requeued']);
+export const PERSON_DONE = new Set([...DONE_OK, 'nothing-to-remind', 'no-email', 'not-invited', 'mail-off', 'no-failure']);
+
+function doneNotice(lang, done) {
+  if (!done) return '';
+  return html`<p class="notice ${DONE_OK.has(done) ? 'done' : 'warn'}" role="status">${t(lang, `admin.person.done.${done}`)}</p>`;
+}
 
 function personFacts(lang, { participant: p, group, receiver, tz }) {
   const lines = [
@@ -500,6 +511,10 @@ function linkPanel(lang, { participant: p, link }) {
 </div>
 <p class="small" aria-live="polite" data-copy-status></p>
 </div>
+<div class="qr">
+<img src="/admin/participants/${p.id}/qr" width="180" height="180" alt="${t(lang, 'admin.person.qr.alt', { name: p.name })}">
+<p class="hint">${t(lang, 'admin.person.qr.hint')} <a href="/admin/participants/${p.id}/qr">${t(lang, 'admin.person.qr.open')}</a></p>
+</div>
 <form method="post" action="/admin/participants/${p.id}/regenerate-link" class="stack">
 <h3>${t(lang, 'admin.person.regenerate.title')}</h3>
 <p class="hint">${t(lang, 'admin.person.regenerate.warning')}</p>
@@ -509,13 +524,19 @@ function linkPanel(lang, { participant: p, link }) {
 </section>`;
 }
 
+function remindHint(lang, p, remindKind) {
+  if (!remindKind) return t(lang, 'admin.person.mail.nothingToRemind');
+  if (!p.invitedAt) return t(lang, 'admin.person.mail.notInvited');
+  return t(lang, `admin.person.mail.remindHint.${remindKind}`);
+}
+
 function mailPanel(lang, { participant: p, mail, remindKind, mailEnabled, tz }) {
   let content;
   if (!p.email) content = html`<p class="muted">${t(lang, 'admin.person.mail.noEmail')}</p>`;
   else if (!mailEnabled) content = html`<p class="muted">${t(lang, 'admin.mailOff')}</p>`;
   else {
     const failure = mail.lastFailure;
-    const remind = remindKind
+    const remind = remindKind && p.invitedAt
       ? html`<form method="post" action="/admin/participants/${p.id}/remind" class="inline-form">
 <button type="submit">${t(lang, 'admin.person.mail.remind')}</button>
 </form>`
@@ -528,7 +549,7 @@ function mailPanel(lang, { participant: p, mail, remindKind, mailEnabled, tz }) 
 ${remind}
 ${failure && !failure.retrying ? resendFailedForm(lang, p.id) : ''}
 </div>
-<p class="hint">${remindKind ? t(lang, `admin.person.mail.remindHint.${remindKind}`) : t(lang, 'admin.person.mail.nothingToRemind')}</p>`;
+<p class="hint">${remindHint(lang, p, remindKind)}</p>`;
   }
   return html`<section class="panel">
 <h2>${t(lang, 'admin.person.mail.title')}</h2>
@@ -558,20 +579,55 @@ ${duplicate ? html`<input type="hidden" name="confirmDuplicate" value="1">` : ''
 </section>`;
 }
 
+function cardStatus(lang, p, cardOutOfDate, tz) {
+  if (!p.printedAt) return t(lang, 'admin.card.notPrinted');
+  const printed = t(lang, 'admin.behalf.printed', { date: shortDate(lang, p.printedAt, tz) });
+  return cardOutOfDate ? html`${printed} <span class="state-failed">${t(lang, 'admin.card.outOfDate')}</span>` : printed;
+}
+
+// Everything the organiser does for someone in person: the participant's own
+// screens shown on her device, and the printed card for those without one.
+function behalfPanel(lang, { participant: p, group, receiver, cardOutOfDate, tz }) {
+  const base = `/admin/participants/${p.id}`;
+  const draw = group.openedAt && receiver
+    ? html`<form method="post" action="${base}/draw" class="stack">
+<button type="submit"${p.drawnAt ? '' : raw(' class="primary"')}>${t(lang, p.drawnAt ? 'admin.behalf.drawAgain' : 'admin.behalf.draw', { name: p.name })}</button>
+</form>
+${p.drawnAt ? '' : html`<p class="hint">${t(lang, 'admin.behalf.drawHint', { name: p.name })}</p>`}`
+    : html`<p class="muted">${t(lang, 'admin.behalf.notOpen')}</p>`;
+  const card = p.drawnAt
+    ? html`<p><a href="${base}/card">${t(lang, 'admin.behalf.card')}</a></p>
+<p class="small">${cardStatus(lang, p, cardOutOfDate, tz)}</p>`
+    : html`<p class="muted">${t(lang, 'admin.behalf.cardAfterDraw')}</p>`;
+  return html`<section class="panel behalf${p.email ? '' : ' emphasis'}" id="behalf">
+<h2>${t(lang, 'admin.behalf.title', { name: p.name })}</h2>
+<p class="hint">${t(lang, p.email ? 'admin.behalf.intro' : 'admin.behalf.introNoEmail', { name: p.name })}</p>
+<h3>${t(lang, 'admin.behalf.wishesTitle')}</h3>
+<p><a href="${base}/about">${t(lang, 'admin.behalf.about', { name: p.name })}</a></p>
+<h3>${t(lang, 'admin.behalf.drawTitle')}</h3>
+${draw}
+<h3>${t(lang, 'admin.behalf.cardTitle')}</h3>
+${card}
+</section>`;
+}
+
 export function participantView(lang, {
-  participant, group, receiver, mail, link, remindKind, mailEnabled, tz,
+  participant, group, receiver, mail, link, remindKind, mailEnabled, tz, cardOutOfDate = false,
   done = null, error = null, values = null, duplicate = null,
 }) {
   const title = participant.name;
-  const notice = done
-    ? html`<p class="notice ${DONE_OK.has(done) ? 'done' : 'warn'}" role="status">${t(lang, `admin.person.done.${done}`)}</p>`
-    : '';
+  const behalf = behalfPanel(lang, { participant, group, receiver, cardOutOfDate, tz });
+  // Without email the organiser does everything herself, so it comes first.
+  const first = participant.email ? '' : behalf;
+  const later = participant.email ? behalf : '';
   const body = html`${backLink(`/admin/groups/${group.id}`, group.name)}
 <h1>${title}</h1>
-${notice}
+${doneNotice(lang, done)}
 ${personFacts(lang, { participant, group, receiver, tz })}
+${first}
 ${linkPanel(lang, { participant, link })}
 ${mailPanel(lang, { participant, mail, remindKind, mailEnabled, tz })}
+${later}
 ${editPanel(lang, { participant, values, error, duplicate })}
 <section class="panel danger">
 <h2>${t(lang, 'admin.person.remove.title')}</h2>
@@ -614,4 +670,21 @@ ${effect}
 </form>
 </section>`;
   return { title, body };
+}
+
+// The organiser's controls above the card, in her language; print.css hides
+// them on paper.
+export function cardTools(lang, { participant, cardOutOfDate }) {
+  const base = `/admin/participants/${participant.id}`;
+  const note = participant.printedAt && cardOutOfDate
+    ? html`<p class="card-note">${t(lang, 'admin.card.changed')}</p>`
+    : '';
+  return html`<div class="card-tools" lang="${lang}">
+<p><a href="${base}">${t(lang, 'admin.behalf.back', { name: participant.name })}</a></p>
+${note}
+<form method="post" action="${base}/card/printed">
+<button type="submit">${t(lang, 'admin.card.print')}</button>
+</form>
+<p class="card-hint">${t(lang, 'admin.card.printHint')}</p>
+</div>`;
 }

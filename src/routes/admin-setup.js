@@ -9,7 +9,7 @@ import { todayIn } from '../time.js';
 import { mergeOptionLabels, wishOptions } from '../wishes.js';
 import { adminLang } from './admin-auth.js';
 import { field, parseJsonField } from './admin-shared.js';
-import { eventsView, eventView, messageView, pasteConfirmView } from '../views/admin.js';
+import { eventsView, eventView, GROUP_DONE, messageView, pasteConfirmView } from '../views/admin.js';
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const NAME_MAX = 100;
@@ -132,8 +132,10 @@ export function adminSetupRoutes(app, ctx, { render, sendError, groupPage, loadE
     return reply.redirect(`/admin/groups/${id}`, 303);
   });
 
-  app.get('/admin/groups/:id', loadGroup, async (request, reply) =>
-    render(request, reply, groupPage(adminLang(request), request.record)));
+  app.get('/admin/groups/:id', loadGroup, async (request, reply) => {
+    const done = GROUP_DONE.has(request.query?.done) ? request.query.done : null;
+    return render(request, reply, groupPage(adminLang(request), request.record, { done }));
+  });
 
   app.post('/admin/groups/:id', loadGroup, async (request, reply) => {
     const group = request.record;

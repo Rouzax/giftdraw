@@ -1,10 +1,15 @@
+import qrcode from 'qrcode-generator';
+import { html } from '../html.js';
 import { isLang, t } from '../i18n/index.js';
 import {
-  commitRemoveParticipant, normaliseEmail, planRemoveParticipant, remindNow, resendFailed, resendInvite,
+  commitRemoveParticipant, drawFor, normaliseEmail, planRemoveParticipant, remindNow, resendFailed, resendInvite,
+  saveWishes,
 } from '../people.js';
 import { reminderKind } from '../reminders.js';
+import { cardOutOfDate } from '../status.js';
 import { newToken } from '../tokens.js';
-import { messageView, PERSON_DONE, participantView, removeView } from '../views/admin.js';
+import { cardTools, messageView, PERSON_DONE, participantView, removeView } from '../views/admin.js';
+import { aboutFormView, cardView, resultView } from '../views/participant.js';
 import { adminLang } from './admin-auth.js';
 import { field, ID, parseJsonField } from './admin-shared.js';
 
@@ -15,20 +20,27 @@ const EMAIL_INPUT_MAX = 1000;
 const REMOVE_PLAN_MAX = 200_000;
 const REMOVE_STATUS = { stale: 409, 'too-small': 409, invalid: 400 };
 const REMOVE_MESSAGE = { stale: 'admin.remove.stale', 'too-small': 'admin.remove.tooSmall', invalid: 'admin.remove.invalid' };
+// Error correction M keeps a printed code readable with a smudge or a fold.
+const QR_LEVEL = 'M';
+const QR_CELL = 8;
 
-export function adminPeopleRoutes(app, ctx, { render, sendError, loadParticipant }) {
+export function adminPeopleRoutes(app, ctx, { render, renderBehalf, renderPrint, sendError, loadParticipant }) {
   const { repo, config } = ctx;
 
   const personUrl = (id, done) => `/admin/participants/${id}${done ? `?done=${done}` : ''}`;
+  const personalLink = (participant) => `${config.appUrl}/p/${participant.token}`;
+  const receiverOf = (participant) => (participant.receiverId ? repo.getParticipant(participant.receiverId) : null);
 
   function personPage(lang, participant, extra = {}) {
     const group = repo.getGroup(participant.groupId);
+    const receiver = receiverOf(participant);
     return participantView(lang, {
       participant,
       group,
-      receiver: participant.receiverId ? repo.getParticipant(participant.receiverId) : null,
+      receiver,
+      cardOutOfDate: cardOutOfDate(participant, receiver),
       mail: repo.mailStatus(participant.id),
-      link: `${config.appUrl}/p/${participant.token}`,
+      link: personalLink(participant),
       remindKind: reminderKind(participant, group),
       mailEnabled: ctx.mailer.enabled,
       tz: config.tz,
@@ -90,13 +102,107 @@ export function adminPeopleRoutes(app, ctx, { render, sendError, loadParticipant
       const participant = request.record;
       const outcome = action(ctx, participant.id);
       request.log.info({ participant_id: participant.id, outcome }, event);
-      if (request.body?.back === 'group') return reply.redirect(`/admin/groups/${participant.groupId}`, 303);
+      if (request.body?.back === 'group') return reply.redirect(`/admin/groups/${participant.groupId}?done=${outcome}`, 303);
       return reply.redirect(personUrl(participant.id, outcome), 303);
     });
   }
   mailAction('resend-invite', resendInvite, 'invite_resent');
   mailAction('remind', remindNow, 'reminder_sent_manually');
   mailAction('resend-failed', resendFailed, 'failed_mail_requeued');
+
+  // The SVG holds the link, which is a credential: it is never cached or logged.
+  app.get('/admin/participants/:id/qr', loadParticipant, async (request, reply) => {
+    const code = qrcode(0, QR_LEVEL);
+    code.addData(personalLink(request.record), 'Byte');
+    code.make();
+    const svg = code.createSvgTag({ cellSize: QR_CELL, margin: QR_CELL * 4, scalable: true });
+    return reply.type('image/svg+xml; charset=utf-8').header('Cache-Control', 'no-store').send(svg);
+  });
+
+  // The on-behalf screens are the participant's own, so they appear in the
+  // participant's language; links on them lead back into the admin pages
+  // rather than to the personal link.
+  function screenData(participant) {
+    const group = repo.getGroup(participant.groupId);
+    const base = `/admin/participants/${participant.id}`;
+    return {
+      participant,
+      group,
+      event: repo.getEvent(group.eventId),
+      lang: participant.language,
+      tz: config.tz,
+      editHref: `${base}/about`,
+      formAction: `${base}/about`,
+      langAction: null,
+      showLangSwitch: false,
+    };
+  }
+
+  function behalfFrame(request, participant) {
+    const lang = adminLang(request);
+    return {
+      note: t(lang, 'admin.behalf.bar', { name: participant.name }),
+      back: { href: `/admin/participants/${participant.id}`, label: t(lang, 'admin.behalf.back', { name: participant.name }) },
+    };
+  }
+
+  function refuse(request, reply, participant, titleKey, messageKey) {
+    const lang = adminLang(request);
+    const view = messageView(lang, {
+      titleKey, messageKey, href: `/admin/participants/${participant.id}`, linkText: participant.name,
+    });
+    return render(request, reply, view, 409);
+  }
+
+  app.get('/admin/participants/:id/about', loadParticipant, async (request, reply) => {
+    const participant = request.record;
+    const view = aboutFormView({ ...screenData(participant), wishes: participant.wishes });
+    return renderBehalf(request, reply, participant, view, behalfFrame(request, participant));
+  });
+
+  app.post('/admin/participants/:id/about', loadParticipant, async (request, reply) => {
+    saveWishes(ctx, request.record.id, request.body);
+    request.log.info({ participant_id: request.record.id }, 'wishes_saved_on_behalf');
+    return reply.redirect(personUrl(request.record.id, 'wishes-saved'), 303);
+  });
+
+  // Rendered straight from the POST, because the organiser draws with the
+  // participant beside her; drawFor is idempotent, so a reload only shows the
+  // result again without the reveal.
+  app.post('/admin/participants/:id/draw', loadParticipant, async (request, reply) => {
+    const participant = request.record;
+    const data = screenData(participant);
+    if (!data.group.openedAt || !participant.receiverId) {
+      return refuse(request, reply, participant, 'admin.behalf.notOpenTitle', 'admin.behalf.notOpen');
+    }
+    const { receiver, firstTime } = drawFor(ctx, participant.id);
+    if (firstTime) request.log.info({ participant_id: participant.id }, 'participant_drawn_on_behalf');
+    const view = resultView({ ...data, receiver, reveal: firstTime });
+    return renderBehalf(request, reply, participant, view, behalfFrame(request, participant));
+  });
+
+  function cardReceiver(participant) {
+    return participant.drawnAt ? receiverOf(participant) : null;
+  }
+
+  app.get('/admin/participants/:id/card', loadParticipant, async (request, reply) => {
+    const participant = request.record;
+    const receiver = cardReceiver(participant);
+    if (!receiver) return refuse(request, reply, participant, 'admin.card.notDrawnTitle', 'admin.card.notDrawn');
+    const card = cardView({ ...screenData(participant), receiver });
+    const tools = cardTools(adminLang(request), { participant, cardOutOfDate: cardOutOfDate(participant, receiver) });
+    return renderPrint(reply, participant, { title: card.title, body: html`${tools}${card.body}` });
+  });
+
+  // Marked before the print dialog opens: a cancelled print still counts,
+  // which only means the organiser may print once more than needed.
+  app.post('/admin/participants/:id/card/printed', loadParticipant, async (request, reply) => {
+    const participant = request.record;
+    if (!cardReceiver(participant)) return refuse(request, reply, participant, 'admin.card.notDrawnTitle', 'admin.card.notDrawn');
+    repo.updateParticipant(participant.id, { printedAt: ctx.nowIso() });
+    request.log.info({ participant_id: participant.id }, 'card_printed');
+    return reply.redirect(`/admin/participants/${participant.id}/card?print=1`, 303);
+  });
 
   app.get('/admin/participants/:id/remove', loadParticipant, async (request, reply) => {
     const participant = request.record;

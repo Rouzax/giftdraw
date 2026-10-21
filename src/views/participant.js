@@ -161,3 +161,27 @@ ${footer({ lang, langAction, showLangSwitch })}
 </div>`;
   return { title: t(lang, 'result.title'), body, scripts: reveal ? ['reveal.js'] : [] };
 }
+
+// Long wishes would push an A5 page onto a second sheet, so the card steps
+// its type down by the amount of text rather than letting the browser split it.
+const CARD_TEXT_STEPS = [[1400, 'card-smallest'], [700, 'card-smaller']];
+
+function cardSize(lines, theme) {
+  const length = lines.reduce((sum, line) => sum + line.label.length + line.value.length, theme.length);
+  return CARD_TEXT_STEPS.find(([limit]) => length > limit)?.[1] ?? '';
+}
+
+// The printed counterpart of the result screen, for someone without a device.
+export function cardView({ participant, receiver, event, group, lang, tz }) {
+  const lines = wishLines(receiver.wishes, wishOptions(event), lang);
+  const size = cardSize(lines, themeText(event, lang));
+  const [before, after = ''] = t(lang, 'result.givesTo').split('{name}');
+  const body = html`<article class="card${size ? ` ${size}` : ''}">
+<p class="card-for">${t(lang, 'card.for', { name: participant.name })}</p>
+<h1><span class="card-lead">${before.trim()}</span>
+<span class="card-name">${receiver.name}</span>${after}</h1>
+${themeBlock({ event, group, lang, tz })}
+${wishCard({ receiver, event, lang })}
+</article>`;
+  return { title: t(lang, 'result.title'), body };
+}
