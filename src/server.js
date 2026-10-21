@@ -21,5 +21,11 @@ async function shutdown(signal) {
 process.once('SIGINT', shutdown);
 process.once('SIGTERM', shutdown);
 
-await app.listen({ port: config.port, host: '0.0.0.0' });
-ctx.log.info({ port: config.port }, 'server_started');
+// Listening on the raw server skips Fastify's prose startup lines, which list
+// every interface address; one fixed event replaces them.
+await app.ready();
+await new Promise((resolve, reject) => {
+  app.server.once('error', reject);
+  app.server.listen(config.port, '0.0.0.0', resolve);
+});
+ctx.log.info({ port: config.port }, 'server_listening');

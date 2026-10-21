@@ -39,7 +39,7 @@ ${footer({ lang, langAction, showLangSwitch })}`;
 
 export function waitingView({ participant, event, group, lang, tz, editHref, langAction, showLangSwitch }) {
   const body = html`<h1>${t(lang, 'welcome.greeting', { name: participant.name })}</h1>
-<p class="lead">${t(lang, 'waiting.thanks')}</p>
+<p class="lead">${t(lang, participant.email ? 'waiting.thanks' : 'waiting.thanksNoEmail')}</p>
 ${themeBlock({ event, group, lang, tz })}
 <a class="button" href="${editHref}">${t(lang, 'waiting.edit')}</a>
 ${footer({ lang, langAction, showLangSwitch })}`;

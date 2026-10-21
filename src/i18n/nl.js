@@ -48,6 +48,8 @@ export default {
 
   'waiting.title': 'Dank je wel',
   'waiting.thanks': 'Dank je wel. Het trekken begint binnenkort, je krijgt een e-mail.',
+  'waiting.thanksNoEmail':
+    'Dank je wel. Het trekken begint binnenkort. De organisator laat je weten wanneer je een naam kunt trekken.',
   'waiting.edit': 'Mijn antwoorden aanpassen',
 
   'draw.title': 'Je mag een naam trekken',
@@ -62,7 +64,7 @@ export default {
   'result.edit': 'Mijn eigen antwoorden aanpassen',
 
   'error.title': 'Oeps',
-  'error.400': 'Dit verzoek klopt niet. Ga terug en probeer het opnieuw.',
+  'error.400': 'Dit verzoek klopt niet, ga terug en probeer het opnieuw.',
   'error.403': 'Dit mag helaas niet.',
   'error.404': 'Deze pagina bestaat niet. Kijk of de link klopt.',
   'error.429': 'Even te veel tegelijk. Probeer het over een minuut opnieuw.',

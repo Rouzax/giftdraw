@@ -130,7 +130,7 @@ test('a junk language is refused and the stored language is unchanged', async ()
   const res = await post(`/p/${ada.token}/lang`, { lang: '!!' });
   assert.equal(res.statusCode, 400);
   assert.match(res.headers['content-type'], /^text\/html/);
-  assert.ok(res.body.includes('Dit verzoek klopt niet.'));
+  assert.ok(res.body.includes('Dit verzoek klopt niet, ga terug'));
   assert.equal(ctx.repo.getParticipant(ada.id).language, 'nl');
   const missing = await post(`/p/${ada.token}/lang`, {});
   assert.equal(missing.statusCode, 400);
@@ -170,4 +170,31 @@ test('valid-token traffic from one IP has a ceiling', async () => {
     assert.equal((await app.inject(`/p/${ada.token}/about`)).statusCode, 200);
   }
   assert.equal((await app.inject(`/p/${ada.token}/about`)).statusCode, 429);
+});
+
+test('the waiting screen does not promise an email to someone without one', async () => {
+  const clock = { ms: T0 };
+  const t = await makeTestApp({ clock: () => new Date(clock.ms) });
+  const { people } = seedGroup(t.ctx, { names: ['Ada', 'Ben', 'Cor'], withEmail: false });
+  await t.post(`/p/${people[0].token}/about`, { hobbies: 'Yoga' });
+  const page = await t.app.inject(`/p/${people[0].token}`);
+  assert.ok(page.body.includes('De organisator laat je weten'));
+  assert.ok(!page.body.includes('e-mail'));
+});
+
+test('a HEAD request does not count as a visit', async () => {
+  const { app, ctx, ada } = await setup();
+  const res = await app.inject({ method: 'HEAD', url: `/p/${ada.token}` });
+  assert.equal(res.statusCode, 200);
+  assert.equal(ctx.repo.getParticipant(ada.id).visitedAt, null);
+});
+
+test('a blocked IP gets no participant page through odd spellings of the path', async () => {
+  const { app, ada } = await setup();
+  for (let i = 0; i < 20; i += 1) await app.inject(`/p/guess-${i}`);
+  for (const url of [`//p/${ada.token}`, `/%70/${ada.token}`, `/./p/${ada.token}`, `/x/../p/${ada.token}/about`]) {
+    const res = await app.inject(url);
+    assert.ok([404, 429].includes(res.statusCode), `${url.replace(ada.token, ':token')} ${res.statusCode}`);
+    assert.ok(!res.body.includes('Ada'));
+  }
 });

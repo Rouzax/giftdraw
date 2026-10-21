@@ -11,7 +11,7 @@ const VIEWS = { welcome: welcomeView, waiting: waitingView };
 
 // Registered on the root instance so the block check also covers /p/ URLs
 // that match no route.
-export function participantRoutes(app, ctx, { sendPage, sendError }) {
+export function participantRoutes(app, ctx, { sendPage, sendError, isParticipantPath }) {
   const { repo, config } = ctx;
   // Failed lookups are the guessing signal; once an IP reaches the limit,
   // even its valid links are refused so a guesser learns nothing from hits.
@@ -20,7 +20,7 @@ export function participantRoutes(app, ctx, { sendPage, sendError }) {
   const traffic = createLimiter({ limit: 600, windowMs: MINUTE });
 
   app.addHook('onRequest', async (request, reply) => {
-    if (request.url.startsWith('/p/') && failures.blocked(request.ip, ctx.now().getTime())) {
+    if (isParticipantPath(request) && failures.blocked(request.ip, ctx.now().getTime())) {
       request.log.warn({ method: request.method }, 'participant_ip_blocked');
       return sendError(reply, 429);
     }
@@ -64,7 +64,8 @@ export function participantRoutes(app, ctx, { sendPage, sendError }) {
 
   app.get('/p/:token', { onRequest: loadParticipant }, async (request, reply) => {
     let participant = request.participant;
-    if (!participant.visitedAt) {
+    // HEAD runs this handler too; link scanners in mail clients send it.
+    if (!participant.visitedAt && request.method !== 'HEAD') {
       repo.updateParticipant(participant.id, { visitedAt: ctx.nowIso() });
       participant = repo.getParticipant(participant.id);
     }

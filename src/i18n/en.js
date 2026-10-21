@@ -47,6 +47,8 @@ export default {
 
   'waiting.title': 'Thank you',
   'waiting.thanks': "Thank you. Drawing opens soon, you'll get an email.",
+  'waiting.thanksNoEmail':
+    'Thank you. Drawing opens soon. The organiser will let you know when you can draw a name.',
   'waiting.edit': 'Change my answers',
 
   'draw.title': 'You can draw a name',
@@ -61,7 +63,7 @@ export default {
   'result.edit': 'Change my own answers',
 
   'error.title': 'Oops',
-  'error.400': 'Something about this request is not right. Please go back and try again.',
+  'error.400': 'Something about this request is not right, so please go back and try again.',
   'error.403': 'Sorry, this is not allowed.',
   'error.404': 'This page does not exist. Please check the link.',
   'error.429': 'Too much at once. Please try again in a minute.',

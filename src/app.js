@@ -2,6 +2,7 @@ import { fileURLToPath } from 'node:url';
 import Fastify from 'fastify';
 import formbody from '@fastify/formbody';
 import fastifyStatic from '@fastify/static';
+import { normalisePath } from './context.js';
 import { participantRoutes } from './routes/participant.js';
 import { errorPage } from './views/layout.js';
 
@@ -16,7 +17,13 @@ const SECURITY_HEADERS = {
     "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; form-action 'self'; frame-ancestors 'none'",
 };
 
-const PRIVATE_PATH = /^\/(p|admin)(\/|\?|$)/;
+const PRIVATE_PATH = /^\/(p|admin)(\/|$)/;
+const PARTICIPANT_PATH = /^\/p(\/|$)/;
+
+// Both the matched route and the normalised URL are checked, so no spelling
+// of a path that reaches a handler escapes a rule meant for that handler.
+const pathMatches = (request, pattern) =>
+  pattern.test(request.routeOptions.url ?? '') || pattern.test(normalisePath(request.url));
 
 // A POST must come from our own pages. Without Origin and Referer (some
 // privacy settings strip both) only participant routes pass, where the token
@@ -67,7 +74,7 @@ export async function buildApp(ctx) {
   app.addHook('onSend', async (request, reply, payload) => {
     reply.headers(SECURITY_HEADERS);
     const type = String(reply.getHeader('content-type') ?? '');
-    if (type.startsWith('text/html') && PRIVATE_PATH.test(request.url)) reply.header('Cache-Control', 'no-store');
+    if (type.startsWith('text/html') && pathMatches(request, PRIVATE_PATH)) reply.header('Cache-Control', 'no-store');
     return payload;
   });
 
@@ -92,7 +99,8 @@ export async function buildApp(ctx) {
     return sendError(reply, status, request.participant?.language);
   });
 
-  participantRoutes(app, ctx, { sendPage, sendError });
+  const isParticipantPath = (request) => pathMatches(request, PARTICIPANT_PATH);
+  participantRoutes(app, ctx, { sendPage, sendError, isParticipantPath });
 
   return app;
 }

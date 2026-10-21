@@ -30,6 +30,13 @@ test('participant pages carry the security headers and no-store', async () => {
   assert.equal(res.headers['cache-control'], 'no-store');
 });
 
+test('participant pages reached through an encoded path are still no-store', async () => {
+  const { app, token } = await setup();
+  const res = await app.inject(`/%70/${token}`);
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.headers['cache-control'], 'no-store');
+});
+
 test('error pages carry the security headers', async () => {
   const { app } = await setup();
   const res = await app.inject('/nope');
@@ -92,7 +99,8 @@ test('POST without Origin and Referer passes under /p/ and fails under /admin', 
 
 test('the log never contains a participant token', async () => {
   const { app, logs, token } = await setup();
-  for (const url of [`/p/${token}`, `/p/${token}/`, `//p/${token}`, `/p/${token}/draw`, `/p/${token}?x=1`]) {
+  const urls = [`/p/${token}`, `/p/${token}/`, `//p/${token}`, `/p/${token}/draw`, `/p/${token}?x=1`, `/%70/${token}`];
+  for (const url of urls) {
     await app.inject(url);
   }
   const text = logs.join('');
