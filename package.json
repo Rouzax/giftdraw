@@ -1,0 +1,31 @@
+{
+  "name": "giftdraw",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "NODE_ENV=test node --test",
+    "test:coverage": "NODE_ENV=test node --test --experimental-test-coverage",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "@fastify/cookie": "11.1.3",
+    "@fastify/formbody": "9.0.1",
+    "@fastify/static": "10.1.6",
+    "fastify": "5.12.7",
+    "nodemailer": "10.1.7",
+    "pino": "10.4.0",
+    "qrcode-generator": "2.0.4"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "eslint": "10.13.0",
+    "globals": "17.13.0"
+  }
+}
