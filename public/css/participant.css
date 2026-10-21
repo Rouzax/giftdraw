@@ -231,7 +231,6 @@ h1 {
   padding: 1.25rem 1rem 1.5rem;
   border-radius: 0.25rem;
   background-color: #fffdf6;
-  background-image: linear-gradient(to bottom, transparent 49%, rgba(43, 33, 27, 0.08) 50%, transparent 51%);
   box-shadow: 0 0.25rem 0.75rem rgba(43, 33, 27, 0.18);
   text-align: center;
   transform: rotate(-1deg);
@@ -252,7 +251,7 @@ h1 {
 
 .slip-name {
   display: block;
-  margin-top: 0.25rem;
+  margin-top: 0.75rem;
   color: var(--accent-dark);
   font-size: 2.75rem;
   font-weight: 800;
@@ -320,6 +319,8 @@ h1 {
     flex-direction: column;
     justify-content: center;
     min-height: 12rem;
+    /* Headroom for the confetti, so it stays clear of the app name. */
+    padding-top: 4rem;
   }
 
   .reveal .scene {
@@ -344,6 +345,12 @@ h1 {
     animation: unfold 0.8s ease-out 1.5s both;
   }
 
+  /* Text appears only once the slip is nearly open, never squashed. */
+  .reveal .slip-lead,
+  .reveal .slip-name {
+    animation: fade-in-plain 0.25s ease-out 2.12s both;
+  }
+
   .reveal ~ .result-rest {
     animation: fade-in 0.6s ease-out 2.3s both;
   }
@@ -355,6 +362,9 @@ h1 {
     display: block;
     width: 0;
     height: 0;
+    /* Behind the slip and every block of text: pieces show only where
+       there is open paper around them, so they never cover words. */
+    z-index: -1;
     animation: fall 1.3s ease-in 1.9s both;
     pointer-events: none;
   }
@@ -370,12 +380,16 @@ h1 {
   }
 
   .reveal.is-skipped .slip,
+  .reveal.is-skipped .slip-lead,
+  .reveal.is-skipped .slip-name,
   .reveal.is-skipped ~ .result-rest {
     animation: none;
   }
 }
 
-/* Each piece flies out along its own spoke; the spokes fall together. */
+/* Each piece flies out along its own spoke, fanned upwards from behind the
+   slip so it clears the card's top edge; the spokes fall together. The fan
+   stays within 54 degrees of upright so no piece runs off a 320px screen. */
 .confetti i {
   position: absolute;
   top: 0;
@@ -414,30 +428,30 @@ h1 {
   height: 1.1rem;
 }
 
-.confetti i:nth-child(1) { transform: rotate(7deg); }
-.confetti i:nth-child(2) { transform: rotate(15deg); }
-.confetti i:nth-child(3) { transform: rotate(37deg); }
-.confetti i:nth-child(4) { transform: rotate(45deg); }
-.confetti i:nth-child(5) { transform: rotate(67deg); }
-.confetti i:nth-child(6) { transform: rotate(75deg); }
-.confetti i:nth-child(7) { transform: rotate(97deg); }
-.confetti i:nth-child(8) { transform: rotate(105deg); }
-.confetti i:nth-child(9) { transform: rotate(127deg); }
-.confetti i:nth-child(10) { transform: rotate(135deg); }
-.confetti i:nth-child(11) { transform: rotate(157deg); }
-.confetti i:nth-child(12) { transform: rotate(165deg); }
-.confetti i:nth-child(13) { transform: rotate(187deg); }
-.confetti i:nth-child(14) { transform: rotate(195deg); }
-.confetti i:nth-child(15) { transform: rotate(217deg); }
-.confetti i:nth-child(16) { transform: rotate(225deg); }
-.confetti i:nth-child(17) { transform: rotate(247deg); }
-.confetti i:nth-child(18) { transform: rotate(255deg); }
-.confetti i:nth-child(19) { transform: rotate(277deg); }
-.confetti i:nth-child(20) { transform: rotate(285deg); }
-.confetti i:nth-child(21) { transform: rotate(307deg); }
-.confetti i:nth-child(22) { transform: rotate(315deg); }
-.confetti i:nth-child(23) { transform: rotate(337deg); }
-.confetti i:nth-child(24) { transform: rotate(345deg); }
+.confetti i:nth-child(1) { transform: rotate(-54deg); }
+.confetti i:nth-child(2) { transform: rotate(-49.3deg); }
+.confetti i:nth-child(3) { transform: rotate(-44.6deg); }
+.confetti i:nth-child(4) { transform: rotate(-39.9deg); }
+.confetti i:nth-child(5) { transform: rotate(-35.2deg); }
+.confetti i:nth-child(6) { transform: rotate(-30.5deg); }
+.confetti i:nth-child(7) { transform: rotate(-25.8deg); }
+.confetti i:nth-child(8) { transform: rotate(-21.1deg); }
+.confetti i:nth-child(9) { transform: rotate(-16.4deg); }
+.confetti i:nth-child(10) { transform: rotate(-11.7deg); }
+.confetti i:nth-child(11) { transform: rotate(-7deg); }
+.confetti i:nth-child(12) { transform: rotate(-2.3deg); }
+.confetti i:nth-child(13) { transform: rotate(2.3deg); }
+.confetti i:nth-child(14) { transform: rotate(7deg); }
+.confetti i:nth-child(15) { transform: rotate(11.7deg); }
+.confetti i:nth-child(16) { transform: rotate(16.4deg); }
+.confetti i:nth-child(17) { transform: rotate(21.1deg); }
+.confetti i:nth-child(18) { transform: rotate(25.8deg); }
+.confetti i:nth-child(19) { transform: rotate(30.5deg); }
+.confetti i:nth-child(20) { transform: rotate(35.2deg); }
+.confetti i:nth-child(21) { transform: rotate(39.9deg); }
+.confetti i:nth-child(22) { transform: rotate(44.6deg); }
+.confetti i:nth-child(23) { transform: rotate(49.3deg); }
+.confetti i:nth-child(24) { transform: rotate(54deg); }
 
 /* Sits just below the stage, over the rest of the page while that is still
    invisible, so the stage reserves no room for it. */
@@ -463,6 +477,7 @@ h1 {
   .reveal {
     display: block;
     min-height: 0;
+    padding-top: 0;
   }
 
   .reveal .scene,
@@ -473,6 +488,11 @@ h1 {
 
   .reveal .slip {
     animation: fade-in 0.8s ease-out both;
+  }
+
+  .reveal .slip-lead,
+  .reveal .slip-name {
+    animation: none;
   }
 
   .reveal ~ .result-rest {
@@ -519,21 +539,26 @@ h1 {
   to { opacity: 0; }
 }
 
+@keyframes fade-in-plain {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 @keyframes fall {
   from { transform: translateY(0); }
-  to { transform: translateY(5rem); }
+  to { transform: translateY(2.5rem); }
 }
 
 @keyframes burst-far {
   0% { opacity: 0; transform: translateY(0) rotate(0) scale(0.4); }
   10% { opacity: 1; }
-  70% { opacity: 1; transform: translateY(-8.5rem) rotate(320deg) scale(1); }
+  70% { opacity: 1; transform: translateY(-9rem) rotate(320deg) scale(1); }
   100% { opacity: 0; transform: translateY(-9.5rem) rotate(460deg) scale(1); }
 }
 
 @keyframes burst-near {
   0% { opacity: 0; transform: translateY(0) rotate(0) scale(0.4); }
   10% { opacity: 1; }
-  70% { opacity: 1; transform: translateY(-5.5rem) rotate(-280deg) scale(1); }
-  100% { opacity: 0; transform: translateY(-6.25rem) rotate(-400deg) scale(1); }
+  70% { opacity: 1; transform: translateY(-6.75rem) rotate(-280deg) scale(1); }
+  100% { opacity: 0; transform: translateY(-7.25rem) rotate(-400deg) scale(1); }
 }
