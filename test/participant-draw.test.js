@@ -137,3 +137,14 @@ test('the reveal script is served', async () => {
   assert.equal(res.statusCode, 200);
   assert.match(res.headers['content-type'], /javascript/);
 });
+
+test('the result invites someone without wishes to fill them in, others to change them', async () => {
+  const { app, ada, ctx } = await setup();
+  drawFor(ctx, ada.id);
+  let res = await app.inject(`/p/${ada.token}`);
+  assert.ok(res.body.includes('Vertel wat jij leuk vindt'));
+  assert.ok(!res.body.includes('Mijn eigen antwoorden aanpassen'));
+  ctx.repo.updateParticipant(ada.id, { wishes: { likes: [], pets: [], hobbies: 'tuinieren' } });
+  res = await app.inject(`/p/${ada.token}`);
+  assert.ok(res.body.includes('Mijn eigen antwoorden aanpassen'));
+});

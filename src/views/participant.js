@@ -1,6 +1,6 @@
 import { html, raw } from '../html.js';
 import { formatDate, LANGS, t, themeText } from '../i18n/index.js';
-import { detailPrompt, PET_IDS, wishLines, wishOptions } from '../wishes.js';
+import { detailPrompt, hasWishes, PET_IDS, wishLines, wishOptions } from '../wishes.js';
 
 // Fragments take their links and form targets as arguments so the organiser
 // can show the same screens inside the admin shell when acting on behalf.
@@ -158,8 +158,10 @@ ${content}
 // editText replaces the participant's own wording when the organiser shows
 // this screen on their behalf.
 export function resultView({
-  receiver, event, group, lang, tz, reveal, editHref, editText = null, langAction, showLangSwitch,
+  participant, receiver, event, group, lang, tz, reveal, editHref, editText = null, langAction, showLangSwitch,
 }) {
+  // Someone who draws before filling in anything is asked to, not told to "change" nothing.
+  const ownText = t(lang, hasWishes(participant?.wishes) ? 'result.edit' : 'result.fillIn');
   const heading = givesTo(lang, receiver.name, reveal);
   const top = reveal
     ? html`<div class="reveal" data-reveal>
@@ -173,7 +175,7 @@ ${heading}
 <div class="result-rest">
 ${themeBlock({ event, group, lang, tz })}
 ${wishCard({ receiver, event, lang })}
-<a class="edit-link" href="${editHref}">${editText ?? t(lang, 'result.edit')}</a>
+<a class="edit-link" href="${editHref}">${editText ?? ownText}</a>
 ${footer({ lang, langAction, showLangSwitch })}
 </div>`;
   return { title: t(lang, 'result.title'), body, scripts: reveal ? ['reveal.js'] : [] };

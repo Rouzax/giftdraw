@@ -140,8 +140,9 @@ ${deleteForm(lang, `/admin/events/${event.id}/delete`, { label: t(lang, 'admin.e
   return { title, body };
 }
 
-function inviteCell(lang, row) {
-  if (!row.participant.email) return html`<span class="muted">${t(lang, 'admin.status.notApplicable')}</span>`;
+// With email off nobody is ever invited by mail, so "not yet" would never change.
+function inviteCell(lang, row, mailEnabled) {
+  if (!row.participant.email || !mailEnabled) return html`<span class="muted">${t(lang, 'admin.status.notApplicable')}</span>`;
   const state = row.mail.invite;
   if (state) return html`<span class="state-${state}">${t(lang, `admin.invite.${state}`)}</span>`;
   if (row.participant.invitedAt) return t(lang, 'admin.status.yes');
@@ -196,7 +197,7 @@ function participantRow(lang, row, tz, mailEnabled) {
   return html`<tr>
 <th scope="row"><a href="/admin/participants/${p.id}">${p.name}</a></th>
 ${cell('email', p.email ? emailText(p.email) : html`<span class="muted">${t(lang, 'admin.noEmail')}</span>`)}
-${cell('invited', inviteCell(lang, row))}
+${cell('invited', inviteCell(lang, row, mailEnabled))}
 ${cell('visited', dateOrNo(lang, p.visitedAt, tz), `${label('visited')} ${label('visitedNote')}`)}
 ${cell('wishes', row.hasWishes ? t(lang, 'admin.status.yes') : html`<span class="muted">${t(lang, 'admin.status.no')}</span>`)}
 ${cell('drawn', dateOrNo(lang, p.drawnAt, tz))}
@@ -225,7 +226,7 @@ ${rows.map((row) => participantRow(lang, row, tz, mailEnabled))}
 </div>`;
 }
 
-function summary(lang, rows) {
+function summary(lang, rows, mailEnabled) {
   const total = rows.length;
   const n = (test) => rows.filter(test).length;
   const withEmail = rows.filter((r) => r.participant.email);
@@ -233,8 +234,12 @@ function summary(lang, rows) {
     t(lang, 'admin.summary.drawn', { count: n((r) => r.participant.drawnAt), total }),
     t(lang, 'admin.summary.wishes', { count: n((r) => r.hasWishes), total }),
     t(lang, 'admin.summary.visited', { count: n((r) => r.participant.visitedAt), total }),
-    t(lang, 'admin.summary.invited', { count: withEmail.filter((r) => r.participant.invitedAt).length, total: withEmail.length }),
   ];
+  if (mailEnabled) {
+    items.push(t(lang, 'admin.summary.invited', {
+      count: withEmail.filter((r) => r.participant.invitedAt).length, total: withEmail.length,
+    }));
+  }
   return html`<ul class="summary">${items.map((item) => html`<li>${item}</li>`)}</ul>`;
 }
 
@@ -250,6 +255,22 @@ function groupStatus(lang, group, tz) {
   return html`<ul class="facts">${lines.map((line) => html`<li>${line}</li>`)}</ul>`;
 }
 
+// With email off the button only records that the organiser shared the
+// links; once pressed there is nothing left to do here.
+function invitePanelBody(lang, { group, mailEnabled, uninvited }) {
+  if (!mailEnabled && group.invitationsSentAt) return html`<p>${t(lang, 'admin.invite.sharedNoMail')}</p>`;
+  return html`<p>${mailEnabled ? t(lang, 'admin.invite.pending', { count: uninvited }) : t(lang, 'admin.invite.mailOff')}</p>
+<form method="post" action="/admin/groups/${group.id}/invite">
+<button type="submit" class="primary">${t(lang, mailEnabled ? 'admin.invite.button' : 'admin.invite.buttonNoMail')}</button>
+</form>`;
+}
+
+// With email off the invitation button is labelled after sharing the links,
+// so the hint has to name that button instead.
+function openErrorKey(error, mailEnabled) {
+  return error === 'no-invitations' && !mailEnabled ? 'admin.open.error.no-invitations-nomail' : `admin.open.error.${error}`;
+}
+
 function drawPanel(lang, { group, rows, openError, mailEnabled }) {
   const arrange = rows.some((r) => r.receiver)
     ? html`<p><a href="/admin/groups/${group.id}/arrange">${t(lang, 'admin.draw.arrange')}</a></p>`
@@ -257,13 +278,13 @@ function drawPanel(lang, { group, rows, openError, mailEnabled }) {
   const open = group.openedAt
     ? html`<p>${t(lang, 'admin.draw.isOpen')}</p>`
     : html`<p>${t(lang, mailEnabled ? 'admin.draw.openIntro' : 'admin.draw.openIntroNoMail')}</p>
-${!group.invitationsSentAt && openError !== 'no-invitations' ? html`<p class="hint">${t(lang, 'admin.open.error.no-invitations')}</p>` : ''}
+${!group.invitationsSentAt && openError !== 'no-invitations' ? html`<p class="hint">${t(lang, openErrorKey('no-invitations', mailEnabled))}</p>` : ''}
 <form method="post" action="/admin/groups/${group.id}/open">
 <button type="submit" class="primary">${t(lang, 'admin.draw.openButton')}</button>
 </form>`;
   return html`<section class="panel" id="draw">
 <h2>${t(lang, 'admin.draw.title')}</h2>
-${openError ? html`<p class="notice error" role="alert">${t(lang, `admin.open.error.${openError}`)}</p>` : ''}
+${openError ? html`<p class="notice error" role="alert">${t(lang, openErrorKey(openError, mailEnabled))}</p>` : ''}
 ${open}
 ${arrange}
 </section>`;
@@ -287,14 +308,11 @@ export function groupView(lang, {
 <h1>${title}</h1>
 ${doneNotice(lang, done)}
 ${banners}
-${summary(lang, rows)}
+${summary(lang, rows, mailEnabled)}
 ${groupStatus(lang, group, tz)}
 <section class="panel">
 <h2>${t(lang, 'admin.invite.title')}</h2>
-<p>${mailEnabled ? t(lang, 'admin.invite.pending', { count: uninvited }) : t(lang, 'admin.mailOff')}</p>
-<form method="post" action="/admin/groups/${group.id}/invite">
-<button type="submit" class="primary">${t(lang, 'admin.invite.button')}</button>
-</form>
+${invitePanelBody(lang, { group, mailEnabled, uninvited })}
 </section>
 ${drawPanel(lang, { group, rows, openError, mailEnabled })}
 <section class="panel wide">

@@ -418,3 +418,24 @@ test('a past exchange date is refused for a new group but a stored one may stay'
   assert.equal(moved.statusCode, 400);
   assert.equal(t.ctx.repo.getGroup(groupId).exchangeDate, '2026-10-30');
 });
+
+test('with email off the dashboard explains the invitation button and drops mail-only states', async () => {
+  const t = await setup();
+  const groupId = await groupOfFour(t);
+  t.mailer.enabled = false;
+  const page = await t.adminGet(`/admin/groups/${groupId}`);
+  assert.ok(page.body.includes('Deel de links zelf en druk dan op de knop'));
+  assert.ok(page.body.includes('>De links zijn gedeeld</button>'));
+  assert.ok(!page.body.includes('met e-mail uitgenodigd'));
+  assert.ok(!page.body.includes('Nog niet</span>'));
+
+  await t.adminPost(`/admin/groups/${groupId}/invite`);
+  const shared = await t.adminGet(`/admin/groups/${groupId}`);
+  assert.ok(shared.body.includes('Je hebt aangegeven dat de links gedeeld zijn.'));
+  assert.equal(shared.body.includes(`action="/admin/groups/${groupId}/invite"`), false);
+
+  t.mailer.enabled = true;
+  const on = await t.adminGet(`/admin/groups/${groupId}`);
+  assert.ok(on.body.includes('>Uitnodigingen versturen</button>'));
+  assert.ok(on.body.includes('met e-mail uitgenodigd'));
+});

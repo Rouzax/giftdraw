@@ -245,8 +245,10 @@ test('with mail off the dashboard does not promise an email on opening', async (
   const t = await setup();
   t.mailer.enabled = false;
   const res = await t.adminGet(`/admin/groups/${t.groupId}`);
-  assert.ok(res.body.includes('Daarna kan iedereen via de eigen link trekken.'));
+  assert.ok(res.body.includes('Na het openen kan iedereen via de eigen link trekken.'));
   assert.equal(res.body.includes('Iedereen met e-mail krijgt bericht'), false);
+  assert.ok(res.body.includes('Druk eerst op &quot;De links zijn gedeeld&quot;'));
+  assert.equal(res.body.includes('Verstuur eerst de uitnodigingen'), false);
 });
 
 test('opening a group that does not exist is refused as invalid', async () => {

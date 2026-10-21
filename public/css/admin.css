@@ -335,12 +335,16 @@ table.people .email {
   overflow-wrap: break-word;
 }
 
-/* Under 700px each participant becomes a card of label and value lines. */
 @media (max-width: 43.75em) {
   .panel {
     padding: 0.75rem;
   }
+}
 
+/* Below about 990px the full table no longer fits and would scroll sideways,
+   hiding the last columns, so each participant becomes a card of label and
+   value lines instead. */
+@media (max-width: 62em) {
   table.people,
   table.people tbody,
   table.people tr,
