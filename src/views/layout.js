@@ -7,7 +7,11 @@ function stylesheet(file, assetVersion) {
   return html`<link rel="stylesheet" href="/static/css/${file}?v=${assetVersion}">`;
 }
 
-function shell({ lang, title, body, assetVersion, styles }) {
+function script(file, assetVersion) {
+  return html`<script src="/static/js/${file}?v=${assetVersion}" defer></script>`;
+}
+
+function shell({ lang, title, body, assetVersion, styles, scripts = [] }) {
   return html`<!doctype html>
 <html lang="${lang}">
 <head>
@@ -16,6 +20,7 @@ function shell({ lang, title, body, assetVersion, styles }) {
 <meta name="robots" content="noindex">
 <title>${title} - ${t(lang, 'app.name')}</title>
 ${styles.map((file) => stylesheet(file, assetVersion))}
+${scripts.map((file) => script(file, assetVersion))}
 </head>
 <body>
 ${body}
@@ -24,12 +29,12 @@ ${body}
 `.toString();
 }
 
-export function participantPage({ lang, title, body, assetVersion }) {
+export function participantPage({ lang, title, body, assetVersion, scripts }) {
   const content = html`<main class="screen">
 <p class="app-name">${t(lang, 'app.name')}</p>
 ${body}
 </main>`;
-  return shell({ lang, title, body: content, assetVersion, styles: ['base.css', 'participant.css'] });
+  return shell({ lang, title, body: content, assetVersion, styles: ['base.css', 'participant.css'], scripts });
 }
 
 // One plain sentence and nothing else: no status code, no detail.

@@ -1,13 +1,13 @@
 import { isLang } from '../i18n/index.js';
 import { createLimiter } from '../limiter.js';
-import { saveWishes } from '../people.js';
+import { drawFor, saveWishes } from '../people.js';
 import { hasWishes } from '../wishes.js';
 import { participantScreen } from '../status.js';
 import { participantPage } from '../views/layout.js';
-import { aboutFormView, waitingView, welcomeView } from '../views/participant.js';
+import { aboutFormView, drawView, resultView, waitingView, welcomeView } from '../views/participant.js';
 
 const MINUTE = 60_000;
-const VIEWS = { welcome: welcomeView, waiting: waitingView };
+const VIEWS = { welcome: welcomeView, waiting: waitingView, draw: drawView };
 
 // Registered on the root instance so the block check also covers /p/ URLs
 // that match no route.
@@ -53,31 +53,42 @@ export function participantRoutes(app, ctx, { sendPage, sendError, isParticipant
       tz: config.tz,
       editHref: `${base}/about`,
       formAction: `${base}/about`,
+      drawAction: `${base}/draw`,
       langAction: `${base}/lang`,
       showLangSwitch: true,
     };
   }
 
-  function render(reply, lang, { title, body }) {
-    return sendPage(reply, participantPage({ lang, title, body, assetVersion: config.assetVersion }));
+  function render(reply, lang, { title, body, scripts }) {
+    return sendPage(reply, participantPage({ lang, title, body, scripts, assetVersion: config.assetVersion }));
   }
 
   app.get('/p/:token', { onRequest: loadParticipant }, async (request, reply) => {
     let participant = request.participant;
     // HEAD runs this handler too; link scanners in mail clients send it.
-    if (!participant.visitedAt && request.method !== 'HEAD') {
+    const counts = request.method !== 'HEAD';
+    if (!participant.visitedAt && counts) {
       repo.updateParticipant(participant.id, { visitedAt: ctx.nowIso() });
       participant = repo.getParticipant(participant.id);
     }
     const data = screenData(participant);
-    const wished = hasWishes(participant.wishes);
+    // A pair counts as seen once the reveal page loads, not when the button
+    // is pressed, so the draw is recorded here.
+    if (request.query.reveal === '1' && counts && data.group.openedAt && !participant.drawnAt) {
+      const { receiver, firstTime } = drawFor(ctx, participant.id);
+      if (firstTime) request.log.info({ participant_id: participant.id }, 'participant_drawn');
+      return render(reply, data.lang, resultView({ ...data, receiver, reveal: true }));
+    }
     const screen = participantScreen({
-      hasWishes: wished,
+      hasWishes: hasWishes(participant.wishes),
       groupOpen: Boolean(data.group.openedAt),
       drawn: Boolean(participant.drawnAt),
     });
-    // Without a draw screen, an open group still shows the pre-draw screen.
-    const view = VIEWS[screen] ?? (wished ? waitingView : welcomeView);
+    const receiver = participant.receiverId ? repo.getParticipant(participant.receiverId) : null;
+    if (screen === 'result' && receiver) {
+      return render(reply, data.lang, resultView({ ...data, receiver, reveal: false }));
+    }
+    const view = VIEWS[screen] ?? waitingView;
     return render(reply, data.lang, view(data));
   });
 
@@ -90,6 +101,13 @@ export function participantRoutes(app, ctx, { sendPage, sendError, isParticipant
     saveWishes(ctx, request.participant.id, request.body);
     request.log.info({ participant_id: request.participant.id }, 'wishes_saved');
     return reply.redirect(`/p/${request.participant.token}`, 303);
+  });
+
+  app.post('/p/:token/draw', { onRequest: loadParticipant }, async (request, reply) => {
+    const participant = request.participant;
+    const base = `/p/${participant.token}`;
+    const open = Boolean(repo.getGroup(participant.groupId).openedAt);
+    return reply.redirect(open ? `${base}?reveal=1` : base, 303);
   });
 
   app.post('/p/:token/lang', { onRequest: loadParticipant }, async (request, reply) => {
