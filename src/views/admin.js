@@ -5,6 +5,7 @@ import { PASTE_TEXT_MAX } from '../people.js';
 const LOCALES = { nl: 'nl-NL', en: 'en-GB' };
 const THEME_MAX = 2000;
 const OPTIONS_MAX = 4000;
+const MIN_GROUP = 3;
 
 export function loginView(lang, { error = null } = {}) {
   const title = t(lang, 'admin.login.title');
@@ -239,6 +240,7 @@ function drawPanel(lang, { group, rows, openError, mailEnabled }) {
   const open = group.openedAt
     ? html`<p>${t(lang, 'admin.draw.isOpen')}</p>`
     : html`<p>${t(lang, mailEnabled ? 'admin.draw.openIntro' : 'admin.draw.openIntroNoMail')}</p>
+${!group.invitationsSentAt && openError !== 'no-invitations' ? html`<p class="hint">${t(lang, 'admin.open.error.no-invitations')}</p>` : ''}
 <form method="post" action="/admin/groups/${group.id}/open">
 <button type="submit" class="primary">${t(lang, 'admin.draw.openButton')}</button>
 </form>`;
@@ -371,12 +373,13 @@ export function messageView(lang, { titleKey, messageKey, href, linkText }) {
 const LOCK_ICON = raw('<svg class="lock-icon" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">'
   + '<path fill="currentColor" d="M4 7V5a4 4 0 0 1 8 0v2h1a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1h1zm2 0h4V5a2 2 0 0 0-4 0v2z"/></svg>');
 
-function pairRow(lang, { pair, others, groupId, version, swapped }) {
+function pairRow(lang, { pair, others, groupId, version, swapped, canSwap }) {
   const { giver, receiver, locked } = pair;
   const classes = ['pair', locked ? 'is-locked' : '', swapped ? 'is-swapped' : ''].filter(Boolean).join(' ');
-  const action = locked
-    ? html`<p class="lock">${LOCK_ICON} ${t(lang, 'admin.arrange.locked')}</p>`
-    : html`<form method="post" action="/admin/groups/${groupId}/swap" class="pair-swap">
+  let action = '';
+  if (locked) action = html`<p class="lock">${LOCK_ICON} ${t(lang, 'admin.arrange.locked')}</p>`;
+  else if (canSwap) {
+    action = html`<form method="post" action="/admin/groups/${groupId}/swap" class="pair-swap">
 <input type="hidden" name="a" value="${giver.id}">
 <input type="hidden" name="version" value="${version}">
 <label for="swap-${giver.id}">${t(lang, 'admin.arrange.swapWith')}</label>
@@ -386,10 +389,23 @@ ${others.filter((o) => o.giver.id !== giver.id).map((o) => html`<option value="$
 </select>
 <button type="submit">${t(lang, 'admin.arrange.swap')}</button>
 </form>`;
-  const data = locked ? '' : html` data-giver="${giver.id}" data-receiver="${receiver.id}" data-name="${giver.name}"`;
+  }
+  const data = locked || !canSwap ? '' : html` data-giver="${giver.id}" data-receiver="${receiver.id}" data-name="${giver.name}"`;
   return html`<li class="${classes}" id="pair-${giver.id}"${data}>
 <p class="pair-names"><span class="pair-giver">${giver.name}</span> <span class="pair-arrow" aria-hidden="true">&rarr;</span><span class="visually-hidden">${t(lang, 'admin.arrange.givesTo')}</span> <span class="pair-receiver">${receiver.name}</span></p>
 ${action}
+</li>`;
+}
+
+// arrange.js moves this item under the most recently picked card, so it
+// pushes the rows below down instead of covering them.
+function confirmBar(lang) {
+  return html`<li class="arrange-bar" data-arrange-bar hidden role="group" aria-label="${t(lang, 'admin.arrange.barLabel')}" data-confirm="${t(lang, 'admin.arrange.confirm')}" data-self="${t(lang, 'admin.arrange.selfNote')}" data-next="${t(lang, 'admin.arrange.pickNext')}">
+<p class="arrange-bar-text" data-text></p>
+<div class="arrange-bar-actions">
+<button type="button" class="primary" data-swap>${t(lang, 'admin.arrange.swap')}</button>
+<button type="button" data-cancel>${t(lang, 'admin.arrange.cancel')}</button>
+</div>
 </li>`;
 }
 
@@ -399,31 +415,40 @@ export function arrangeView(lang, { group, pairs, version, error = null, swapped
   const title = t(lang, 'admin.arrange.title');
   const others = pairs.filter((p) => !p.locked);
   const byId = new Map(pairs.map((p) => [p.giver.id, p]));
+  // In a cycle of 3 every two givers are neighbours, so any swap would give
+  // one of them themselves.
+  const canSwap = pairs.length > MIN_GROUP;
   const done = swapped && swapped.every((id) => byId.has(id))
     ? html`<p class="notice done" role="status">${t(lang, 'admin.arrange.swapped', {
       a: byId.get(swapped[0]).giver.name, ra: byId.get(swapped[0]).receiver.name,
       b: byId.get(swapped[1]).giver.name, rb: byId.get(swapped[1]).receiver.name,
     })}</p>`
     : '';
-  const list = pairs.length
-    ? html`<ul class="pairs" data-arrange data-pick="${t(lang, 'admin.arrange.pick')}" data-pick-label="${t(lang, 'admin.arrange.pickLabel')}">
-${pairs.map((pair) => pairRow(lang, { pair, others, groupId: group.id, version, swapped: swapped?.includes(pair.giver.id) }))}
+  const rows = pairs.map((pair) => pairRow(lang, {
+    pair, others, groupId: group.id, version, swapped: swapped?.includes(pair.giver.id), canSwap,
+  }));
+  let list = html`<p class="muted">${t(lang, 'admin.arrange.noPairs')}</p>`;
+  let how = '';
+  if (pairs.length && !canSwap) {
+    list = html`<ul class="pairs">
+${rows}
+</ul>`;
+    how = html`<p class="notice warn">${t(lang, 'admin.arrange.groupOfThree')}</p>`;
+  } else if (pairs.length) {
+    list = html`<ul class="pairs" data-arrange data-pick="${t(lang, 'admin.arrange.pick')}" data-pick-label="${t(lang, 'admin.arrange.pickLabel')}">
+${rows}
+${confirmBar(lang)}
 </ul>
-<div class="arrange-bar" data-arrange-bar hidden data-confirm="${t(lang, 'admin.arrange.confirm')}" data-self="${t(lang, 'admin.arrange.selfNote')}" data-next="${t(lang, 'admin.arrange.pickNext')}">
-<p class="arrange-bar-text" aria-live="polite" data-text></p>
-<div class="arrange-bar-actions">
-<button type="button" class="primary" data-swap>${t(lang, 'admin.arrange.swap')}</button>
-<button type="button" data-cancel>${t(lang, 'admin.arrange.cancel')}</button>
-</div>
-</div>`
-    : html`<p class="muted">${t(lang, 'admin.arrange.noPairs')}</p>`;
+<p class="visually-hidden" aria-live="polite" data-live></p>`;
+    how = html`<p class="hint" data-how-form>${t(lang, 'admin.arrange.howForm')}</p>
+<p class="hint" data-how-script hidden>${t(lang, 'admin.arrange.howScript')}</p>`;
+  }
   const body = html`${backLink(`/admin/groups/${group.id}`, group.name)}
 <h1>${title}</h1>
 ${errorNotice(lang, error)}
 ${done}
 <p>${t(lang, 'admin.arrange.intro')}</p>
-<p class="hint" data-how-form>${t(lang, 'admin.arrange.howForm')}</p>
-<p class="hint" data-how-script hidden>${t(lang, 'admin.arrange.howScript')}</p>
+${how}
 ${list}`;
-  return { title, body, scripts: pairs.length ? ['arrange.js'] : [] };
+  return { title, body, scripts: canSwap ? ['arrange.js'] : [] };
 }

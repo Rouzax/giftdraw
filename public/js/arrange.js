@@ -9,6 +9,9 @@
   if (!list || !bar || !list.querySelector || !document.documentElement.classList) return;
 
   var text = bar.querySelector('[data-text]');
+  // Outside the bar, so screen readers announce changes even as the bar is
+  // shown, hidden and moved.
+  var live = document.querySelector('[data-live]');
   var swapButton = bar.querySelector('[data-swap]');
   var cancelButton = bar.querySelector('[data-cancel]');
   var rows = Array.prototype.slice.call(list.querySelectorAll('.pair[data-giver]'));
@@ -35,10 +38,15 @@
     row.querySelector('.pair-pick').setAttribute('aria-pressed', on ? 'true' : 'false');
   }
 
+  // The bar sits in the list right under the latest pick, so it pushes the
+  // rows below down rather than covering any of them.
   function show(message, canSwap) {
     text.textContent = message;
+    if (live) live.textContent = message;
     swapButton.hidden = !canSwap;
+    list.insertBefore(bar, (second || first).nextSibling);
     bar.hidden = false;
+    if (bar.scrollIntoView) bar.scrollIntoView({ block: 'nearest' });
   }
 
   function reset() {
@@ -48,6 +56,14 @@
     second = null;
     bar.hidden = true;
     text.textContent = '';
+    if (live) live.textContent = '';
+  }
+
+  function cancel() {
+    if (!first) return;
+    var back = first.querySelector('.pair-pick');
+    if (back) back.focus();
+    reset();
   }
 
   // Swapping with your own receiver, or with whoever gives to you, would
@@ -102,9 +118,9 @@
     if (row) pick(row);
   });
   swapButton.addEventListener('click', submit);
-  cancelButton.addEventListener('click', reset);
+  cancelButton.addEventListener('click', cancel);
   document.addEventListener('keydown', function (event) {
-    if (event.key === 'Escape' || event.key === 'Esc') reset();
+    if (event.key === 'Escape' || event.key === 'Esc') cancel();
   });
 
   // No drag where the primary pointer is touch: touch browsers that do
@@ -128,7 +144,9 @@
       reset();
       dragging = row;
       dropped = false;
-      pick(row);
+      // Marked only: showing the bar now would shift rows under the pointer.
+      first = row;
+      mark(first, true);
       row.classList.add('is-dragging');
       event.dataTransfer.effectAllowed = 'move';
       // Firefox only starts a drag that carries data.

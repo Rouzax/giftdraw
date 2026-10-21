@@ -254,6 +254,8 @@ export default {
   'admin.arrange.locked': 'Has drawn, stays as is',
   'admin.arrange.swapped': 'Swapped: {a} now gives to {ra}, {b} gives to {rb}.',
   'admin.arrange.noPairs': 'There are no pairs yet. At least 3 participants are needed.',
+  'admin.arrange.groupOfThree': 'In a group of 3 nobody can swap: every swap would give someone themselves.',
+  'admin.arrange.barLabel': 'Confirm swap',
   'admin.arrange.error.stale': 'The pairs changed in the meantime. Check the current pairs and try again.',
   'admin.arrange.error.drawn': 'One of them has already drawn, so that pair stays as is.',
   'admin.arrange.error.self': 'That swap would give someone themselves.',

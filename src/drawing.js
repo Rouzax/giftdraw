@@ -44,6 +44,8 @@ export function openGroup(ctx, groupId) {
   const now = ctx.nowIso();
   const result = repo.tx(() => {
     const group = repo.getGroup(groupId);
+    // The scheduler can reach a group that was deleted in the meantime.
+    if (!group) return { opened: false, reason: 'invalid' };
     if (group.openedAt) return { opened: false, reason: 'already-open' };
     if (!group.invitationsSentAt) return { opened: false, reason: 'no-invitations' };
     const people = repo.listParticipants(groupId);

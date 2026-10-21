@@ -256,6 +256,8 @@ export default {
   'admin.arrange.locked': 'Heeft getrokken, staat vast',
   'admin.arrange.swapped': 'Gewisseld: {a} geeft nu aan {ra}, {b} geeft aan {rb}.',
   'admin.arrange.noPairs': 'Er zijn nog geen paren. Daarvoor zijn minstens 3 deelnemers nodig.',
+  'admin.arrange.groupOfThree': 'In een groep van 3 kan niemand wisselen: elke wissel zou iemand zichzelf geven.',
+  'admin.arrange.barLabel': 'Wissel bevestigen',
   'admin.arrange.error.stale': 'De paren zijn intussen veranderd. Bekijk de nieuwe stand en probeer het opnieuw.',
   'admin.arrange.error.drawn': 'Een van beiden heeft al getrokken, dus dat paar staat vast.',
   'admin.arrange.error.self': 'Die wissel zou iemand zichzelf geven.',

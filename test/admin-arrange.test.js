@@ -248,3 +248,45 @@ test('with mail off the dashboard does not promise an email on opening', async (
   assert.ok(res.body.includes('Daarna kan iedereen via de eigen link trekken.'));
   assert.equal(res.body.includes('Iedereen met e-mail krijgt bericht'), false);
 });
+
+test('opening a group that does not exist is refused as invalid', async () => {
+  const t = await setup();
+  assert.deepEqual(openGroup(t.ctx, 999), { opened: false, reason: 'invalid' });
+  assert.equal(drawOpenRows(t), 0);
+});
+
+test('a group of 3 shows that no swap is possible and offers no swap controls', async () => {
+  const clock = { ms: T0 };
+  const t = await makeTestApp({ clock: () => new Date(clock.ms) });
+  const { group } = seedGroup(t.ctx, { names: ['Ada', 'Ben', 'Cor'] });
+  const res = await t.adminGet(`/admin/groups/${group.id}/arrange`);
+  assert.equal(res.statusCode, 200);
+  assert.ok(res.body.includes('In een groep van 3 kan niemand wisselen'));
+  assert.equal(res.body.includes('/swap"'), false);
+  assert.equal(res.body.includes('data-arrange-bar'), false);
+  assert.equal(res.body.includes('/static/js/arrange.js'), false);
+  for (const name of ['Ada', 'Ben', 'Cor']) assert.ok(res.body.includes(`<span class="pair-giver">${name}</span>`));
+});
+
+test('the dashboard says to send the invitations first next to the open button', async () => {
+  const t = await setup();
+  const hint = 'Verstuur eerst de uitnodigingen, daarna kan het trekken open.';
+  const before = await t.adminGet(`/admin/groups/${t.groupId}`);
+  assert.equal(before.body.split(hint).length - 1, 1);
+  const refused = await t.adminPost(`/admin/groups/${t.groupId}/open`);
+  assert.equal(refused.statusCode, 409);
+  assert.equal(refused.body.split(hint).length - 1, 1, 'the refusal does not repeat the sentence');
+  t.ctx.repo.markInvitationsSent(t.groupId, t.ctx.nowIso());
+  const after = await t.adminGet(`/admin/groups/${t.groupId}`);
+  assert.equal(after.body.includes(hint), false);
+});
+
+test('the arrange page keeps the live region outside the confirm bar', async () => {
+  const t = await setup();
+  const res = await t.adminGet(`/admin/groups/${t.groupId}/arrange`);
+  const bar = /<li class="arrange-bar"[^>]*>[\s\S]*?<\/li>/.exec(res.body);
+  assert.ok(bar, 'the bar is a list item inside the pairs list');
+  assert.ok(/role="group" aria-label="[^"]+"/.test(bar[0]));
+  assert.equal(bar[0].includes('aria-live'), false);
+  assert.ok(/<p class="visually-hidden" aria-live="polite" data-live><\/p>/.test(res.body));
+});
