@@ -1,16 +1,11 @@
-import { readFileSync } from 'node:fs';
 import { isIP } from 'node:net';
+import { assetHash, PUBLIC_DIR } from './assets.js';
 
 const LOG_LEVELS = ['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'];
 
 // Messages name the variable only: values may be secrets and errors end up in logs.
 function fail(name, problem) {
   throw new Error(`Invalid configuration: ${name} ${problem}`);
-}
-
-function packageVersion() {
-  const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
-  return pkg.version;
 }
 
 function value(env, name) {
@@ -123,6 +118,6 @@ export function loadConfig(env) {
     adminPassword,
     sessionSecret,
     smtp: parseSmtp(env),
-    assetVersion: value(env, 'APP_VERSION') ?? packageVersion(),
+    assetVersion: assetHash(PUBLIC_DIR),
   };
 }

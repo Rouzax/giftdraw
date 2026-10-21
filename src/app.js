@@ -1,8 +1,8 @@
-import { fileURLToPath } from 'node:url';
 import Fastify from 'fastify';
 import cookie from '@fastify/cookie';
 import formbody from '@fastify/formbody';
 import fastifyStatic from '@fastify/static';
+import { PUBLIC_DIR } from './assets.js';
 import { normalisePath } from './context.js';
 import { adminArrangeRoutes } from './routes/admin-arrange.js';
 import { registerAdminAuth } from './routes/admin-auth.js';
@@ -11,8 +11,6 @@ import { adminSetupRoutes } from './routes/admin-setup.js';
 import { adminShared } from './routes/admin-shared.js';
 import { participantRoutes } from './routes/participant.js';
 import { errorPage } from './views/layout.js';
-
-const PUBLIC_DIR = fileURLToPath(new URL('../public/', import.meta.url));
 
 const SECURITY_HEADERS = {
   'X-Robots-Tag': 'noindex',

@@ -1,11 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { assetHash } from '../src/assets.js';
 import { loadConfig } from '../src/config.js';
 
 const PASSWORD = 'correct-horse-battery';
 const SECRET = 's'.repeat(32);
-const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+const PUBLIC = fileURLToPath(new URL('../public/', import.meta.url));
 
 function passwordEnv(extra = {}) {
   return {
@@ -91,7 +92,7 @@ test('defaults', () => {
   assert.equal(config.adminUserHeader, 'remote-user');
   assert.deepEqual(config.trustedProxies, []);
   assert.equal(config.smtp, null);
-  assert.equal(config.assetVersion, pkg.version);
+  assert.equal(config.assetVersion, assetHash(PUBLIC));
 });
 
 test('explicit values override defaults', () => {
@@ -101,6 +102,7 @@ test('explicit values override defaults', () => {
     TZ: 'UTC',
     LOG_LEVEL: 'debug',
     ADMIN_USER_HEADER: 'X-Forwarded-User',
+    // No longer read: the asset version follows the files themselves.
     APP_VERSION: '1.2.3',
   }));
   assert.equal(config.port, 8080);
@@ -108,7 +110,7 @@ test('explicit values override defaults', () => {
   assert.equal(config.tz, 'UTC');
   assert.equal(config.logLevel, 'debug');
   assert.equal(config.adminUserHeader, 'x-forwarded-user');
-  assert.equal(config.assetVersion, '1.2.3');
+  assert.equal(config.assetVersion, assetHash(PUBLIC));
 });
 
 test('invalid PORT, TZ and LOG_LEVEL throw naming the variable', () => {

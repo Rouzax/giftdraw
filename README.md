@@ -175,7 +175,6 @@ password and session secret, where spaces count.
 | `SMTP_FROM` | none | Sender address, for example `Gift Draw <gifts@example.com>`. Required when `SMTP_HOST` is set. |
 | `TZ` | `Europe/Amsterdam` | IANA time zone for dates, the 09:00 auto-open and reminders. |
 | `LOG_LEVEL` | `info` | `fatal`, `error`, `warn`, `info`, `debug`, `trace` or `silent`. |
-| `APP_VERSION` | package version | Cache key for CSS and scripts, which browsers keep for a year. Change it when you deploy changed styles under the same version. |
 | `PORT` | `3000` | Listening port. Set by the image. |
 | `DB_PATH` | `./data/giftdraw.db` | Database file. The image sets `/data/giftdraw.db`. |
 
