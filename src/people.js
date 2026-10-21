@@ -7,6 +7,7 @@ import { parseWishesForm, wishOptions } from './wishes.js';
 const MIN_GROUP = 3;
 const NAME_MAX = 100;
 const EMAIL_MAX = 254;
+const WISH_UPDATE_DELAY_MS = 15 * 60_000;
 export const PASTE_ROWS_MAX = 500;
 // Longest text a full paste can need: every row at the name and email caps.
 export const PASTE_TEXT_MAX = PASTE_ROWS_MAX * (NAME_MAX + EMAIL_MAX + 4);
@@ -23,7 +24,13 @@ export function saveWishes(ctx, participantId, body) {
     const participant = repo.getParticipant(participantId);
     const event = repo.getEvent(repo.getGroup(participant.groupId).eventId);
     const wishes = parseWishesForm(body, wishOptions(event));
-    repo.updateParticipant(participantId, { wishes, wishesUpdatedAt: ctx.nowIso() });
+    const fields = { wishes, wishesUpdatedAt: ctx.nowIso() };
+    // Saves within the window share one mail to the giver: the flag is set by
+    // the first save and the scheduler sends once it is due.
+    if (!participant.notifyGiverDueAt && repo.giverOf(participantId)?.drawnAt) {
+      fields.notifyGiverDueAt = new Date(ctx.now().getTime() + WISH_UPDATE_DELAY_MS).toISOString();
+    }
+    repo.updateParticipant(participantId, fields);
     return wishes;
   });
 }

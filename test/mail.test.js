@@ -146,3 +146,12 @@ test('mailer uses implicit TLS on 465 and no auth without a user', () => {
   assert.equal(seen[0].requireTLS, false);
   assert.equal(seen[0].auth, undefined);
 });
+
+test('mailer close shuts the pool, and is a no-op when mail is off', async () => {
+  let closed = 0;
+  const factory = () => ({ sendMail: async () => {}, close: () => { closed += 1; } });
+  const smtp = { host: 'mail.example.com', port: 587, user: 'u', pass: 'p', from: 'Gifts <gifts@example.com>' };
+  await createMailer({ smtp }, factory).close();
+  assert.equal(closed, 1);
+  await createMailer({ smtp: null }).close();
+});

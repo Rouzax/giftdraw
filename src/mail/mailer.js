@@ -8,6 +8,7 @@ export function createMailer(config, createTransport = nodemailer.createTranspor
       async send() {
         throw new Error('mail is not configured');
       },
+      async close() {},
     };
   }
   // Port 465 speaks TLS from the first byte; anything else must upgrade with
@@ -29,6 +30,9 @@ export function createMailer(config, createTransport = nodemailer.createTranspor
     enabled: true,
     async send({ to, subject, html, text }) {
       await transport.sendMail({ from: smtp.from, to, subject, html, text });
+    },
+    async close() {
+      transport.close();
     },
   };
 }

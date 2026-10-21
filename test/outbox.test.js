@@ -188,3 +188,113 @@ test('drain picks up more than one batch', async () => {
   assert.deepEqual(await drain(), { sent: 51, failed: 0 });
   assert.equal(mails.length, 51);
 });
+
+test('a markSent failure after a send retries markSent once and never resends', async () => {
+  const { ctx, db, mails, ada, drain } = await setup();
+  const id = ctx.repo.enqueue(ada.id, 'invite', ctx.nowIso());
+  const real = ctx.repo.markSent;
+  let calls = 0;
+  ctx.repo.markSent = (...args) => {
+    calls += 1;
+    if (calls === 1) throw new Error('database is locked');
+    return real(...args);
+  };
+  assert.deepEqual(await drain(), { sent: 1, failed: 0 });
+  assert.equal(calls, 2);
+  assert.equal(mails.length, 1);
+  assert.equal(outboxRow(db, id).status, 'sent');
+});
+
+test('a markSent that keeps failing leaves the row sending, logs an error and does not mark it failed', async () => {
+  const { ctx, db, mails, ada, drain, logs } = await setup();
+  const id = ctx.repo.enqueue(ada.id, 'invite', ctx.nowIso());
+  ctx.repo.markSent = () => {
+    throw new Error('database is locked');
+  };
+  let markFailedCalls = 0;
+  const realFailed = ctx.repo.markFailed;
+  ctx.repo.markFailed = (...args) => {
+    markFailedCalls += 1;
+    return realFailed(...args);
+  };
+  assert.deepEqual(await drain(), { sent: 1, failed: 0 });
+  assert.equal(markFailedCalls, 0);
+  assert.equal(mails.length, 1);
+  const row = outboxRow(db, id);
+  assert.equal(row.status, 'sending');
+  assert.equal(row.error_code, null);
+  const line = logLines(logs).find((l) => l.msg === 'mail_mark_failed');
+  assert.equal(line.level, 50);
+  assert.equal(line.outbox_id, id);
+  assert.equal(line.participant_id, ada.id);
+  assert.ok(!logs.some((l) => l.includes('mail_failed')));
+  assert.deepEqual(await drain(), { sent: 0, failed: 0 });
+  assert.equal(mails.length, 1);
+});
+
+test('a markFailed that throws does not strand the rest of the claimed batch', async () => {
+  const { ctx, db, mailer, ada, ben, drain, logs } = await setup();
+  mailer.fail = () => Object.assign(new Error('down'), { code: 'ECONNECTION' });
+  const first = ctx.repo.enqueue(ada.id, 'invite', ctx.nowIso());
+  const second = ctx.repo.enqueue(ben.id, 'invite', ctx.nowIso());
+  const real = ctx.repo.markFailed;
+  ctx.repo.markFailed = (id, ...rest) => {
+    if (id === first) throw new Error('database is locked');
+    return real(id, ...rest);
+  };
+  assert.deepEqual(await drain(), { sent: 0, failed: 2 });
+  assert.equal(outboxRow(db, first).status, 'sending');
+  assert.equal(outboxRow(db, second).status, 'pending');
+  assert.equal(outboxRow(db, second).error_code, 'ECONNECTION');
+  const line = logLines(logs).find((l) => l.msg === 'mail_mark_failed');
+  assert.equal(line.level, 50);
+  assert.equal(line.outbox_id, first);
+});
+
+test('a drain request arriving while a drain runs is not lost', async () => {
+  const { ctx, mails, mailer, ada, ben } = await setup();
+  mailer.delayMs = 30;
+  ctx.repo.enqueue(ada.id, 'invite', ctx.nowIso());
+  const running = drainOutbox(ctx);
+  await new Promise((resolve) => setTimeout(resolve, 5));
+  ctx.repo.enqueue(ben.id, 'invite', ctx.nowIso());
+  const again = drainOutbox(ctx);
+  assert.equal(again, running);
+  assert.deepEqual(await running, { sent: 2, failed: 0 });
+  assert.deepEqual(mails.map((m) => m.to), ['ada@example.com', 'ben@example.com']);
+  assert.equal(ctx.state.drain, undefined);
+});
+
+test('a final give-up after retries logs at error, an immediate skip at warn', async () => {
+  const { ctx, mailer, ada, ben, drain, clock, logs } = await setup();
+  ctx.repo.updateParticipant(ben.id, { email: null });
+  ctx.repo.enqueue(ben.id, 'invite', ctx.nowIso());
+  await drain();
+  const skip = logLines(logs).find((l) => l.msg === 'mail_failed');
+  assert.equal(skip.code, 'no-email');
+  assert.equal(skip.level, 40);
+  mailer.fail = () => Object.assign(new Error('down'), { code: 'ECONNECTION' });
+  ctx.repo.enqueue(ada.id, 'invite', ctx.nowIso());
+  for (const minutes of [0, 1, 5, 30, 120]) {
+    clock.ms += minutes * MINUTE;
+    await drain();
+  }
+  const failures = logLines(logs).filter((l) => l.msg === 'mail_failed' && l.participant_id === ada.id);
+  assert.deepEqual(failures.map((l) => l.level), [40, 40, 40, 40, 50]);
+  assert.equal(failures.at(-1).gaveup, true);
+});
+
+test('once stopping, a drain finishes the send in flight and starts no other', async () => {
+  const { ctx, db, mails, mailer, ada, ben } = await setup();
+  mailer.delayMs = 20;
+  ctx.repo.enqueue(ada.id, 'invite', ctx.nowIso());
+  const second = ctx.repo.enqueue(ben.id, 'invite', ctx.nowIso());
+  const running = drainOutbox(ctx);
+  await new Promise((resolve) => setTimeout(resolve, 5));
+  ctx.state.stopping = true;
+  assert.deepEqual(await running, { sent: 1, failed: 0 });
+  assert.equal(mails.length, 1);
+  // Claimed but never attempted: requeueStale hands it back after a restart.
+  assert.equal(outboxRow(db, second).status, 'sending');
+  assert.deepEqual(await drainOutbox(ctx), { sent: 0, failed: 0 });
+});

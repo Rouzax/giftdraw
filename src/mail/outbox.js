@@ -44,24 +44,44 @@ function prepare(ctx, row) {
   return { to: participant.email, ...mail };
 }
 
+// The mail has gone out, so a failing markSent must never lead to
+// markFailed and a retry. One more try covers a brief lock; after that the
+// row is left 'sending' and logged, and requeueStale will resend it only if
+// the database has recovered by then.
+function recordSent(ctx, row, fields) {
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    try {
+      ctx.repo.markSent(row.id, ctx.nowIso());
+      return;
+    } catch (err) {
+      if (attempt === 2) ctx.log.error({ ...fields, code: errorCode(err), step: 'sent' }, 'mail_mark_failed');
+    }
+  }
+}
+
 async function sendOne(ctx, row) {
   const fields = { outbox_id: row.id, participant_id: row.participantId, kind: row.kind };
   try {
-    const message = prepare(ctx, row);
-    await ctx.mailer.send(message);
-    ctx.repo.markSent(row.id, ctx.nowIso());
-    ctx.log.info(fields, 'mail_sent');
-    return true;
+    await ctx.mailer.send(prepare(ctx, row));
   } catch (err) {
     const skipped = err instanceof Skip;
     const code = errorCode(err);
     const now = ctx.now();
     const retry = !skipped && row.attempts < MAX_ATTEMPTS;
     const next = retry ? new Date(now.getTime() + BACKOFF_MS[row.attempts - 1]).toISOString() : null;
-    ctx.repo.markFailed(row.id, code, next, now.toISOString());
-    ctx.log.warn({ ...fields, code, attempts: row.attempts, gaveup: !retry }, 'mail_failed');
+    // A row that cannot be marked stays 'sending'; requeueStale retries it.
+    try {
+      ctx.repo.markFailed(row.id, code, next, now.toISOString());
+    } catch (markErr) {
+      ctx.log.error({ ...fields, code: errorCode(markErr), step: 'failed' }, 'mail_mark_failed');
+    }
+    const level = !skipped && !retry ? 'error' : 'warn';
+    ctx.log[level]({ ...fields, code, attempts: row.attempts, gaveup: !retry }, 'mail_failed');
     return false;
   }
+  recordSent(ctx, row, fields);
+  ctx.log.info(fields, 'mail_sent');
+  return true;
 }
 
 async function drain(ctx) {
@@ -69,10 +89,14 @@ async function drain(ctx) {
   if (!ctx.mailer.enabled) return result;
   let rows;
   do {
+    if (ctx.state.stopping) break;
     rows = ctx.repo.claimDue(ctx.nowIso(), BATCH);
     // One at a time: the pool has two connections and mail volume is small,
     // so ordering and a gentle send rate matter more than throughput.
     for (const row of rows) {
+      // Shutdown waits only for the send in flight. Rows claimed but not
+      // tried stay 'sending' until requeueStale hands them back.
+      if (ctx.state.stopping) break;
       if (await sendOne(ctx, row)) result.sent += 1;
       else result.failed += 1;
     }
@@ -81,13 +105,29 @@ async function drain(ctx) {
 }
 
 // A second call while a drain runs gets the same promise, so two triggers
-// close together never claim and send in parallel.
+// close together never claim and send in parallel. It also flags one more
+// pass, because rows queued after the running pass claimed its batch would
+// otherwise wait for the next trigger.
 export function drainOutbox(ctx) {
-  if (!ctx.state.drain) {
-    ctx.state.drain = drain(ctx).finally(() => {
-      ctx.state.drain = undefined;
-    });
+  if (ctx.state.drain) {
+    ctx.state.drainAgain = true;
+    return ctx.state.drain;
   }
+  ctx.state.drain = (async () => {
+    const total = { sent: 0, failed: 0 };
+    try {
+      do {
+        ctx.state.drainAgain = false;
+        const { sent, failed } = await drain(ctx);
+        total.sent += sent;
+        total.failed += failed;
+      } while (ctx.state.drainAgain && !ctx.state.stopping);
+      return total;
+    } finally {
+      ctx.state.drain = undefined;
+      ctx.state.drainAgain = false;
+    }
+  })();
   return ctx.state.drain;
 }
 
