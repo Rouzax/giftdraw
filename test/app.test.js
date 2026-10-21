@@ -99,14 +99,26 @@ test('POST without Origin and Referer passes under /p/ and fails under /admin', 
 
 test('the log never contains a participant token', async () => {
   const { app, logs, token } = await setup();
-  const urls = [`/p/${token}`, `/p/${token}/`, `//p/${token}`, `/p/${token}/draw`, `/p/${token}?x=1`, `/%70/${token}`];
+  const urls = [
+    `/p/${token}`, `/p/${token}/`, `//p/${token}`, `/p/${token}/draw`, `/p/${token}?x=1`, `/%70/${token}`,
+    `/p/..%2f${token}`, `/p/..%2F..%2F${token}`, `/p/%2e%2e%2f${token}`, `/p/%2e%2e/${token}`, `/%70/${token}%ZZ`,
+  ];
   for (const url of urls) {
     await app.inject(url);
   }
   const text = logs.join('');
   assert.ok(logs.length > 0);
   assert.ok(text.includes('/p/:token'));
+  assert.ok(text.includes('"url":"unmatched"'));
   assert.ok(!text.includes(token));
+});
+
+test('string log arguments lose token-shaped runs', async () => {
+  const { ctx, logs, token } = await setup();
+  ctx.log.info(`odd ${token} and /x/${token}`);
+  const text = logs.join('');
+  assert.ok(!text.includes(token));
+  assert.ok(text.includes('odd :token and /x/:token'));
 });
 
 test('an unknown page renders the HTML 404 page and logs only the method', async () => {

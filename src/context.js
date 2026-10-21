@@ -2,9 +2,11 @@ import pino from 'pino';
 import { createRepo } from './db/repo.js';
 
 const TOKEN_PATH = /\/p\/[^/?#\s"]+/g;
+// Token shape (32 random bytes in base64url), wherever it appears.
+const TOKEN_RUN = /[A-Za-z0-9_-]{43,}/g;
 
 export function redactPath(value) {
-  return value.replace(TOKEN_PATH, '/p/:token');
+  return value.replace(TOKEN_PATH, '/p/:token').replace(TOKEN_RUN, ':token');
 }
 
 // The path as the router sees it: percent-decoded, duplicate slashes
@@ -26,11 +28,6 @@ export function normalisePath(url) {
   return path.replace(/\/{2,}/g, '/');
 }
 
-// Logs only the normalised path: the query string can carry anything a
-// client sends, and an encoded path would hide a token from redactPath.
-function redactUrl(url) {
-  return redactPath(normalisePath(url));
-}
 
 export function makeContext({ config, db, mailer, clock = () => new Date(), logStream }) {
   const options = {
@@ -39,7 +36,9 @@ export function makeContext({ config, db, mailer, clock = () => new Date(), logS
     base: undefined,
     timestamp: pino.stdTimeFunctions.isoTime,
     serializers: {
-      req: (request) => ({ method: request.method, url: redactUrl(request.url), id: request.id }),
+      // The route pattern, never the URL: encodings and dot segments give a
+      // token too many spellings to redact reliably.
+      req: (request) => ({ method: request.method, url: request.routeOptions?.url ?? 'unmatched', id: request.id }),
     },
     hooks: {
       logMethod(args, method) {
