@@ -1,0 +1,97 @@
+// Participant copy is read by seniors: short, plain sentences, "je" not "u".
+export default {
+  'app.name': 'Lootjes trekken',
+
+  'theme.default':
+    'Dit jaar doen we een regift: geef iets dat je al hebt en graag aan een ander gunt. Zo hoeft er niets nieuws gekocht te worden. Koop je toch iets, besteed dan maximaal 5 euro.',
+
+  'lang.nl': 'Nederlands',
+  'lang.en': 'English',
+  'lang.switch': 'Taal',
+
+  'common.exchangeDate': 'We geven de cadeautjes op {date}.',
+
+  'welcome.title': 'Welkom',
+  'welcome.greeting': 'Hallo {name}!',
+  'welcome.intro': 'Fijn dat je meedoet met lootjes trekken.',
+  'welcome.button': 'Vertel iets over jezelf',
+
+  'about.title': 'Over mij',
+  'about.intro': 'Alles is vrijwillig. Vul in wat je wilt.',
+  'about.save': 'Opslaan',
+  'about.saved': 'Je antwoorden zijn bewaard.',
+
+  'wish.hobbies': "Hobby's en interesses",
+  'wish.likes': 'Ik houd van...',
+  'wish.like.chocolate': 'Chocolade',
+  'wish.like.tea': 'Thee',
+  'wish.like.coffee': 'Koffie',
+  'wish.like.bath': 'Bad- of doucheproducten',
+  'wish.like.candles': 'Kaarsen',
+  'wish.like.books': 'Boeken of puzzels',
+  'wish.like.plants': 'Planten of bloemen',
+  'wish.like.wine': 'Wijn',
+  'wish.detail.chocolate': 'Welke smaak?',
+  'wish.detail': 'Welke soort?',
+  'wish.pets': 'Huisdieren',
+  'wish.pet.dog': 'Hond',
+  'wish.pet.cat': 'Kat',
+  'wish.pet.other': 'Ander dier',
+  'wish.petsOther': 'Welk dier?',
+  'wish.avoid': 'Liever niet, of allergieën',
+  'wish.other': 'Verder nog iets?',
+  'wish.line.hobbies': "Hobby's",
+  'wish.line.likes': 'Houdt van',
+  'wish.line.pets': 'Huisdieren',
+  'wish.line.avoid': 'Liever niet',
+  'wish.line.other': 'Verder',
+
+  'waiting.title': 'Dank je wel',
+  'waiting.thanks': 'Dank je wel. Het trekken begint binnenkort, je krijgt een e-mail.',
+  'waiting.edit': 'Mijn antwoorden aanpassen',
+
+  'draw.title': 'Je mag een naam trekken',
+  'draw.intro': 'Druk op de knop. Dan zie je voor wie jij een cadeautje geeft.',
+  'draw.button': 'Trek een naam',
+  'draw.skip': 'Tik om meteen de naam te zien',
+
+  'result.title': 'Jouw lootje',
+  'result.givesTo': 'Jij geeft een cadeautje aan {name}',
+  'result.wishesTitle': 'Wat {name} leuk vindt',
+  'result.noWishes': '{name} heeft nog niets ingevuld.',
+  'result.edit': 'Mijn eigen antwoorden aanpassen',
+
+  'error.title': 'Oeps',
+  'error.400': 'Dit verzoek klopt niet. Ga terug en probeer het opnieuw.',
+  'error.403': 'Dit mag helaas niet.',
+  'error.404': 'Deze pagina bestaat niet. Kijk of de link klopt.',
+  'error.429': 'Even te veel tegelijk. Probeer het over een minuut opnieuw.',
+  'error.500': 'Er ging iets mis. Probeer het later nog eens.',
+
+  'email.greeting': 'Hallo {name},',
+  'email.linkIntro': 'Je eigen pagina:',
+  'email.footer': 'Deze link is alleen voor jou. Stuur deze e-mail dus niet door.',
+  'email.invite.subject': 'Vertel iets over jezelf',
+  'email.invite.body':
+    'Je doet mee met lootjes trekken. Met de knop hieronder kom je op je eigen pagina. Daar kun je vertellen wat je leuk vindt.',
+  'email.invite.button': 'Naar mijn pagina',
+  'email.drawOpen.subject': 'Je kunt nu een naam trekken',
+  'email.drawOpen.body': 'Het trekken is begonnen. Druk op de knop en trek een naam.',
+  'email.drawOpen.button': 'Trek een naam',
+  'email.remindWishes.subject': 'Vertel je nog iets over jezelf?',
+  'email.remindWishes.body':
+    'Je hebt nog niet ingevuld wat je leuk vindt. Dat helpt degene die een cadeautje voor jou zoekt. Het hoeft niet, het mag.',
+  'email.remindWishes.button': 'Naar mijn pagina',
+  'email.remindDraw.subject': 'Vergeet niet een naam te trekken',
+  'email.remindDraw.body': 'Je hebt nog geen naam getrokken. Dat kan nog steeds, met de knop hieronder.',
+  'email.remindDraw.button': 'Trek een naam',
+  'email.wishesUpdated.subject': '{name} heeft de wensen aangepast',
+  'email.wishesUpdated.body': '{name} heeft de wensen aangepast. Kijk op je pagina wat er nu staat.',
+  'email.wishesUpdated.button': 'Bekijk het',
+  'email.reassigned.subject': 'Je persoon is veranderd',
+  'email.reassigned.body': 'Je persoon is veranderd. Je geeft nu een cadeautje aan {name}.',
+  'email.reassigned.button': 'Bekijk het',
+
+  'card.givesTo': 'Jij geeft een cadeautje aan {name}',
+  'card.wishesTitle': 'Wat {name} leuk vindt',
+};
