@@ -98,6 +98,7 @@ body {
 .card .theme .date {
   margin: 0;
   font-weight: 700;
+  overflow-wrap: anywhere;
 }
 
 .card .wishes h2 {

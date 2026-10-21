@@ -1,5 +1,5 @@
 import { html, raw } from '../html.js';
-import { formatDate, LANGS, t } from '../i18n/index.js';
+import { exchangeWhen, formatDate, LANGS, t } from '../i18n/index.js';
 import { PASTE_TEXT_MAX } from '../people.js';
 
 const LOCALES = { nl: 'nl-NL', en: 'en-GB' };
@@ -79,6 +79,11 @@ function groupFields(lang, prefix, values) {
   return html`<label for="${prefix}-name">${t(lang, 'admin.group.name')}</label>
 <input id="${prefix}-name" name="name" type="text" maxlength="100" required value="${values.name ?? ''}">
 ${dateInput(`${prefix}-exchange`, 'exchangeDate', t(lang, 'admin.group.exchangeDate'), values.exchangeDate, { required: true })}
+<label for="${prefix}-time">${t(lang, 'admin.group.exchangeTime')}</label>
+<input id="${prefix}-time" name="exchangeTime" type="time" value="${values.exchangeTime ?? ''}">
+<label for="${prefix}-place">${t(lang, 'admin.group.exchangePlace')}</label>
+<p class="hint" id="${prefix}-place-hint">${t(lang, 'admin.group.exchangePlaceHint')}</p>
+<input id="${prefix}-place" name="exchangePlace" type="text" maxlength="200" value="${values.exchangePlace ?? ''}" aria-describedby="${prefix}-place-hint">
 ${dateInput(`${prefix}-auto`, 'autoOpenAt', t(lang, 'admin.group.autoOpenAt'), values.autoOpenAt, { hint: t(lang, 'admin.group.autoOpenHint') })}`;
 }
 
@@ -98,7 +103,7 @@ export function eventView(lang, { event, groups, newGroup, themeValue, optionsVa
   const groupList = groups.length
     ? html`<ul class="group-list">${groups.map(({ group, size }) => html`<li>
 <a href="/admin/groups/${group.id}">${group.name}</a>
-<span class="muted">${t(lang, 'admin.group.summaryLine', { count: size, date: formatDate(lang, group.exchangeDate, tz) })}</span>
+<span class="muted">${t(lang, 'admin.group.summaryLine', { count: size, when: exchangeWhen(lang, group, tz) })}</span>
 <span class="badge${group.openedAt ? ' on' : ''}">${t(lang, group.openedAt ? 'admin.group.isOpen' : 'admin.group.notOpen')}</span>
 </li>`)}</ul>`
     : html`<p class="muted">${t(lang, 'admin.groups.empty')}</p>`;
@@ -251,7 +256,10 @@ function groupStatus(lang, group, tz) {
   if (group.openedAt) lines.push(t(lang, 'admin.group.openSince', { date: shortDate(lang, group.openedAt, tz) }));
   else if (group.autoOpenAt) lines.push(t(lang, 'admin.group.opensOn', { date: formatDate(lang, group.autoOpenAt, tz) }));
   else lines.push(t(lang, 'admin.group.notOpenYet'));
-  lines.push(t(lang, 'admin.group.exchangeOn', { date: formatDate(lang, group.exchangeDate, tz) }));
+  const when = exchangeWhen(lang, group, tz);
+  lines.push(group.exchangePlace
+    ? t(lang, 'admin.group.exchangeOnAt', { when, place: group.exchangePlace })
+    : t(lang, 'admin.group.exchangeOn', { when }));
   return html`<ul class="facts">${lines.map((line) => html`<li>${line}</li>`)}</ul>`;
 }
 

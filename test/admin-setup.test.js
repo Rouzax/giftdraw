@@ -439,3 +439,62 @@ test('with email off the dashboard explains the invitation button and drops mail
   assert.ok(on.body.includes('>Uitnodigingen versturen</button>'));
   assert.ok(on.body.includes('met e-mail uitgenodigd'));
 });
+
+test('a group keeps an exchange time and a one-line place, and empty values are null', async () => {
+  const t = await setup();
+  const eventId = await createEvent(t);
+  const groupId = await createGroup(t, eventId, { exchangeTime: '10:30', exchangePlace: '  Yogastudio De Lotus\r\nDorpsstraat 1  ' });
+  let group = t.ctx.repo.getGroup(groupId);
+  assert.equal(group.exchangeTime, '10:30');
+  assert.equal(group.exchangePlace, 'Yogastudio De Lotus Dorpsstraat 1');
+
+  const page = await t.adminGet(`/admin/groups/${groupId}`);
+  assert.ok(page.body.includes('om 10:30 bij Yogastudio De Lotus Dorpsstraat 1'), 'dashboard shows time and place');
+  assert.match(page.body, /name="exchangeTime" type="time" value="10:30"/);
+
+  const ok = await t.adminPost(`/admin/groups/${groupId}`, {
+    name: 'Maandag', exchangeDate: '2026-12-18', autoOpenAt: '', exchangeTime: '', exchangePlace: '   ',
+  });
+  assert.equal(ok.statusCode, 303);
+  group = t.ctx.repo.getGroup(groupId);
+  assert.equal(group.exchangeTime, null);
+  assert.equal(group.exchangePlace, null);
+});
+
+test('an invalid exchange time or an overlong place is refused with a form error', async () => {
+  const t = await setup();
+  const eventId = await createEvent(t);
+  for (const exchangeTime of ['25:00', '9:30', '10:30:00', 'noon']) {
+    const res = await t.adminPost(`/admin/events/${eventId}/groups`, {
+      name: 'Maandag', exchangeDate: '2026-12-18', autoOpenAt: '', exchangeTime,
+    });
+    assert.equal(res.statusCode, 400, exchangeTime);
+    assert.ok(res.body.includes('Vul een geldige tijd in'), exchangeTime);
+  }
+  const long = await t.adminPost(`/admin/events/${eventId}/groups`, {
+    name: 'Maandag', exchangeDate: '2026-12-18', autoOpenAt: '', exchangePlace: 'x'.repeat(201),
+  });
+  assert.equal(long.statusCode, 400);
+  assert.ok(long.body.includes('200 tekens'));
+  assert.equal(t.ctx.repo.listGroups(eventId).length, 0);
+
+  const groupId = await createGroup(t, eventId, { exchangePlace: 'y'.repeat(200) });
+  const res = await t.adminPost(`/admin/groups/${groupId}`, {
+    name: 'Maandag', exchangeDate: '2026-12-18', autoOpenAt: '', exchangeTime: '24:00',
+  });
+  assert.equal(res.statusCode, 400);
+  assert.match(res.body, /name="exchangeTime" type="time" value="24:00"/);
+  assert.equal(t.ctx.repo.getGroup(groupId).exchangeTime, null);
+});
+
+test('the new-group form copies the previous time and place', async () => {
+  const t = await setup();
+  const eventId = await createEvent(t);
+  let page = await t.adminGet(`/admin/events/${eventId}`);
+  assert.match(page.body, /name="exchangeTime" type="time" value=""/);
+  await createGroup(t, eventId, { exchangeTime: '19:45', exchangePlace: 'Buurthuis "De Kei"' });
+  page = await t.adminGet(`/admin/events/${eventId}`);
+  assert.match(page.body, /name="exchangeTime" type="time" value="19:45"/);
+  assert.ok(page.body.includes('name="exchangePlace" type="text" maxlength="200" value="Buurthuis &quot;De Kei&quot;"'));
+  assert.ok(page.body.includes('vrijdag 18 december om 19:45'), 'the group list shows the time');
+});

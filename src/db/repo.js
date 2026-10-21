@@ -35,7 +35,7 @@ function toJson(value) {
 // setAssignment so the change timestamp can never drift from the pairing.
 const UPDATABLE = {
   events: new Set(['name', 'language', 'cleanupWeeks', 'themeText', 'wishOptions']),
-  groups: new Set(['name', 'exchangeDate', 'autoOpenAt']),
+  groups: new Set(['name', 'exchangeDate', 'exchangeTime', 'exchangePlace', 'autoOpenAt']),
   participants: new Set([
     'name', 'email', 'language', 'token', 'wishes', 'wishesUpdatedAt', 'invitedAt',
     'visitedAt', 'drawnAt', 'printedAt', 'notifyGiverDueAt',
@@ -106,11 +106,11 @@ export function createRepo(db) {
 
   // Groups
 
-  function createGroup(eventId, { name, exchangeDate, autoOpenAt = null }, now) {
+  function createGroup(eventId, { name, exchangeDate, exchangeTime = null, exchangePlace = null, autoOpenAt = null }, now) {
     const result = db
-      .prepare(`INSERT INTO groups (event_id, name, exchange_date, auto_open_at, created_at)
-                VALUES (?, ?, ?, ?, ?)`)
-      .run(eventId, name, exchangeDate, autoOpenAt, defaultNow(now));
+      .prepare(`INSERT INTO groups (event_id, name, exchange_date, exchange_time, exchange_place, auto_open_at, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)`)
+      .run(eventId, name, exchangeDate, exchangeTime, exchangePlace, autoOpenAt, defaultNow(now));
     return Number(result.lastInsertRowid);
   }
 

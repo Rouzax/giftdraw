@@ -44,6 +44,8 @@ h1 {
 .theme .date {
   margin: 0;
   font-weight: 700;
+  /* The organiser's place may hold an unbroken token such as a map link. */
+  overflow-wrap: anywhere;
 }
 
 .button {

@@ -17,6 +17,8 @@ export const migrations = [
     event_id INTEGER NOT NULL REFERENCES events (id) ON DELETE CASCADE,
     name TEXT NOT NULL,
     exchange_date TEXT NOT NULL,
+    exchange_time TEXT,
+    exchange_place TEXT,
     auto_open_at TEXT,
     opened_at TEXT,
     invitations_sent_at TEXT,

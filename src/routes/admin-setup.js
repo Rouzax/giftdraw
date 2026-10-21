@@ -12,7 +12,9 @@ import { field, parseJsonField } from './admin-shared.js';
 import { eventsView, eventView, GROUP_DONE, messageView, pasteConfirmView } from '../views/admin.js';
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
+const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
 const NAME_MAX = 100;
+const PLACE_MAX = 200;
 const THEME_MAX = 2000;
 const OPTIONS_MAX = 4000;
 
@@ -33,9 +35,17 @@ export function adminSetupRoutes(app, ctx, { render, sendError, groupPage, loadE
     const values = {
       name: field(body, 'name', NAME_MAX).trim(),
       exchangeDate: field(body, 'exchangeDate', 10).trim(),
+      exchangeTime: field(body, 'exchangeTime', 10).trim() || null,
+      // The place is shown inside one sentence, so line breaks become spaces.
+      // Read past the limit so an overlong place is refused, not cut short.
+      exchangePlace: field(body, 'exchangePlace', PLACE_MAX * 2).replace(/\s+/g, ' ').trim() || null,
       autoOpenAt: field(body, 'autoOpenAt', 10).trim() || null,
     };
     if (!values.name) return { values, error: 'admin.group.error.name' };
+    if (values.exchangeTime !== null && !TIME.test(values.exchangeTime)) return { values, error: 'admin.group.error.exchangeTime' };
+    if (values.exchangePlace !== null && values.exchangePlace.length > PLACE_MAX) {
+      return { values, error: 'admin.group.error.exchangePlace' };
+    }
     if (!isDate(values.exchangeDate)) return { values, error: 'admin.group.error.exchangeDate' };
     const sameExchange = current && current.exchangeDate === values.exchangeDate;
     if (!sameExchange && values.exchangeDate < today()) return { values, error: 'admin.group.error.exchangePast' };
@@ -54,6 +64,8 @@ export function adminSetupRoutes(app, ctx, { render, sendError, groupPage, loadE
     const newGroup = {
       name: '',
       exchangeDate: latest?.exchangeDate ?? '',
+      exchangeTime: latest?.exchangeTime ?? '',
+      exchangePlace: latest?.exchangePlace ?? '',
       autoOpenAt: latest?.autoOpenAt && latest.autoOpenAt >= today() ? latest.autoOpenAt : '',
     };
     const options = wishOptions(event).map((o) => `${o.label(event.language)}${o.detail ? '?' : ''}`).join('\n');

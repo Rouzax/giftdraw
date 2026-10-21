@@ -1,5 +1,5 @@
 import { html, raw } from '../html.js';
-import { formatDate, LANGS, t, themeText } from '../i18n/index.js';
+import { exchangeLine, LANGS, t, themeText } from '../i18n/index.js';
 import { detailPrompt, hasWishes, PET_IDS, wishLines, wishOptions } from '../wishes.js';
 
 // Fragments take their links and form targets as arguments so the organiser
@@ -9,10 +9,9 @@ const TEXT_MAX = 1000;
 const checked = (on) => (on ? raw(' checked') : '');
 
 function themeBlock({ event, group, lang, tz }) {
-  const date = formatDate(lang, group.exchangeDate, tz);
   return html`<section class="theme">
 <p>${themeText(event, lang)}</p>
-<p class="date">${t(lang, 'common.exchangeDate', { date })}</p>
+<p class="date">${exchangeLine(lang, group, tz)}</p>
 </section>`;
 }
 
@@ -183,17 +182,19 @@ ${footer({ lang, langAction, showLangSwitch })}
 
 // Long wishes would push an A5 page onto a second sheet, so the card steps
 // its type down by the amount of text rather than letting the browser split it.
-const CARD_TEXT_STEPS = [[1400, 'card-smallest'], [700, 'card-smaller']];
+// The limits were measured by printing cards with long wishes and a long
+// exchange place to A5 PDF in Chrome.
+const CARD_TEXT_STEPS = [[950, 'card-smallest'], [700, 'card-smaller']];
 
-function cardSize(lines, theme) {
-  const length = lines.reduce((sum, line) => sum + line.label.length + line.value.length, theme.length);
+function cardSize(lines, ...texts) {
+  const length = lines.reduce((sum, line) => sum + line.label.length + line.value.length, texts.join('').length);
   return CARD_TEXT_STEPS.find(([limit]) => length > limit)?.[1] ?? '';
 }
 
 // The printed counterpart of the result screen, for someone without a device.
 export function cardView({ participant, receiver, event, group, lang, tz }) {
   const lines = wishLines(receiver.wishes, wishOptions(event), lang);
-  const size = cardSize(lines, themeText(event, lang));
+  const size = cardSize(lines, themeText(event, lang), exchangeLine(lang, group, tz));
   const [before, after = ''] = t(lang, 'result.givesTo').split('{name}');
   const body = html`<article class="card${size ? ` ${size}` : ''}">
 <p class="card-for">${t(lang, 'card.for', { name: participant.name })}</p>

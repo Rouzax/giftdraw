@@ -29,7 +29,14 @@ admin header.
    fields use the built-in regift text and choice list.
 2. **Create a group** per class or team, with the date the presents are
    exchanged and, if you like, a date on which drawing opens by itself
-   (at 09:00).
+   (at 09:00). You can also give the time and the place of the exchange,
+   such as `10:30` and "Yoga studio De Lotus, Main Street 1". Both are
+   optional; when set they appear next to the date in every mail, on
+   every participant screen and on the printed card, for example "We give
+   the presents on Friday 18 December at 10:30, at Yoga studio De Lotus,
+   Main Street 1." The place is one line of at most 200 characters. The form
+   for a new group starts filled in with the settings of the group you
+   created last, so groups that meet in the same place need no retyping.
 3. **Paste the participants**, one per line: `Name, email@example.com`.
    Someone without email is just `Name`. The app pairs everyone straight
    away in one big circle, so nobody gets themselves and no two people
@@ -68,7 +75,8 @@ person has changed and who the new one is, never who dropped out.
 3. Once drawing is open: press "Draw a name". A paper slip comes out of a
    bowl with the name on it.
 4. The page then shows who you give a present to, the theme, the exchange
-   date and what your person likes. Opening the link again later shows the
+   date (with the time and place, if the organiser set them) and what your
+   person likes. Opening the link again later shows the
    same result, so it works as a reminder.
 
 ## Running with Docker

@@ -1,5 +1,5 @@
 import { html } from '../html.js';
-import { formatDate, t, themeText } from '../i18n/index.js';
+import { exchangeLine, t, themeText } from '../i18n/index.js';
 import { wishLines, wishOptions } from '../wishes.js';
 
 // Outbox kind -> catalogue key under email.*
@@ -60,7 +60,7 @@ export function renderEmail(kind, { lang, participant, receiver, event, group, l
   const body = t(lang, `email.${key}.body`, vars);
   const button = t(lang, `email.${key}.button`);
   const theme = themeText(event, lang);
-  const date = t(lang, 'common.exchangeDate', { date: formatDate(lang, group.exchangeDate, tz) });
+  const date = exchangeLine(lang, group, tz);
   const linkIntro = t(lang, 'email.linkIntro');
   const footer = t(lang, 'email.footer');
   const wishes = kind === 'wishes-updated' ? wishesBlock(lang, receiver, event) : null;
@@ -86,7 +86,7 @@ export function renderEmail(kind, { lang, participant, receiver, event, group, l
       <a href="${link}" style="display:block;padding:18px 16px;${FONT}font-size:24px;font-weight:bold;line-height:1.3;color:#ffffff;text-decoration:none;">${button}</a>
     </td></tr>
   </table>
-  <p style="${TEXT}margin:0 0 16px;font-weight:bold;">${date}</p>
+  <p style="${TEXT}margin:0 0 16px;font-weight:bold;overflow-wrap:anywhere;word-break:break-word;">${date}</p>
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;">
     <tr><td style="background-color:${C.theme};border-radius:10px;padding:16px 18px;${FONT}font-size:19px;line-height:1.5;color:${C.ink};">${theme}</td></tr>
   </table>

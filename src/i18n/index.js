@@ -33,6 +33,21 @@ export function formatDate(lang, date, tz) {
   );
 }
 
+// The date with the time when one is set, e.g. "vrijdag 18 december om 10:30".
+export function exchangeWhen(lang, group, tz) {
+  const date = formatDate(lang, group.exchangeDate, tz);
+  return group.exchangeTime ? t(lang, 'common.dateTime', { date, time: group.exchangeTime }) : date;
+}
+
+// The one sentence every participant screen, email and card uses for when and
+// where the presents are given, so they never disagree.
+export function exchangeLine(lang, group, tz) {
+  const when = exchangeWhen(lang, group, tz);
+  return group.exchangePlace
+    ? t(lang, 'common.exchangeAt', { when, place: group.exchangePlace })
+    : t(lang, 'common.exchange', { when });
+}
+
 export function themeText(event, lang) {
   const custom = event.themeText?.trim();
   return custom ? custom : t(lang, 'theme.default');

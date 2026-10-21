@@ -60,6 +60,8 @@ test('group round trip', () => {
     eventId,
     name: 'Home',
     exchangeDate: '2026-12-20',
+    exchangeTime: null,
+    exchangePlace: null,
     autoOpenAt: null,
     openedAt: null,
     invitationsSentAt: null,
@@ -72,6 +74,14 @@ test('group round trip', () => {
   assert.equal(repo.getGroup(groupId).name, 'House');
   assert.equal(repo.getGroup(groupId).autoOpenAt, '2026-12-05');
   assert.throws(() => repo.updateGroup(groupId, { openedAt: T1 }), /openedAt/);
+  repo.updateGroup(groupId, { exchangeTime: '10:30', exchangePlace: 'Studio' });
+  assert.equal(repo.getGroup(groupId).exchangeTime, '10:30');
+  assert.equal(repo.getGroup(groupId).exchangePlace, 'Studio');
+  const third = repo.createGroup(eventId, {
+    name: 'Club', exchangeDate: '2026-12-19', exchangeTime: '19:45', exchangePlace: 'Hall 2',
+  }, T1);
+  assert.equal(repo.getGroup(third).exchangeTime, '19:45');
+  assert.equal(repo.getGroup(third).exchangePlace, 'Hall 2');
   repo.markInvitationsSent(groupId, T1);
   assert.equal(repo.getGroup(groupId).invitationsSentAt, T1);
   repo.deleteGroup(second);
