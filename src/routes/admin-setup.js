@@ -281,4 +281,7 @@ export function adminSetupRoutes(app, ctx, { sendPage, sendError }) {
       };
     });
   }
+
+  // The arrange routes share the page shell, the id check and the dashboard.
+  return { render, loadGroup, groupPage };
 }

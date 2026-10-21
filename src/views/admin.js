@@ -232,8 +232,27 @@ function groupStatus(lang, group, tz) {
   return html`<ul class="facts">${lines.map((line) => html`<li>${line}</li>`)}</ul>`;
 }
 
+function drawPanel(lang, { group, rows, openError, mailEnabled }) {
+  const arrange = rows.some((r) => r.receiver)
+    ? html`<p><a href="/admin/groups/${group.id}/arrange">${t(lang, 'admin.draw.arrange')}</a></p>`
+    : '';
+  const open = group.openedAt
+    ? html`<p>${t(lang, 'admin.draw.isOpen')}</p>`
+    : html`<p>${t(lang, mailEnabled ? 'admin.draw.openIntro' : 'admin.draw.openIntroNoMail')}</p>
+<form method="post" action="/admin/groups/${group.id}/open">
+<button type="submit" class="primary">${t(lang, 'admin.draw.openButton')}</button>
+</form>`;
+  return html`<section class="panel" id="draw">
+<h2>${t(lang, 'admin.draw.title')}</h2>
+${openError ? html`<p class="notice error" role="alert">${t(lang, `admin.open.error.${openError}`)}</p>` : ''}
+${open}
+${arrange}
+</section>`;
+}
+
 export function groupView(lang, {
   event, group, rows, warnings, mailEnabled, tz, error = null, values = null, pasteError = null, pasteText = '',
+  openError = null,
 }) {
   const title = group.name;
   const uninvited = rows.filter((r) => r.participant.email && !r.participant.invitedAt).length;
@@ -254,6 +273,7 @@ ${groupStatus(lang, group, tz)}
 <button type="submit" class="primary">${t(lang, 'admin.invite.button')}</button>
 </form>
 </section>
+${drawPanel(lang, { group, rows, openError, mailEnabled })}
 <section class="panel wide">
 <h2>${t(lang, 'admin.participants.title')}</h2>
 ${participantTable(lang, rows, tz)}
@@ -346,4 +366,64 @@ export function messageView(lang, { titleKey, messageKey, href, linkText }) {
 <p class="notice warn">${t(lang, messageKey)}</p>
 <p><a href="${href}">${linkText}</a></p>`;
   return { title, body };
+}
+
+const LOCK_ICON = raw('<svg class="lock-icon" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">'
+  + '<path fill="currentColor" d="M4 7V5a4 4 0 0 1 8 0v2h1a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1h1zm2 0h4V5a2 2 0 0 0-4 0v2z"/></svg>');
+
+function pairRow(lang, { pair, others, groupId, version, swapped }) {
+  const { giver, receiver, locked } = pair;
+  const classes = ['pair', locked ? 'is-locked' : '', swapped ? 'is-swapped' : ''].filter(Boolean).join(' ');
+  const action = locked
+    ? html`<p class="lock">${LOCK_ICON} ${t(lang, 'admin.arrange.locked')}</p>`
+    : html`<form method="post" action="/admin/groups/${groupId}/swap" class="pair-swap">
+<input type="hidden" name="a" value="${giver.id}">
+<input type="hidden" name="version" value="${version}">
+<label for="swap-${giver.id}">${t(lang, 'admin.arrange.swapWith')}</label>
+<select id="swap-${giver.id}" name="b" required>
+<option value="">${t(lang, 'admin.arrange.choose')}</option>
+${others.filter((o) => o.giver.id !== giver.id).map((o) => html`<option value="${o.giver.id}">${t(lang, 'admin.arrange.option', { giver: o.giver.name, receiver: o.receiver.name })}</option>`)}
+</select>
+<button type="submit">${t(lang, 'admin.arrange.swap')}</button>
+</form>`;
+  const data = locked ? '' : html` data-giver="${giver.id}" data-receiver="${receiver.id}" data-name="${giver.name}"`;
+  return html`<li class="${classes}" id="pair-${giver.id}"${data}>
+<p class="pair-names"><span class="pair-giver">${giver.name}</span> <span class="pair-arrow" aria-hidden="true">&rarr;</span><span class="visually-hidden">${t(lang, 'admin.arrange.givesTo')}</span> <span class="pair-receiver">${receiver.name}</span></p>
+${action}
+</li>`;
+}
+
+// pairs: [{giver, receiver, locked}] in a stable order, so rows stay put
+// after a swap. swapped: the two giver ids just swapped, or null.
+export function arrangeView(lang, { group, pairs, version, error = null, swapped = null }) {
+  const title = t(lang, 'admin.arrange.title');
+  const others = pairs.filter((p) => !p.locked);
+  const byId = new Map(pairs.map((p) => [p.giver.id, p]));
+  const done = swapped && swapped.every((id) => byId.has(id))
+    ? html`<p class="notice done" role="status">${t(lang, 'admin.arrange.swapped', {
+      a: byId.get(swapped[0]).giver.name, ra: byId.get(swapped[0]).receiver.name,
+      b: byId.get(swapped[1]).giver.name, rb: byId.get(swapped[1]).receiver.name,
+    })}</p>`
+    : '';
+  const list = pairs.length
+    ? html`<ul class="pairs" data-arrange data-pick="${t(lang, 'admin.arrange.pick')}" data-pick-label="${t(lang, 'admin.arrange.pickLabel')}">
+${pairs.map((pair) => pairRow(lang, { pair, others, groupId: group.id, version, swapped: swapped?.includes(pair.giver.id) }))}
+</ul>
+<div class="arrange-bar" data-arrange-bar hidden data-confirm="${t(lang, 'admin.arrange.confirm')}" data-self="${t(lang, 'admin.arrange.selfNote')}" data-next="${t(lang, 'admin.arrange.pickNext')}">
+<p class="arrange-bar-text" aria-live="polite" data-text></p>
+<div class="arrange-bar-actions">
+<button type="button" class="primary" data-swap>${t(lang, 'admin.arrange.swap')}</button>
+<button type="button" data-cancel>${t(lang, 'admin.arrange.cancel')}</button>
+</div>
+</div>`
+    : html`<p class="muted">${t(lang, 'admin.arrange.noPairs')}</p>`;
+  const body = html`${backLink(`/admin/groups/${group.id}`, group.name)}
+<h1>${title}</h1>
+${errorNotice(lang, error)}
+${done}
+<p>${t(lang, 'admin.arrange.intro')}</p>
+<p class="hint" data-how-form>${t(lang, 'admin.arrange.howForm')}</p>
+<p class="hint" data-how-script hidden>${t(lang, 'admin.arrange.howScript')}</p>
+${list}`;
+  return { title, body, scripts: pairs.length ? ['arrange.js'] : [] };
 }

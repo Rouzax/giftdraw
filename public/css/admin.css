@@ -387,3 +387,187 @@ table.people .email {
     font-size: 0.875rem;
   }
 }
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.notice.done {
+  border-left-color: var(--ribbon);
+}
+
+/* Arranging pairs: one card per giver. Without script each card carries its
+   own swap form; arrange.js hides the forms and makes the cards pickable. */
+.pairs {
+  margin: 1rem 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pair {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  margin: 0 0 0.5rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  background: var(--card);
+}
+
+.pair-names {
+  flex: 1 1 14rem;
+  min-width: 0;
+  margin: 0;
+  font-size: 1.125rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.pair-giver {
+  font-weight: 700;
+}
+
+.pair-arrow {
+  color: var(--muted);
+}
+
+.pair-swap {
+  display: flex;
+  flex: 1 1 22rem;
+  flex-wrap: wrap;
+  min-width: 0;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+}
+
+.pair-swap label {
+  color: var(--muted);
+  font-size: 0.9375rem;
+}
+
+/* min-width 0 and a width cap let a long option label shrink the select
+   instead of pushing the card wider than a phone screen. */
+.pair-swap select {
+  flex: 1 1 12rem;
+  width: auto;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.lock {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9375rem;
+}
+
+.lock-icon {
+  flex: none;
+}
+
+.pair.is-locked {
+  border-style: dashed;
+  background: var(--paper);
+}
+
+.pair.is-swapped {
+  border-color: var(--ribbon);
+  box-shadow: inset 4px 0 0 var(--ribbon);
+}
+
+.pairs.is-enhanced .pair-swap {
+  display: none;
+}
+
+/* With script a pickable card holds only the names and a small button,
+   which fit on one line even on a phone. Locked cards keep wrapping. */
+.pairs.is-enhanced .pair[data-giver] {
+  flex-wrap: nowrap;
+}
+
+.pairs.is-enhanced .pair[data-giver] .pair-names {
+  flex: 1 1 auto;
+}
+
+.pairs.is-enhanced .pair[data-giver] {
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.pairs.is-enhanced .pair[draggable="true"] {
+  cursor: grab;
+}
+
+.pair-pick {
+  flex: none;
+  min-width: 6rem;
+}
+
+/* An outline rather than a thicker border, so a picked card keeps its size
+   and the rows below it do not shift. */
+.pair.is-picked {
+  border-color: var(--focus);
+  outline: 2px solid var(--focus);
+}
+
+.pair.is-picked .pair-pick {
+  border-color: var(--focus);
+  background: var(--focus);
+  color: #ffffff;
+}
+
+.pair.is-drop {
+  border-color: var(--ribbon);
+  outline: 2px dashed var(--ribbon);
+  background: #eef6f1;
+}
+
+.pair.is-dragging {
+  opacity: 0.5;
+}
+
+.arrange-bar {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  background: var(--card);
+  box-shadow: 0 -4px 12px rgba(43, 33, 27, 0.15);
+}
+
+.arrange-bar[hidden],
+.arrange-bar button[hidden] {
+  display: none;
+}
+
+.arrange-bar-text {
+  flex: 1 1 14rem;
+  margin: 0;
+  font-weight: 600;
+}
+
+.arrange-bar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}

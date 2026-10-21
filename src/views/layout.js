@@ -44,7 +44,7 @@ ${LANGS.map((code) => html`<button type="submit" name="lang" value="${code}"${co
 }
 
 // The organiser works on phone and desktop alike: one column that widens.
-export function renderAdminPage(lang, { title, body, assetVersion, showLangSwitch = true, showLogout = false }) {
+export function renderAdminPage(lang, { title, body, assetVersion, scripts = [], showLangSwitch = true, showLogout = false }) {
   const logout = showLogout
     ? html`<form method="post" action="/admin/logout"><button type="submit">${t(lang, 'admin.logout')}</button></form>`
     : '';
@@ -58,7 +58,7 @@ ${logout}
 <main class="admin">
 ${body}
 </main>`;
-  return shell({ lang, title, body: content, assetVersion, styles: ['base.css', 'admin.css'] });
+  return shell({ lang, title, body: content, assetVersion, styles: ['base.css', 'admin.css'], scripts });
 }
 
 // One plain sentence and nothing else: no status code, no detail.
