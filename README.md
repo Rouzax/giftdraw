@@ -1,11 +1,295 @@
-# giftdraw
+# Lootjes trekken / Gift Draw
 
-A simple, self-hosted Secret Santa web app. An organiser enters the
-participants per group and draws names within each group; every
-participant gets a personal link that shows who they give a gift to and
-that person's wishes. The organiser sees who has opened their link and
-filled in their wishes.
+A small, self-hosted web app for drawing names for a gift exchange within
+a group. Everyone gets a personal link, draws the name of the person they
+give a present to, and sees what that person likes. Nobody needs an
+account or an app, and the screens for participants use large text and
+one button at a time, so it works for people who rarely use a computer.
 
-English interface with a Dutch translation.
+It was built for a teacher with several groups of older students, but it
+suits any club, family or team.
+
+**Example:** this year the group does a *regift*. Each person gives
+something they already own and would like to pass on, so nothing new has
+to be bought; anyone who does buy something spends at most 5 euro. The
+organiser sets this theme once, and every participant reads it at the top
+of their page and on their printed card.
+
+The interface is in Dutch (default) and English. Each participant can
+switch language on their own page, and the organiser can switch in the
+admin header.
+
+## How it works
+
+### For the organiser
+
+1. **Create an event**, for example "Gifts 2026". Set the default
+   language, how many weeks after the exchange the data is deleted, the
+   theme text, and the choices people can tick under "I like...". Empty
+   fields use the built-in regift text and choice list.
+2. **Create a group** per class or team, with the date the presents are
+   exchanged and, if you like, a date on which drawing opens by itself
+   (at 09:00).
+3. **Paste the participants**, one per line: `Name, email@example.com`.
+   Someone without email is just `Name`. The app pairs everyone straight
+   away in one big circle, so nobody gets themselves and no two people
+   simply swap presents.
+4. **Send the invitations.** Everyone with an email address gets a
+   welcome mail with their link and is asked to say a little about
+   themselves. With email off the button reads "The links have been
+   shared" instead: share each link yourself (copy it, or show or print
+   the QR code on the participant's page), then press it.
+5. **Optionally rearrange pairs** on the "View and swap pairs" page by
+   dragging one person onto another or tapping two people. The app refuses
+   any swap that would make someone give to themselves. Swaps can create
+   two people who give to each other; the app allows that.
+6. **Open the drawing** with the button, or let the auto-open date do it.
+   A group only opens after its invitations were sent. Everyone with email
+   gets a "You can draw a name now" mail. Opening cannot be undone.
+7. **Follow the dashboard**: who opened their link, filled in their
+   wishes, and drew. Reminders go out by themselves (see
+   [Email](#email)).
+8. **Help someone in person.** On a participant's page you can fill in
+   their wishes, draw for them on your screen (ideally with them next to
+   you), and print an A5 card with their person, the theme and that
+   person's wishes. This is the way to include someone without email or
+   a phone.
+
+Someone can still drop out or join after drawing has opened. The
+participant page shows exactly which pair changes before you confirm.
+Only one person gets a new receiver, and their mail says only that their
+person has changed and who the new one is, never who dropped out.
+
+### For a participant
+
+1. Open the personal link from the mail, a message or a QR code.
+2. Before drawing opens: say a little about yourself (hobbies, things you
+   like, pets, things to avoid). Everything is optional.
+3. Once drawing is open: press "Draw a name". A paper slip comes out of a
+   bowl with the name on it.
+4. The page then shows who you give a present to, the theme, the exchange
+   date and what your person likes. Opening the link again later shows the
+   same result, so it works as a reminder.
+
+## Running with Docker
+
+### What you need
+
+- Docker on the machine that will run the app.
+- A web address people can reach, ideally HTTPS through a reverse proxy.
+- For email (optional): an SMTP account that may send from your sender
+  address.
+
+### Build the image
+
+```sh
+docker build -t giftdraw .
+```
+
+The image is based on `node:22-alpine` pinned by digest, installs only
+production dependencies with install scripts disabled, runs as the
+unprivileged `node` user, and uses `tini` so `docker stop` shuts the app
+down cleanly.
+
+### Configure
+
+Copy `.env.example` to `.env` and fill it in. The minimum for password
+mode without email:
+
+```sh
+APP_URL=https://gifts.example.com
+ADMIN_AUTH=password
+ADMIN_PASSWORD=a-long-password-of-your-own
+SESSION_SECRET=output-of-openssl-rand-base64-48
+```
+
+Keep `.env` private: it holds the admin password and the SMTP login.
+
+### Run
+
+```sh
+docker volume create giftdraw-data
+docker run -d --name giftdraw \
+  --env-file .env \
+  -v giftdraw-data:/data \
+  -p 3000:3000 \
+  --restart unless-stopped \
+  giftdraw
+```
+
+What happens:
+
+- The database is created at `/data/giftdraw.db` inside the volume on
+  first start. Keep the volume: removing it deletes every event, group
+  and wish. Back up the volume to keep a copy.
+- The app listens on port 3000 and logs one `server_listening` line.
+  Logs are JSON lines on standard output (`docker logs giftdraw`); they
+  never contain email addresses, links or wish text.
+- `GET /health` answers `{"ok":true}` when the database responds. The
+  image's `HEALTHCHECK` uses it, so `docker ps` shows `healthy` within
+  about half a minute.
+- Organisers go to `APP_URL/admin`. Participant links look like
+  `APP_URL/p/<long random code>`.
+
+If the container exits right away, `docker logs giftdraw` names the
+setting that is wrong, for example
+`Invalid configuration: SESSION_SECRET must be at least 32 characters`.
+
+`docker stop giftdraw` lets a mail that is being sent finish first. If the
+mail server does not answer, the app stops anyway after about 10 seconds,
+or at once on a second stop signal. A mail cut off that way is sent again
+after the next start.
+
+## Configuration
+
+All settings are environment variables. Values are trimmed, except the
+password and session secret, where spaces count.
+
+| Variable | Default | What it does |
+| --- | --- | --- |
+| `APP_URL` | required | Public address, for example `https://gifts.example.com`. Used in every link, mail and QR code. Form posts from any other origin are refused, so it must match the address in the browser exactly (scheme, host and port). |
+| `ADMIN_AUTH` | required | `password` or `proxy`. See [Admin access](#admin-access). |
+| `ADMIN_PASSWORD` | none | Password mode: the organiser password, at least 12 characters. Changing it logs out every session. |
+| `SESSION_SECRET` | none | Password mode: at least 32 characters, signs the login cookie. Changing it also logs everyone out. |
+| `TRUSTED_PROXIES` | none | Comma-separated IP addresses or CIDRs of your reverse proxy, for example `192.0.2.10` or `192.0.2.0/24`. Required in proxy mode. |
+| `ADMIN_USER_HEADER` | `Remote-User` | Proxy mode: the header carrying the logged-in user name. |
+| `SMTP_HOST` | none | Mail server. Leave unset to run with email off. |
+| `SMTP_PORT` | `587` | `587` (STARTTLS, required) or `465` (TLS from the start). Mail is never sent unencrypted. |
+| `SMTP_USER` | none | SMTP login, if the server needs one. |
+| `SMTP_PASS` | none | SMTP password. |
+| `SMTP_FROM` | none | Sender address, for example `Gift Draw <gifts@example.com>`. Required when `SMTP_HOST` is set. |
+| `TZ` | `Europe/Amsterdam` | IANA time zone for dates, the 09:00 auto-open and reminders. |
+| `LOG_LEVEL` | `info` | `fatal`, `error`, `warn`, `info`, `debug`, `trace` or `silent`. |
+| `APP_VERSION` | package version | Cache key for CSS and scripts, which browsers keep for a year. Change it when you deploy changed styles under the same version. |
+| `PORT` | `3000` | Listening port. Set by the image. |
+| `DB_PATH` | `./data/giftdraw.db` | Database file. The image sets `/data/giftdraw.db`. |
+
+## Admin access
+
+Participant pages need no login: the long random code in each link is the
+key. The organiser pages under `/admin` are protected in one of two ways.
+
+### Password mode (`ADMIN_AUTH=password`)
+
+The app shows its own login page. A login lasts 30 days in that browser.
+
+- Wrong passwords are limited to 10 per 15 minutes per client address,
+  and to 50 per hour in total. When the total limit is reached, nobody can
+  log in for up to an hour, even with the right password. Organisers who
+  are already logged in keep working.
+- Behind a reverse proxy, set `TRUSTED_PROXIES` to the proxy's address.
+  Otherwise the app sees every visitor as the proxy, so all clients share
+  one rate-limit bucket: one person's wrong passwords count against
+  everyone, and the participant page limits apply to all visitors
+  together.
+
+### Proxy mode (`ADMIN_AUTH=proxy`)
+
+Your reverse proxy does the login (forward auth with a single sign-on
+service, for example) and passes the user name in a header. The app has no
+login page of its own and accepts an `/admin` request only when both are
+true:
+
+- the connection comes from an address in `TRUSTED_PROXIES`, and
+- the `ADMIN_USER_HEADER` header is present and not empty.
+
+Set it up like this:
+
+- `TRUSTED_PROXIES` is the proxy's address **as the container sees it**,
+  not its public address. A proxy container on the same Docker network
+  connects from its address on that network; a proxy on the Docker host
+  usually connects from the network's gateway (often in `172.16.0.0/12`).
+- Apply forward auth to everything **except** `/p/`, `/static/` and
+  `/health`. Participants must reach their links without logging in.
+- Make sure the proxy sets the user header itself and drops any copy sent
+  by the browser.
+
+## Email
+
+Email is optional. Without `SMTP_HOST` the app runs with **email off**:
+nothing is mailed, the dashboard says so, and you share every link
+yourself (copy it, or show or print the participant's QR code or card).
+Everything else works the same.
+
+With email on, the app sends:
+
+- the invitation with the personal link, when you press "Send
+  invitations" (people added later get one when you press it again);
+- "You can draw a name now" when the group opens;
+- at most two reminders to fill in wishes and at most two to draw, at
+  09:00, spaced a few days apart and never on or after the exchange date;
+- a short note to the giver when their person changes their wishes after
+  the giver has drawn (bundled, so several quick edits give one mail);
+- "Your person has changed" to the one giver affected by a dropout or late
+  joiner.
+
+Mail goes out through a queue that the app works through every minute. A
+failed send is retried after 1, 5, 30 and 120 minutes; after that it is
+marked as failed. The dashboard's "Mail failure" column shows the latest
+failure per person, with a "Send again" button.
+
+Use port `587` (STARTTLS) or `465` (TLS). On 587 the app refuses to send
+if the server does not offer encryption.
+
+## Privacy and cleanup
+
+- The app stores names, optional email addresses, wishes and who gives to
+  whom. There are no accounts, no analytics and no outside resources on
+  any page, and pages ask search engines not to index them.
+- Each event has a cleanup setting in weeks (default 4). That many weeks
+  after a group's exchange date, the group is deleted with all its
+  participants, wishes, pairs and mail history. The event itself (its name
+  and settings) stays until you delete it.
+- Deleting an event or a group on its page removes the same data at once.
+- If a link reaches the wrong person, make a new link on the participant's
+  page; the old link and QR code stop working.
+
+### Groups of three
+
+A group needs at least 3 people. With exactly 3, anyone who has drawn can
+work out every pair, because there is only one way to arrange the circle.
+The dashboard warns about this; it is allowed, but the surprise is
+smaller.
+
+## Troubleshooting
+
+**Proxy mode: every `/admin` page shows "No access" (403).**
+The connection did not come from `TRUSTED_PROXIES`, or the user header was
+missing. The log shows `admin_proxy_rejected` with `reason`
+`untrusted_source` or `missing_user`. For `untrusted_source`, set
+`TRUSTED_PROXIES` to the address the container sees (the proxy's Docker
+network address or the gateway, not its public IP). For `missing_user`,
+check that forward auth covers `/admin` and that the header name matches
+`ADMIN_USER_HEADER`.
+
+**A form shows "Sorry, this is not allowed." (403) after pressing a button.**
+The browser's address differs from `APP_URL` (for example `http` versus
+`https`, or another host name or port). Open the app through exactly the
+address in `APP_URL`.
+
+**Mails stay "Queued".**
+Check that the container is running; the queue is worked through every
+minute. Then look for `mail_failed` lines in `docker logs`: the `code`
+field names the problem, for example a connection or login error. Fix the
+SMTP settings and restart the container; queued mails then go out.
+
+**The dashboard shows a mail failure.**
+The mail server refused the message or could not be reached, and the
+automatic retries ran out. Check the address on the participant's page,
+then press "Send again" in that column. If every mail fails, check `SMTP_HOST`,
+`SMTP_PORT`, the login, and that the server accepts `SMTP_FROM` as
+sender.
+
+**Nobody can log in for a while (password mode).**
+More than 50 wrong passwords were tried in the last hour, possibly by
+someone guessing. Wait up to an hour; existing logins keep working. If it
+happens behind a reverse proxy, set `TRUSTED_PROXIES` so the app can tell
+visitors apart.
+
+**The "Open drawing" button is refused.**
+Send the invitations first (with email off: press "The links have been
+shared"), and make sure the group has at least 3 people.
+
+## License
 
 Licensed under the MIT License; see [LICENSE](LICENSE).

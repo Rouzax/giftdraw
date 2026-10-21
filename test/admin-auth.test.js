@@ -335,3 +335,10 @@ test('participant pages are unaffected by either admin mode', async () => {
     assert.ok(res.body.includes('Hallo Ada!'));
   }
 });
+
+test('proxy mode: health is reachable from anywhere without the user header', async () => {
+  const { app } = await proxySetup();
+  const res = await app.inject({ method: 'GET', url: '/health', remoteAddress: '198.51.100.7' });
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(res.json(), { ok: true });
+});

@@ -335,3 +335,20 @@ test('deleteExpiredGroups uses each event cleanupWeeks', () => {
   assert.equal(repo.deleteExpiredGroups('2027-02-01'), 1);
   repo.checkpoint();
 });
+
+test('requeueAllSending returns every sending row to pending', () => {
+  const { repo, groupId } = setup();
+  const [ada, ben] = repo.addParticipantsWithAssignment(groupId, people('Ada', 'Ben'), () => null, T0);
+  repo.enqueue(ada.id, 'invite', T0);
+  repo.claimDue(T2, 10);
+  repo.enqueue(ben.id, 'invite', T2);
+  assert.equal(repo.requeueAllSending(), 1);
+  assert.equal(repo.claimDue(T2, 10).length, 2);
+});
+
+test('ping runs a trivial query', () => {
+  const { repo, db } = setup();
+  assert.equal(repo.ping(), true);
+  db.close();
+  assert.throws(() => repo.ping());
+});

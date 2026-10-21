@@ -254,6 +254,11 @@ export function createRepo(db) {
       .run(olderThan).changes;
   }
 
+  // Only safe while no drain can be running, i.e. at startup.
+  function requeueAllSending() {
+    return db.prepare(`UPDATE outbox SET status = 'pending' WHERE status = 'sending'`).run().changes;
+  }
+
   function reminderHistory(participantId, kind) {
     const row = db
       .prepare(`SELECT
@@ -331,6 +336,10 @@ export function createRepo(db) {
       .run(todayIso).changes;
   }
 
+  function ping() {
+    return db.prepare('SELECT 1 AS one').get().one === 1;
+  }
+
   function checkpoint() {
     db.exec('PRAGMA wal_checkpoint(TRUNCATE)');
   }
@@ -342,7 +351,7 @@ export function createRepo(db) {
     getParticipant, getParticipantByToken, listParticipants, listAllParticipants, updateParticipant,
     findEmailInEvent, giverOf,
     addParticipantsWithAssignment, removeParticipantWithAssignment, setAssignment, getAssignment,
-    enqueue, claimDue, markSent, markFailed, requeueStale, reminderHistory, mailStatus, requeueLastFailed,
-    deleteExpiredGroups, checkpoint,
+    enqueue, claimDue, markSent, markFailed, requeueStale, requeueAllSending, reminderHistory, mailStatus,
+    requeueLastFailed, deleteExpiredGroups, checkpoint, ping,
   };
 }

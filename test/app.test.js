@@ -153,3 +153,20 @@ test('a malformed URL renders an HTML 400 page, not JSON', async () => {
   assertSecurityHeaders(res);
   assert.ok(!logs.join('').includes('%E0%A4%A'));
 });
+
+test('health answers ok after a database check and logs nothing at info', async () => {
+  const { app, logs } = await setup();
+  const before = logs.length;
+  const res = await app.inject('/health');
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(res.json(), { ok: true });
+  assertSecurityHeaders(res);
+  assert.equal(logs.length, before);
+});
+
+test('health answers 500 when the database is unavailable', async () => {
+  const { app, db } = await setup();
+  db.close();
+  const res = await app.inject('/health');
+  assert.equal(res.statusCode, 500);
+});

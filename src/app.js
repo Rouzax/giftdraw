@@ -107,6 +107,11 @@ export async function buildApp(ctx) {
     return sendError(reply, status, request.participant?.language);
   });
 
+  // Container probes call this every few seconds; warn keeps Fastify's
+  // per-request info lines out of the log. A failing query throws into the
+  // error handler, so the probe sees a 500.
+  app.get('/health', { logLevel: 'warn' }, async () => ({ ok: ctx.repo.ping() }));
+
   const isParticipantPath = (request) => pathMatches(request, PARTICIPANT_PATH);
   participantRoutes(app, ctx, { sendPage, sendError, isParticipantPath });
   registerAdminAuth(app, ctx, { sendPage, isAdminPath: (request) => pathMatches(request, ADMIN_PATH) });
