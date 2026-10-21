@@ -1,0 +1,173 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { makeTestApp, seedGroup } from './helpers.js';
+
+const T0 = Date.parse('2026-11-01T10:00:00.000Z');
+const NL_THEME = 'Dit jaar doen we een regift';
+
+async function setup(names = ['Ada', 'Ben', 'Cor']) {
+  const clock = { ms: T0 };
+  const t = await makeTestApp({ clock: () => new Date(clock.ms) });
+  const seeded = seedGroup(t.ctx, { names });
+  return { ...t, ...seeded, clock, ada: seeded.people[0] };
+}
+
+test('first visit shows the welcome screen with theme, date and one button', async () => {
+  const { app, ada } = await setup();
+  const res = await app.inject(`/p/${ada.token}`);
+  assert.equal(res.statusCode, 200);
+  assert.ok(res.body.includes('<html lang="nl">'));
+  assert.ok(res.body.includes('Hallo Ada!'));
+  assert.ok(res.body.includes(NL_THEME));
+  assert.ok(res.body.includes('vrijdag 18 december'));
+  assert.ok(res.body.includes(`href="/p/${ada.token}/about"`));
+  assert.ok(res.body.includes('Vertel iets over jezelf'));
+  assert.ok(res.body.includes(`action="/p/${ada.token}/lang"`));
+  assert.ok(!res.body.includes('Ben'));
+});
+
+test('first visit sets visitedAt and a later visit keeps it', async () => {
+  const { app, ctx, ada, clock } = await setup();
+  assert.equal(ada.visitedAt, null);
+  await app.inject(`/p/${ada.token}`);
+  const first = ctx.repo.getParticipant(ada.id).visitedAt;
+  assert.equal(first, new Date(T0).toISOString());
+  clock.ms += 3_600_000;
+  await app.inject(`/p/${ada.token}`);
+  assert.equal(ctx.repo.getParticipant(ada.id).visitedAt, first);
+});
+
+test('the about form has every wish field, the theme and the date', async () => {
+  const { app, ada } = await setup();
+  const res = await app.inject(`/p/${ada.token}/about`);
+  assert.equal(res.statusCode, 200);
+  assert.ok(res.body.includes(`action="/p/${ada.token}/about"`));
+  for (const name of ['hobbies', 'pets_other', 'avoid', 'other', 'detail_chocolate']) {
+    assert.ok(res.body.includes(`name="${name}"`), name);
+  }
+  assert.ok(res.body.includes('name="likes" value="tea"'));
+  assert.ok(res.body.includes('name="pets" value="cat"'));
+  assert.ok(res.body.includes('Thee'));
+  assert.ok(res.body.includes(NL_THEME));
+  assert.ok(res.body.includes('vrijdag 18 december'));
+});
+
+test('saving wishes in a closed group leads to the waiting screen', async () => {
+  const { app, ctx, post, ada, clock } = await setup();
+  clock.ms += 60_000;
+  const res = await post(`/p/${ada.token}/about`, {
+    hobbies: 'Gardening',
+    likes: ['tea', 'chocolate'],
+    detail_chocolate: 'dark',
+    pets: 'cat',
+  });
+  assert.equal(res.statusCode, 303);
+  assert.equal(res.headers.location, `/p/${ada.token}`);
+  const stored = ctx.repo.getParticipant(ada.id);
+  assert.equal(stored.wishes.hobbies, 'Gardening');
+  assert.deepEqual(stored.wishes.likes, ['tea', 'chocolate']);
+  assert.deepEqual(stored.wishes.likeDetails, { chocolate: 'dark' });
+  assert.equal(stored.wishesUpdatedAt, new Date(clock.ms).toISOString());
+
+  const page = await app.inject(`/p/${ada.token}`);
+  assert.ok(page.body.includes('Het trekken begint binnenkort'));
+  assert.ok(page.body.includes(`href="/p/${ada.token}/about"`));
+  assert.ok(page.body.includes(NL_THEME));
+  assert.ok(page.body.includes('vrijdag 18 december'));
+
+  const form = await app.inject(`/p/${ada.token}/about`);
+  assert.ok(form.body.includes('value="Gardening"') || form.body.includes('>Gardening</textarea>'));
+  assert.match(form.body, /name="likes" value="tea" checked/);
+  assert.match(form.body, /name="pets" value="cat" checked/);
+  assert.doesNotMatch(form.body, /name="likes" value="wine" checked/);
+});
+
+test('saved HTML comes back escaped', async () => {
+  const { app, post, ada } = await setup();
+  await post(`/p/${ada.token}/about`, { hobbies: '<script>alert(1)</script>', pets_other: '"><b>x' });
+  const form = await app.inject(`/p/${ada.token}/about`);
+  assert.ok(form.body.includes('&lt;script&gt;alert(1)&lt;/script&gt;'));
+  assert.ok(!form.body.includes('<script>alert(1)'));
+  assert.ok(!form.body.includes('"><b>x'));
+});
+
+test('a 5000 character field is stored as 1000', async () => {
+  const { ctx, post, ada } = await setup();
+  const res = await post(`/p/${ada.token}/about`, { other: 'x'.repeat(5000) });
+  assert.equal(res.statusCode, 303);
+  assert.equal(ctx.repo.getParticipant(ada.id).wishes.other.length, 1000);
+});
+
+test('an unknown token gets the HTML 404 page', async () => {
+  const { app } = await setup();
+  for (const url of ['/p/unknown-token', '/p/unknown-token/about']) {
+    const res = await app.inject(url);
+    assert.equal(res.statusCode, 404);
+    assert.match(res.headers['content-type'], /^text\/html/);
+    assert.ok(res.body.includes('Deze pagina bestaat niet.'));
+  }
+});
+
+test('the language switch stores a known language and goes back', async () => {
+  const { app, ctx, post, ada } = await setup();
+  const res = await post(`/p/${ada.token}/lang`, { lang: 'en' });
+  assert.equal(res.statusCode, 303);
+  assert.equal(res.headers.location, `/p/${ada.token}`);
+  assert.equal(ctx.repo.getParticipant(ada.id).language, 'en');
+  const page = await app.inject(`/p/${ada.token}`);
+  assert.ok(page.body.includes('<html lang="en">'));
+  assert.ok(page.body.includes('Hello Ada!'));
+  assert.ok(page.body.includes('This year it&#39;s a regift'));
+
+  const fromAbout = await post(`/p/${ada.token}/lang`, { lang: 'nl', from: 'about' });
+  assert.equal(fromAbout.headers.location, `/p/${ada.token}/about`);
+  const elsewhere = await post(`/p/${ada.token}/lang`, { lang: 'nl', from: 'https://evil.example' });
+  assert.equal(elsewhere.headers.location, `/p/${ada.token}`);
+});
+
+test('a junk language is refused and the stored language is unchanged', async () => {
+  const { ctx, post, ada } = await setup();
+  const res = await post(`/p/${ada.token}/lang`, { lang: '!!' });
+  assert.equal(res.statusCode, 400);
+  assert.match(res.headers['content-type'], /^text\/html/);
+  assert.ok(res.body.includes('Dit verzoek klopt niet.'));
+  assert.equal(ctx.repo.getParticipant(ada.id).language, 'nl');
+  const missing = await post(`/p/${ada.token}/lang`, {});
+  assert.equal(missing.statusCode, 400);
+});
+
+test('25 participants behind one IP each get through a whole visit in a minute', async () => {
+  const names = Array.from({ length: 25 }, (_, i) => `Eva${i}`);
+  const { app, post, people } = await setup(names);
+  for (const p of people) {
+    assert.equal((await app.inject(`/p/${p.token}`)).statusCode, 200);
+    assert.equal((await app.inject(`/p/${p.token}/about`)).statusCode, 200);
+    assert.equal((await post(`/p/${p.token}/about`, { hobbies: 'Yoga' })).statusCode, 303);
+  }
+});
+
+test('21 unknown tokens from one IP block every participant page until the window passes', async () => {
+  const { app, ada, clock } = await setup();
+  for (let i = 0; i < 20; i += 1) {
+    assert.equal((await app.inject(`/p/guess-${i}`)).statusCode, 404);
+  }
+  const blocked = await app.inject('/p/guess-20');
+  assert.equal(blocked.statusCode, 429);
+  assert.match(blocked.headers['content-type'], /^text\/html/);
+  assert.ok(blocked.body.includes('Even te veel tegelijk.'));
+
+  assert.equal((await app.inject(`/p/${ada.token}`)).statusCode, 429);
+  assert.equal((await app.inject(`/p/${ada.token}/about`)).statusCode, 429);
+  assert.equal((await app.inject({ url: `/p/${ada.token}`, remoteAddress: '192.0.2.7' })).statusCode, 200);
+
+  clock.ms += 60_000;
+  assert.equal((await app.inject(`/p/${ada.token}`)).statusCode, 200);
+});
+
+test('valid-token traffic from one IP has a ceiling', async () => {
+  const { app, ada } = await setup();
+  for (let i = 0; i < 600; i += 1) {
+    assert.equal((await app.inject(`/p/${ada.token}/about`)).statusCode, 200);
+  }
+  assert.equal((await app.inject(`/p/${ada.token}/about`)).statusCode, 429);
+});
