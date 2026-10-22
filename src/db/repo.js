@@ -1,4 +1,4 @@
-import { SKIP_CODES } from '../mail/outbox.js';
+import { SKIP_CODES } from '../mail/skip-codes.js';
 import { newToken } from '../tokens.js';
 
 const JSON_COLUMNS = new Set(['wishes', 'wish_options']);

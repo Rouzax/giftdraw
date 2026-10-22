@@ -1,4 +1,5 @@
 import { reminderKind } from '../reminders.js';
+import { SKIP_CODES } from './skip-codes.js';
 import { RECEIVER_KINDS, renderEmail } from './templates.js';
 
 const BATCH = 50;
@@ -17,9 +18,6 @@ export function errorCode(err) {
   if (Number.isInteger(err?.responseCode)) return `smtp-${err.responseCode}`;
   return 'error';
 }
-
-// Codes of mail that cannot go out as queued; sending it again gives up again.
-export const SKIP_CODES = Object.freeze(['no-participant', 'no-email', 'no-group', 'stale-reminder', 'no-receiver']);
 
 class Skip extends Error {
   constructor(code) {

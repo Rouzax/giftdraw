@@ -241,7 +241,7 @@ Mail goes out through a queue that the app works through every minute. A
 failed send is retried after 1, 5, 30 and 120 minutes; after that it is
 marked as failed. The dashboard's "Mail failure" column shows the latest
 failure per person, with a "Send again" button; a button above the table
-sends all of them again at once. Only the latest mail of each kind per
+sends every failed mail of the group again at once. Only the latest mail of each kind per
 person counts, so a failure that a later mail of the same kind replaced is
 not shown or sent again. Neither is mail that was skipped because it could
 not apply, such as one for a person without an email address.

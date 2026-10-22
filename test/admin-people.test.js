@@ -352,10 +352,13 @@ test('send all again resends only the latest given-up mail per person and kind',
   // Ben's invite gave up twice: one mail is enough.
   giveUp(ben.id, 'invite');
   const benLatest = giveUp(ben.id, 'invite');
-  // Skips that would only give up again.
-  for (const code of ['no-email', 'no-receiver', 'no-participant', 'no-group', 'stale-reminder']) {
-    giveUp(cor.id, 'remind-wishes', code);
-  }
+  // Skips that would only give up again, each the newest row of its kind so
+  // only the skip rule keeps it out.
+  const skips = [
+    ['invite', 'no-email'], ['wishes-updated', 'no-receiver'], ['draw-open', 'no-participant'],
+    ['remind-draw', 'no-group'], ['remind-wishes', 'stale-reminder'],
+  ];
+  for (const [kind, code] of skips) giveUp(cor.id, kind, code);
   giveUp(dirk.id, 'reassigned', 'no-receiver');
 
   const dashboard = await t.adminGet(`/admin/groups/${t.groupId}`);
