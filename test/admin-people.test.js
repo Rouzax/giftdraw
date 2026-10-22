@@ -334,6 +334,60 @@ test('the dashboard sends all given-up mail of the group again with one button',
   assert.equal(off.headers.location, `/admin/groups/${t.groupId}?done=mail-off`);
 });
 
+test('send all again resends only the latest given-up mail per person and kind', async () => {
+  const t = await setup({ names: ['Ada', 'Ben', 'Cor', 'Dirk'] });
+  const [ada, ben, cor, dirk] = t.people;
+  const action = `action="/admin/groups/${t.groupId}/resend-failed"`;
+  const giveUp = (id, kind, code = 'smtp-550') => {
+    const row = t.ctx.repo.enqueue(id, kind, t.ctx.nowIso());
+    t.ctx.repo.claimDue(t.ctx.nowIso(), 10);
+    t.ctx.repo.markFailed(row, code, null, t.ctx.nowIso());
+    return row;
+  };
+  // Ada's invite gave up, then a newer one went out.
+  giveUp(ada.id, 'invite');
+  const resent = t.ctx.repo.enqueue(ada.id, 'invite', t.ctx.nowIso());
+  t.ctx.repo.claimDue(t.ctx.nowIso(), 10);
+  t.ctx.repo.markSent(resent, t.ctx.nowIso());
+  // Ben's invite gave up twice: one mail is enough.
+  giveUp(ben.id, 'invite');
+  const benLatest = giveUp(ben.id, 'invite');
+  // Skips that would only give up again.
+  for (const code of ['no-email', 'no-receiver', 'no-participant', 'no-group', 'stale-reminder']) {
+    giveUp(cor.id, 'remind-wishes', code);
+  }
+  giveUp(dirk.id, 'reassigned', 'no-receiver');
+
+  const dashboard = await t.adminGet(`/admin/groups/${t.groupId}`);
+  assert.ok(dashboard.body.includes(tr('nl', 'admin.failure.groupCount', { count: 1 })));
+  for (const p of [ada, cor, dirk]) {
+    assert.equal(dashboard.body.includes(`action="/admin/participants/${p.id}/resend-failed"`), false, p.name);
+    assert.equal(t.ctx.repo.mailStatus(p.id).lastFailure, null, p.name);
+    assert.equal(t.ctx.repo.requeueLastFailed(p.id, t.ctx.nowIso()), false, p.name);
+  }
+
+  const res = await t.adminPost(`/admin/groups/${t.groupId}/resend-failed`);
+  assert.equal(res.headers.location, `/admin/groups/${t.groupId}?done=all-requeued`);
+  const pending = t.db.prepare(`SELECT id FROM outbox WHERE status = 'pending'`).all();
+  assert.deepEqual(pending.map((r) => r.id), [benLatest]);
+  await settle(t);
+  assert.deepEqual(t.mails.map((m) => m.to), [ben.email]);
+  assert.equal((await t.adminGet(`/admin/groups/${t.groupId}`)).body.includes(action), false);
+  assert.equal(t.ctx.repo.countGivenUp(t.groupId), 0);
+});
+
+test('the send all button stays hidden when only permanent skips gave up', async () => {
+  const t = await setup({ names: ['Ada', 'Ben', 'Cor'] });
+  const row = t.ctx.repo.enqueue(t.people[0].id, 'reassigned', t.ctx.nowIso());
+  t.ctx.repo.claimDue(t.ctx.nowIso(), 10);
+  t.ctx.repo.markFailed(row, 'no-receiver', null, t.ctx.nowIso());
+  assert.equal(t.ctx.repo.countGivenUp(t.groupId), 0);
+  const dashboard = await t.adminGet(`/admin/groups/${t.groupId}`);
+  assert.equal(dashboard.body.includes(`action="/admin/groups/${t.groupId}/resend-failed"`), false);
+  const none = await t.adminPost(`/admin/groups/${t.groupId}/resend-failed`);
+  assert.equal(none.headers.location, `/admin/groups/${t.groupId}?done=no-failure`);
+});
+
 test('send again from the dashboard reports nothing to send and mail off on the dashboard', async () => {
   const t = await setup({ names: ['Ada', 'Ben', 'Cor'] });
   const ada = t.people[0];

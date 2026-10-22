@@ -322,7 +322,7 @@ export default {
   'admin.person.done.no-email': 'Nothing was sent: there is no email address.',
   'admin.person.done.mail-off': 'Nothing was sent: email is off.',
   'admin.person.done.no-failure': 'There is no failed mail to send again.',
-  'admin.person.done.already-queued': 'Nothing extra was sent: this mail is already waiting and goes out shortly.',
+  'admin.person.done.already-queued': 'Nothing extra was sent: this mail is already in the queue.',
   'admin.remove.title': 'Remove {name}',
   'admin.remove.intro': '{name} leaves group {group}. Their personal link stops working, their wishes are erased and mails not sent yet are dropped.',
   'admin.remove.openTitle': 'Who gets a new person',

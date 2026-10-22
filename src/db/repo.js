@@ -1,3 +1,4 @@
+import { SKIP_CODES } from '../mail/outbox.js';
 import { newToken } from '../tokens.js';
 
 const JSON_COLUMNS = new Set(['wishes', 'wish_options']);
@@ -44,8 +45,14 @@ const UPDATABLE = {
 
 const STORE_AS_JSON = new Set(['wishes', 'wishOptions']);
 
-// Matches the skip code in mail/outbox.js.
-const NOT_STALE = "error_code IS NOT 'stale-reminder'";
+// A given-up row `o` the organiser can send again. Any later row of the same
+// kind for that person supersedes it, whatever its status: a later failure
+// is the one to resend, and a later sent or queued mail already did the job.
+// A skipped row would only be skipped again.
+const RESENDABLE = `o.status IN ('failed', 'gaveup')
+  AND ifnull(o.error_code, '') NOT IN (${SKIP_CODES.map((code) => `'${code}'`).join(', ')})
+  AND NOT EXISTS (SELECT 1 FROM outbox later
+                  WHERE later.participant_id = o.participant_id AND later.kind = o.kind AND later.id > o.id)`;
 
 function defaultNow(now) {
   return now ?? new Date().toISOString();
@@ -309,8 +316,8 @@ export function createRepo(db) {
                 WHERE participant_id = ? AND kind LIKE 'remind-%' AND status IN ('pending', 'sending', 'sent')`)
       .get(participantId);
     const failure = db
-      .prepare(`SELECT kind, status, error_code, next_attempt_at FROM outbox
-                WHERE participant_id = ? AND ((status IN ('failed', 'gaveup') AND ${NOT_STALE})
+      .prepare(`SELECT kind, status, error_code, next_attempt_at FROM outbox o
+                WHERE participant_id = ? AND ((${RESENDABLE})
                   OR (status IN ('pending', 'sending') AND error_code IS NOT NULL))
                 ORDER BY id DESC LIMIT 1`)
       .get(participantId);
@@ -340,7 +347,7 @@ export function createRepo(db) {
   function requeueLastFailed(participantId, now) {
     return tx(() => {
       const row = db
-        .prepare(`SELECT id FROM outbox WHERE participant_id = ? AND status IN ('failed', 'gaveup') AND ${NOT_STALE}
+        .prepare(`SELECT id FROM outbox o WHERE participant_id = ? AND ${RESENDABLE}
                   ORDER BY id DESC LIMIT 1`)
         .get(participantId);
       if (!row) return false;
@@ -350,17 +357,17 @@ export function createRepo(db) {
     });
   }
 
-  const GIVEN_UP_IN_GROUP = `status IN ('failed', 'gaveup') AND ${NOT_STALE}
-    AND participant_id IN (SELECT id FROM participants WHERE group_id = ?)`;
+  const GIVEN_UP_IN_GROUP = `SELECT o.id FROM outbox o WHERE ${RESENDABLE}
+    AND o.participant_id IN (SELECT id FROM participants WHERE group_id = ?)`;
 
   const countGivenUp = (groupId) =>
-    db.prepare(`SELECT count(*) AS n FROM outbox WHERE ${GIVEN_UP_IN_GROUP}`).get(groupId).n;
+    db.prepare(`SELECT count(*) AS n FROM (${GIVEN_UP_IN_GROUP})`).get(groupId).n;
 
   // As requeueLastFailed, for every given-up mail of the group at once.
   function requeueGroupFailed(groupId, now) {
     return db
       .prepare(`UPDATE outbox SET status = 'pending', attempts = 0, error_code = NULL, next_attempt_at = ?
-                WHERE ${GIVEN_UP_IN_GROUP}`)
+                WHERE id IN (${GIVEN_UP_IN_GROUP})`)
       .run(now, groupId).changes;
   }
 

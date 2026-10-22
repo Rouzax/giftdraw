@@ -18,8 +18,12 @@ export function errorCode(err) {
   return 'error';
 }
 
+// Codes of mail that cannot go out as queued; sending it again gives up again.
+export const SKIP_CODES = Object.freeze(['no-participant', 'no-email', 'no-group', 'stale-reminder', 'no-receiver']);
+
 class Skip extends Error {
   constructor(code) {
+    if (!SKIP_CODES.includes(code)) throw new Error(`unknown skip code ${code}`);
     super(code);
     this.code = code;
   }

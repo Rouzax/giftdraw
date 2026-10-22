@@ -324,7 +324,7 @@ export default {
   'admin.person.done.no-email': 'Er is niets verstuurd: er is geen e-mailadres.',
   'admin.person.done.mail-off': 'Er is niets verstuurd: e-mail staat uit.',
   'admin.person.done.no-failure': 'Er is geen mislukte mail om opnieuw te sturen.',
-  'admin.person.done.already-queued': 'Er is niets extra verstuurd: deze mail staat al klaar en gaat zo weg.',
+  'admin.person.done.already-queued': 'Er is niets extra verstuurd: deze mail staat al in de wachtrij.',
   'admin.remove.title': '{name} verwijderen',
   'admin.remove.intro': '{name} gaat uit groep {group}. De persoonlijke link werkt dan niet meer, de wensen worden gewist en mails die nog niet weg zijn, gaan niet meer.',
   'admin.remove.openTitle': 'Wie krijgt een ander lootje',
