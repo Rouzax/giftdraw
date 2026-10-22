@@ -1,0 +1,72 @@
+name: Auto release
+
+# Weekly patch release of whatever has merged since the last tag, so
+# auto-merged dependency updates ship without a manual tag. Manual tags
+# still release through release.yml directly.
+on:
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: auto-release
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.next.outputs.tag }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      # Only changes that end up in the image warrant a release; CI, docs,
+      # tests and dev-dependency-only lockfile churn are filtered by path.
+      - name: Determine next version
+        id: next
+        run: |
+          LAST=$(git describe --tags --abbrev=0 --match 'v*')
+          if git diff --quiet "$LAST" HEAD -- src public package.json package-lock.json .npmrc Dockerfile; then
+            echo "No image changes since $LAST, nothing to release."
+            exit 0
+          fi
+          VERSION="${LAST#v}"
+          NEXT="v${VERSION%.*}.$(( ${VERSION##*.} + 1 ))"
+          echo "Releasing $NEXT (previous: $LAST)"
+          echo "tag=$NEXT" >> "$GITHUB_OUTPUT"
+
+  # Auto-merges land on main via GITHUB_TOKEN, which does not trigger the
+  # Build workflow there, and each PR was tested on its own. Test the exact
+  # commit being released.
+  ci:
+    needs: check
+    if: needs.check.outputs.tag != ''
+    uses: ./.github/workflows/build.yml
+
+  tag:
+    needs: [check, ci]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Create tag
+        run: gh api "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/tags/$TAG" -f sha="$GITHUB_SHA"
+        env:
+          TAG: ${{ needs.check.outputs.tag }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  release:
+    needs: [check, tag]
+    uses: ./.github/workflows/release.yml
+    with:
+      tag: ${{ needs.check.outputs.tag }}
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
+      attestations: write

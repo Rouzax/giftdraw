@@ -88,10 +88,27 @@ person has changed and who the new one is, never who dropped out.
 - For email (optional): an SMTP account that may send from your sender
   address.
 
-### Build the image
+### Get the image
+
+A ready-made image for amd64 and arm64 is published to the GitHub
+Container Registry:
 
 ```sh
-docker build -t giftdraw .
+docker pull ghcr.io/rouzax/giftdraw:latest
+```
+
+Tags: `latest`, the exact version (for example `0.1.0`) and the minor
+line (`0.1`). Dependency updates are merged automatically once the tests
+pass, and a new patch release is published on Mondays when anything in
+the image changed that week. To update, pull the image again and recreate
+the container; the data volume is kept.
+Every image carries a signed build provenance attestation; check it with
+`gh attestation verify oci://ghcr.io/rouzax/giftdraw:latest --owner Rouzax`.
+
+To build it yourself instead, from a checkout of this repository:
+
+```sh
+docker build -t ghcr.io/rouzax/giftdraw:latest .
 ```
 
 The image is based on `node:22.23.3-alpine` (Alpine 3.24) pinned by digest, installs only
@@ -127,7 +144,7 @@ docker run -d --name giftdraw \
   -v giftdraw-data:/data \
   -p 3000:3000 \
   --restart unless-stopped \
-  giftdraw
+  ghcr.io/rouzax/giftdraw:latest
 ```
 
 What happens:
