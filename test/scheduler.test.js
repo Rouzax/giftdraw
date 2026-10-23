@@ -100,7 +100,14 @@ test('three wish saves within 15 minutes give one wishes-updated to the drawn gi
   assert.equal(ctx.repo.getParticipant(ben.id).notifyGiverDueAt, null);
 });
 
-test('a queued wishes-updated mail logs the receiver and giver ids only', async () => {
+// The pairing is secret, so no wish-update line may tie a receiver to a
+// giver; the mail_sent line that follows a queued mail names only the giver.
+const noPairing = (line, giverId) => {
+  assert.ok(!Object.hasOwn(line, 'giver_id'));
+  assert.ok(!Object.values(line).includes(giverId));
+};
+
+test('a queued wishes-updated mail logs no participant ids', async () => {
   const t = await setup({ opened: true });
   const { ctx, clock, logs, people } = t;
   const ben = people[1];
@@ -111,8 +118,9 @@ test('a queued wishes-updated mail logs the receiver and giver ids only', async 
   const queued = logLines(logs).filter((l) => l.msg === 'wish_update_queued');
   assert.equal(queued.length, 1);
   assert.equal(queued[0].level, 30);
-  assert.equal(queued[0].participant_id, ben.id);
-  assert.equal(queued[0].giver_id, giver.id);
+  assert.ok(!Object.hasOwn(queued[0], 'participant_id'));
+  assert.ok(!Object.values(queued[0]).includes(ben.id));
+  noPairing(queued[0], giver.id);
   const text = logs.join('');
   for (const leak of ['@', 'secret hobby', ben.name, giver.name]) assert.ok(!text.includes(leak), leak);
 });
@@ -132,8 +140,8 @@ test('a cleared flag without a mail logs the reason at info', async () => {
   const [line] = dropped(logs);
   assert.equal(line.level, 30);
   assert.equal(line.participant_id, ben.id);
-  assert.equal(line.giver_id, ctx.repo.giverOf(ben.id).id);
-  assert.notEqual(line.giver_id, giver.id);
+  noPairing(line, ctx.repo.giverOf(ben.id).id);
+  noPairing(line, giver.id);
   assert.equal(line.reason, 'giver-not-drawn');
   assert.equal(logLines(logs).filter((l) => l.msg === 'wish_update_queued').length, 0);
 });
@@ -151,10 +159,11 @@ test('a drawn giver without email or with mail off drops the update with that re
     t.clock.ms += 15 * MINUTE;
     await tick(t.ctx);
     assert.deepEqual(
-      dropped(t.logs).map((l) => [l.participant_id, l.giver_id, l.reason]),
-      [[ben.id, giver.id, reason]],
+      dropped(t.logs).map((l) => [l.participant_id, l.reason]),
+      [[ben.id, reason]],
       reason,
     );
+    noPairing(dropped(t.logs)[0], giver.id);
   }
 });
 

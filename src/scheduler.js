@@ -63,14 +63,15 @@ function wishUpdates(ctx, now) {
       repo.updateParticipant(current.id, { notifyGiverDueAt: null });
       const giver = repo.giverOf(current.id);
       const reason = dropReason(ctx, giver);
-      const ids = { participant_id: current.id, giver_id: giver?.id ?? null };
-      // Info, not debug: the default logs must explain why a due update sent nothing.
+      // The pairing is secret: a line naming both ids, or the receiver just
+      // before mail_sent names the giver, would reveal who draws whom. Info,
+      // not debug, so the default logs explain why a due update sent nothing.
       if (reason) {
-        ctx.log.info({ ...ids, reason }, 'wish_update_dropped');
+        ctx.log.info({ participant_id: current.id, reason }, 'wish_update_dropped');
         return false;
       }
       enqueueMail(ctx, giver.id, 'wishes-updated', nowIso);
-      ctx.log.info(ids, 'wish_update_queued');
+      ctx.log.info('wish_update_queued');
       return true;
     }));
 }
