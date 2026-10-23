@@ -342,10 +342,10 @@ table.people .email {
   }
 }
 
-/* Below about 990px the full table no longer fits and would scroll sideways,
-   hiding the last columns, so each participant becomes a card of label and
-   value lines instead. */
-@media (max-width: 62em) {
+/* Below about 1150px the full table no longer fits, with words wrapping
+   only between words, and would scroll sideways, hiding the last columns,
+   so each participant becomes a card of label and value lines instead. */
+@media (max-width: 72em) {
   table.people,
   table.people tbody,
   table.people tr,
@@ -691,7 +691,14 @@ table.people th a {
   margin-bottom: 0.5rem;
 }
 
-/* Status cells: the icon colour echoes the state, the words say it. */
+/* Status cells: the icon colour echoes the state, the words say it.
+   Links and code otherwise break anywhere, which lets the table squeeze a
+   column until words split mid-word; here they break only as a last resort. */
+.status,
+.status code {
+  overflow-wrap: break-word;
+}
+
 .status .icon-check {
   color: var(--ribbon);
 }

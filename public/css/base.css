@@ -42,13 +42,15 @@ a {
   outline-offset: 3px;
 }
 
-/* Icons sit before their words and take the text colour. With flex the
-   words wrap beside the icon instead of under it; the icon is centred on
-   the first line, so a label over two lines keeps it at the top. */
+/* Icons sit before their words and take the text colour. The gap after
+   an icon is its own margin, so it holds whatever display the element
+   around it has. With flex the words wrap beside the icon instead of
+   under it; the icon is centred on the first line, so a label over two
+   lines keeps it at the top. */
 .icon {
   width: 1.2em;
   height: 1.2em;
-  margin-inline-end: 0.3em;
+  margin-inline-end: 0.4em;
   flex-shrink: 0;
   vertical-align: -0.2em;
 }
@@ -60,7 +62,6 @@ a {
 .with-icon {
   display: inline-flex;
   align-items: flex-start;
-  gap: 0.45em;
 }
 
 p.with-icon {
@@ -69,7 +70,6 @@ p.with-icon {
 
 .with-icon > .icon {
   margin-top: 0.15em;
-  margin-inline-end: 0;
 }
 
 @supports (margin-top: 1lh) {
@@ -91,8 +91,4 @@ button.with-icon > .icon {
    away from the icon. */
 button.with-icon > span {
   text-align: start;
-}
-
-.with-icon > span {
-  min-width: 0;
 }

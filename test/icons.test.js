@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { SafeHtml } from '../src/html.js';
 import { t as tr } from '../src/i18n/index.js';
 import { icon, iconInline } from '../src/icons.js';
@@ -161,4 +162,11 @@ test('iconInline keeps the icon with the first word, but not a long unbroken one
     /^<span class="nowrap"><svg class="icon icon-pencil"[^>]*>.*<\/svg>Mijn<\/span> &lt;antwoorden&gt;$/);
   const link = `https://example.com/${'x'.repeat(40)}`;
   assert.match(String(iconInline('map-pin', link)), new RegExp(`^<svg[^>]*>.*</svg>${escapeRe(link)}$`));
+});
+
+test('the Lucide license ships with the image and names the version in use', () => {
+  const read = (file) => readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
+  assert.match(read('Dockerfile'), /^COPY THIRD_PARTY_NOTICES\.md \.\/$/m);
+  const version = /lucide-static (\d+\.\d+\.\d+)/.exec(read('src/icons.js'))[1];
+  assert.ok(read('THIRD_PARTY_NOTICES.md').includes(`\`lucide-static\` ${version}`));
 });

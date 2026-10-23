@@ -15,6 +15,8 @@ RUN npm ci --omit=dev && npm cache clean --force
 
 COPY src ./src
 COPY public ./public
+# The icons' license has to travel with every copy of them.
+COPY THIRD_PARTY_NOTICES.md ./
 
 RUN mkdir -p /data && chown node:node /data
 
