@@ -38,6 +38,27 @@ test('a pending row is sent once and marked sent', async () => {
   assert.ok(!logs.join('').includes('@'), 'no address in logs');
 });
 
+// Who gets a receiver mail says who gives to whom, and the receiver shows up
+// in nearby lines (wishes_saved, participant_removed), so these lines carry
+// no participant id.
+test('receiver mails are logged without a participant id, sent or failed', async () => {
+  const { ctx, mailer, ada, drain, logs } = await setup();
+  ctx.repo.updateParticipant(ada.id, { drawnAt: ctx.nowIso() });
+  for (const kind of ['wishes-updated', 'reassigned']) ctx.repo.enqueue(ada.id, kind, ctx.nowIso());
+  assert.deepEqual(await drain(), { sent: 2, failed: 0 });
+  mailer.fail = () => Object.assign(new Error('down'), { code: 'ECONNECTION' });
+  ctx.repo.enqueue(ada.id, 'reassigned', ctx.nowIso());
+  assert.deepEqual(await drain(), { sent: 0, failed: 1 });
+  const lines = logLines(logs).filter((l) => ['mail_sent', 'mail_failed'].includes(l.msg));
+  assert.deepEqual(lines.map((l) => [l.msg, l.kind]), [
+    ['mail_sent', 'wishes-updated'], ['mail_sent', 'reassigned'], ['mail_failed', 'reassigned'],
+  ]);
+  for (const line of lines) {
+    assert.ok(Number.isInteger(line.outbox_id));
+    assert.ok(!Object.hasOwn(line, 'participant_id'), line.kind);
+  }
+});
+
 test('two concurrent drains with a slow mailer send each row once', async () => {
   const { ctx, mails, mailer, ada, ben, cor } = await setup();
   mailer.delayMs = 20;

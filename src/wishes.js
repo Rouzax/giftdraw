@@ -34,25 +34,33 @@ export function detailPrompt(option, lang) {
   return t(lang, DETAIL_IDS.has(option.id) ? 'wish.detail.chocolate' : 'wish.detail');
 }
 
+// A label can hold a question mark only if it was stored before the `?`
+// started a question. Written back as typed it would split there, so it is
+// written without, and mergeOptionLabels matches that form to the old id.
+function lineLabel(label) {
+  return label.replace(/\?/g, '').replace(/\s+/g, ' ').trim();
+}
+
 // The inverse of the line format mergeOptionLabels reads, so saving the
 // textarea unchanged stores the same options.
 export function optionLines(options, lang) {
   return options
     .map((o) => {
-      const label = labelOf(o, lang);
+      const label = lineLabel(labelOf(o, lang));
       if (!o.detail) return label;
       return o.question ? `${label}? ${o.question}` : `${label}?`;
     })
     .join('\n');
 }
 
+// "Boeken??" or "Welke schrijver???" must not store a question of bare or
+// doubled question marks, so the ends are trimmed of them before one is added.
+const trimMarks = (text) => text.replace(/^[\s?]+/, '').replace(/[\s?]+$/, '');
+
 function parseQuestion(rest) {
-  let question = rest.trim();
+  const question = trimMarks(rest);
   if (!question) return null;
-  if (!question.endsWith('?')) question += '?';
-  const chars = Array.from(question);
-  if (chars.length <= QUESTION_MAX) return question;
-  return `${chars.slice(0, QUESTION_MAX - 1).join('').trimEnd()}?`;
+  return `${trimMarks(Array.from(question).slice(0, QUESTION_MAX - 1).join(''))}?`;
 }
 
 function labelOf(option, lang) {
@@ -88,7 +96,9 @@ export function mergeOptionLabels(text, currentOptions, lang) {
   const candidates = [
     ...currentOptions.map((o) => ({
       id: o.id,
-      labels: DEFAULT_IDS.has(o.id) ? [labelOf(o, lang), ...allTranslations(o.id)] : [labelOf(o, lang)],
+      labels: DEFAULT_IDS.has(o.id)
+        ? [labelOf(o, lang), ...allTranslations(o.id)]
+        : [labelOf(o, lang), lineLabel(labelOf(o, lang))],
     })),
     ...DEFAULT_LIKE_IDS.map((id) => ({ id, labels: allTranslations(id) })),
   ];

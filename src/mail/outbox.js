@@ -67,7 +67,12 @@ function recordSent(ctx, row, fields) {
 }
 
 async function sendOne(ctx, row) {
-  const fields = { outbox_id: row.id, participant_id: row.participantId, kind: row.kind };
+  // A receiver mail goes to that receiver's giver, and the receiver shows up
+  // in nearby lines (wishes_saved, participant_removed), so its recipient id
+  // would reveal who gives to whom. The outbox id still finds the row.
+  const fields = RECEIVER_KINDS.has(row.kind)
+    ? { outbox_id: row.id, kind: row.kind }
+    : { outbox_id: row.id, participant_id: row.participantId, kind: row.kind };
   try {
     await ctx.mailer.send(prepare(ctx, row));
   } catch (err) {

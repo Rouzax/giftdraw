@@ -124,7 +124,7 @@ export default {
   'admin.event.themeHint': 'Dit lezen de deelnemers bovenaan hun pagina. Laat je het leeg, dan staat er de standaardtekst.',
   'admin.event.options': 'Keuzes bij "Ik houd van..."',
   'admin.event.optionsHint':
-    'Eén keuze per regel. Wil je er een vraag bij, zet die dan achter een vraagteken, bijvoorbeeld: Boeken? Welke schrijver? Laat je het leeg, dan krijg je de standaardlijst.',
+    'Eén keuze per regel. Wil je er een vraag bij, zet die dan achter een vraagteken, bijvoorbeeld "Boeken? Welke schrijver?". Alleen een vraagteken geeft een tekstvak met een algemene vraag. Laat je het leeg, dan krijg je de standaardlijst.',
   'admin.event.delete': 'Evenement verwijderen',
   'admin.event.deleteWarning': 'Dit wist het evenement met alle groepen, deelnemers en wensen. Dat kan niet ongedaan worden.',
   'admin.event.error.name': 'Vul een naam in.',

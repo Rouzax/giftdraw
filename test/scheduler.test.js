@@ -101,7 +101,7 @@ test('three wish saves within 15 minutes give one wishes-updated to the drawn gi
 });
 
 // The pairing is secret, so no wish-update line may tie a receiver to a
-// giver; the mail_sent line that follows a queued mail names only the giver.
+// giver, not even through a reason that describes the giver.
 const noPairing = (line, giverId) => {
   assert.ok(!Object.hasOwn(line, 'giver_id'));
   assert.ok(!Object.values(line).includes(giverId));
@@ -139,7 +139,8 @@ test('a cleared flag without a mail logs the reason at info', async () => {
   await tick(ctx);
   const [line] = dropped(logs);
   assert.equal(line.level, 30);
-  assert.equal(line.participant_id, ben.id);
+  assert.ok(!Object.hasOwn(line, 'participant_id'), 'a giver-describing reason names no receiver');
+  assert.ok(!Object.values(line).includes(ben.id));
   noPairing(line, ctx.repo.giverOf(ben.id).id);
   noPairing(line, giver.id);
   assert.equal(line.reason, 'giver-not-drawn');
@@ -147,9 +148,9 @@ test('a cleared flag without a mail logs the reason at info', async () => {
 });
 
 test('a drawn giver without email or with mail off drops the update with that reason', async () => {
-  for (const [reason, prepare] of [
-    ['giver-no-email', (t, giver) => t.ctx.repo.updateParticipant(giver.id, { email: null })],
-    ['mail-off', (t) => { t.mailer.enabled = false; }],
+  for (const [reason, prepare, receiverLogged] of [
+    ['giver-no-email', (t, giver) => t.ctx.repo.updateParticipant(giver.id, { email: null }), false],
+    ['mail-off', (t) => { t.mailer.enabled = false; }, true],
   ]) {
     const t = await setup({ opened: true });
     const ben = t.people[1];
@@ -160,7 +161,7 @@ test('a drawn giver without email or with mail off drops the update with that re
     await tick(t.ctx);
     assert.deepEqual(
       dropped(t.logs).map((l) => [l.participant_id, l.reason]),
-      [[ben.id, reason]],
+      [[receiverLogged ? ben.id : undefined, reason]],
       reason,
     );
     noPairing(dropped(t.logs)[0], giver.id);

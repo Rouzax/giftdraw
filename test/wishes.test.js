@@ -229,6 +229,14 @@ test('mergeOptionLabels reads the question after the first question mark', () =>
   });
 });
 
+test('mergeOptionLabels ignores extra question marks around the question', () => {
+  assert.deepEqual(parseOne('Boeken??'), { label: 'Boeken', detail: true, question: null });
+  assert.deepEqual(parseOne('Boeken? ? '), { label: 'Boeken', detail: true, question: null });
+  assert.deepEqual(parseOne('Boeken?? Welke schrijver'), { label: 'Boeken', detail: true, question: 'Welke schrijver?' });
+  assert.deepEqual(parseOne('Boeken? Welke schrijver???'), { label: 'Boeken', detail: true, question: 'Welke schrijver?' });
+  assert.deepEqual(parseOne('Boeken? Welke schrijver ? '), { label: 'Boeken', detail: true, question: 'Welke schrijver?' });
+});
+
 test('mergeOptionLabels stores no question key when there is none', () => {
   const [plain, generic] = mergeOptionLabels('Boeken\nWol?', [], 'nl');
   assert.ok(!Object.hasOwn(plain, 'question'));
@@ -244,10 +252,12 @@ test('chocolate keeps its flavour prompt unless the organiser asks her own quest
   assert.equal(detailPrompt(wishOptions({ wishOptions: [custom] })[0], 'en'), 'Welke soort chocola?');
 });
 
-test('mergeOptionLabels caps a question at 80 characters and keeps its question mark', () => {
+test('mergeOptionLabels caps a question at 80 characters and keeps one question mark', () => {
   const [option] = mergeOptionLabels(`Boeken? ${'x'.repeat(200)}`, [], 'nl');
   assert.equal(Array.from(option.question).length, 80);
-  assert.ok(option.question.endsWith('?'));
+  assert.ok(option.question.endsWith('x?'));
+  const [cut] = mergeOptionLabels(`Boeken? ${'x'.repeat(77)} ?? yyy`, [], 'nl');
+  assert.equal(cut.question, `${'x'.repeat(77)}?`);
 });
 
 test('optionLines writes the options back so a re-save changes nothing', () => {
@@ -262,4 +272,18 @@ test('optionLines writes the options back so a re-save changes nothing', () => {
 test('optionLines shows the default list with chocolate as a plain detail', () => {
   assert.equal(optionLines(defaults, 'en').split('\n')[0], 'Chocolate?');
   assert.equal(optionLines(defaults, 'nl').split('\n')[1], 'Thee');
+});
+
+test('older stored labels with a question mark are written without it and keep their ids', () => {
+  const stored = [
+    { id: 'wat-ab12', label: 'Wat?', detail: false },
+    { id: 'ja-cd34', label: 'Ja? Nee', detail: true, question: 'Welke?' },
+  ];
+  const options = wishOptions({ wishOptions: stored });
+  const shown = optionLines(options, 'nl');
+  assert.equal(shown, 'Wat\nJa Nee? Welke?');
+  const saved = mergeOptionLabels(shown, options, 'nl');
+  assert.deepEqual(saved.map((o) => o.id), ['wat-ab12', 'ja-cd34']);
+  assert.deepEqual(saved.map((o) => [o.detail, o.question ?? null]), [[false, null], [true, 'Welke?']]);
+  assert.equal(optionLines(wishOptions({ wishOptions: saved }), 'nl'), shown);
 });

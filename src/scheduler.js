@@ -7,6 +7,7 @@ import { instantAt, todayIn } from './time.js';
 
 const AUTO_OPEN_AT = '09:00';
 const STALE_SENDING_MS = 10 * 60_000;
+const RECEIVER_SAFE_REASONS = new Set(['no-giver', 'mail-off']);
 
 // One bad row is logged and skipped so it cannot hold up everyone after it.
 function eachRow(ctx, step, rows, idField, fn) {
@@ -63,11 +64,13 @@ function wishUpdates(ctx, now) {
       repo.updateParticipant(current.id, { notifyGiverDueAt: null });
       const giver = repo.giverOf(current.id);
       const reason = dropReason(ctx, giver);
-      // The pairing is secret: a line naming both ids, or the receiver just
-      // before mail_sent names the giver, would reveal who draws whom. Info,
-      // not debug, so the default logs explain why a due update sent nothing.
+      // The pairing is secret. A reason that describes the giver (has not
+      // drawn, has no email) next to the receiver's id would narrow down who
+      // gives to whom, so only reasons that say nothing about the giver carry
+      // the id. Info, not debug, so the default logs explain a missing mail.
       if (reason) {
-        ctx.log.info({ participant_id: current.id, reason }, 'wish_update_dropped');
+        const ids = RECEIVER_SAFE_REASONS.has(reason) ? { participant_id: current.id } : {};
+        ctx.log.info({ ...ids, reason }, 'wish_update_dropped');
         return false;
       }
       enqueueMail(ctx, giver.id, 'wishes-updated', nowIso);

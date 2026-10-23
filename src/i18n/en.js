@@ -123,7 +123,7 @@ export default {
   'admin.event.themeHint': 'Participants read this at the top of their page. Leave it empty for the default text.',
   'admin.event.options': 'Choices under "I like..."',
   'admin.event.optionsHint':
-    'One choice per line. To ask a question with it, put the question after a question mark, for example: Books? Which author? Leave it empty for the default list.',
+    'One choice per line. To ask a question with it, put the question after a question mark, for example "Books? Which author?". A question mark alone gives a text field with a general question. Leave it empty for the default list.',
   'admin.event.delete': 'Delete event',
   'admin.event.deleteWarning': 'This erases the event with all its groups, participants and wishes. It cannot be undone.',
   'admin.event.error.name': 'Please enter a name.',

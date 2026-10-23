@@ -324,9 +324,32 @@ test('a custom question is stored, shown back in the textarea and survives an un
   const page = await t.adminGet(`/admin/events/${eventId}`);
   const shown = 'Boeken? welke schrijver?\nChocolade?\nThee';
   assert.ok(page.body.includes(shown));
-  assert.ok(page.body.includes('Boeken? Welke schrijver?'), 'the hint gives an example');
+  assert.ok(page.body.includes('&quot;Boeken? Welke schrijver?&quot;'), 'the hint quotes its example');
+  assert.ok(page.body.includes('Alleen een vraagteken'), 'the hint explains a lone question mark');
   await save(shown);
   assert.deepEqual(t.ctx.repo.getEvent(eventId).wishOptions, stored);
+});
+
+test('changing only the question keeps the option id and the saved likes', async () => {
+  const t = await setup();
+  const eventId = await createEvent(t);
+  const groupId = await createGroup(t, eventId);
+  await t.adminPost(`/admin/groups/${groupId}/participants`, { text: 'Ada\nBen\nCor' });
+  const [ada] = t.ctx.repo.listParticipants(groupId);
+  const save = (wishText) => t.adminPost(`/admin/events/${eventId}`, {
+    name: 'Lootjes 2026', language: 'nl', cleanupWeeks: '4', themeText: '', wishOptions: wishText,
+  });
+  await save('Sokken? Welke maat?\nThee');
+  const [socks] = t.ctx.repo.getEvent(eventId).wishOptions;
+  saveWishes(t.ctx, ada.id, { likes: [socks.id], [`detail_${socks.id}`]: '42' });
+  for (const text of ['Sokken? Welke kleur?', 'Sokken?', 'Sokken? Welke kleur?']) {
+    await save(`${text}\nThee`);
+    const [now] = t.ctx.repo.getEvent(eventId).wishOptions;
+    assert.equal(now.id, socks.id, text);
+  }
+  const wishes = t.ctx.repo.getParticipant(ada.id).wishes;
+  assert.deepEqual(wishes.likes, [socks.id]);
+  assert.equal(wishes.likeDetails[socks.id], '42');
 });
 
 test('empty theme and wish options fall back to the defaults', async () => {
