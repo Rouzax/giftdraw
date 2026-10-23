@@ -1,5 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import vm from 'node:vm';
 import { openGroup } from '../src/drawing.js';
 import { validateAssignment } from '../src/draw/cycle.js';
 import { drawFor } from '../src/people.js';
@@ -308,4 +310,28 @@ test('the arrange page keeps the live region outside the confirm bar', async () 
   assert.ok(/role="group" aria-label="[^"]+"/.test(bar[0]));
   assert.equal(bar[0].includes('aria-live'), false);
   assert.ok(/<p class="visually-hidden" aria-live="polite" data-live><\/p>/.test(res.body));
+});
+
+// Runs the shipped script against a page without a pairs list, which is
+// enough to reach the pageshow listener it registers first.
+function runArrangeScript() {
+  const handlers = {};
+  const reloads = [];
+  const window = {
+    addEventListener: (type, fn) => { handlers[type] = fn; },
+    location: { reload: () => reloads.push(true) },
+  };
+  const document = { querySelector: () => null, documentElement: { classList: {} } };
+  const source = readFileSync(new URL('../public/js/arrange.js', import.meta.url), 'utf8');
+  vm.runInNewContext(source, { window, document });
+  return { handlers, reloads };
+}
+
+test('arrange.js reloads a page restored from the back/forward cache', () => {
+  const { handlers, reloads } = runArrangeScript();
+  assert.equal(typeof handlers.pageshow, 'function');
+  handlers.pageshow({ persisted: false });
+  assert.equal(reloads.length, 0, 'a normal load is left alone');
+  handlers.pageshow({ persisted: true });
+  assert.equal(reloads.length, 1, 'a restored page, with its stale pairs and disabled buttons, is fetched again');
 });

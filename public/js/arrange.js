@@ -4,6 +4,14 @@
 (function () {
   'use strict';
 
+  // Browsers keep this page in the back/forward cache despite no-store, and
+  // going back restores it exactly as it was left: the pairs and version
+  // from before the swap, and the bar open with its buttons disabled by
+  // submit(). Load it afresh instead.
+  window.addEventListener('pageshow', function (event) {
+    if (event.persisted) window.location.reload();
+  });
+
   var list = document.querySelector('[data-arrange]');
   var bar = document.querySelector('[data-arrange-bar]');
   if (!list || !bar || !list.querySelector || !document.documentElement.classList) return;
