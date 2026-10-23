@@ -82,7 +82,10 @@ test('drawing on behalf sets drawnAt and reveals the receiver with the participa
   assert.ok(res.body.includes('data-reveal'));
   assert.ok(res.body.includes('/static/js/reveal.js'));
   assert.ok(res.body.includes('/static/css/participant.css'));
-  assert.ok(res.body.includes(`href="/admin/participants/${t.ada.id}/about">${tr('nl', 'admin.behalf.editWishes', { name: 'Ada' })}</a>`));
+  const editWishes = tr('nl', 'admin.behalf.editWishes', { name: 'Ada' });
+  const [first, ...rest] = editWishes.split(' ');
+  assert.ok(res.body.includes(`href="/admin/participants/${t.ada.id}/about"><span class="nowrap"><svg class="icon icon-pencil"`));
+  assert.ok(res.body.includes(`</svg>${first}</span> ${rest.join(' ')}</a>`));
   assert.equal(res.body.includes(tr('nl', 'result.edit')), false);
   assert.equal(res.body.includes(`/p/${t.ada.token}`), false);
 

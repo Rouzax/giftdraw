@@ -54,7 +54,7 @@ test('the arrange page shows every pair with the version and a swap form per unl
   assert.equal((res.body.match(new RegExp(`name="version" value="${version}"`, 'g')) ?? []).length, forms.length);
   assert.ok(res.body.includes(`name="a" value="${ben.id}"`));
   assert.equal(res.body.includes(`name="a" value="${ada.id}"`), false);
-  assert.ok(res.body.includes('class="lock"'));
+  assert.ok(res.body.includes('class="lock with-icon"'));
   assert.ok(res.body.includes('/static/js/arrange.js'));
   // The drawn giver is no option in anyone's select either.
   assert.equal(res.body.includes(`<option value="${ada.id}"`), false);

@@ -491,7 +491,7 @@ test('with email off the dashboard explains the invitation button and drops mail
   t.mailer.enabled = false;
   const page = await t.adminGet(`/admin/groups/${groupId}`);
   assert.ok(page.body.includes('Deel de links zelf en druk dan op de knop'));
-  assert.ok(page.body.includes('>De links zijn gedeeld</button>'));
+  assert.ok(page.body.includes('<span>De links zijn gedeeld</span></button>'));
   assert.ok(!page.body.includes('met e-mail uitgenodigd'));
   assert.ok(!page.body.includes('Nog niet</span>'));
 
@@ -502,7 +502,7 @@ test('with email off the dashboard explains the invitation button and drops mail
 
   t.mailer.enabled = true;
   const on = await t.adminGet(`/admin/groups/${groupId}`);
-  assert.ok(on.body.includes('>Uitnodigingen versturen</button>'));
+  assert.ok(on.body.includes('<span>Uitnodigingen versturen</span></button>'));
   assert.ok(on.body.includes('met e-mail uitgenodigd'));
 });
 

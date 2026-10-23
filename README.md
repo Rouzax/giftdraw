@@ -337,3 +337,5 @@ shared"), and make sure the group has at least 3 people.
 ## License
 
 Licensed under the MIT License; see [LICENSE](LICENSE).
+
+The icons come from [Lucide](https://lucide.dev) (ISC, partly MIT); see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

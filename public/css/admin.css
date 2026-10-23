@@ -488,10 +488,6 @@ table.people .email {
   font-size: 0.9375rem;
 }
 
-.lock-icon {
-  flex: none;
-}
-
 .pair.is-locked {
   border-style: dashed;
   background: var(--paper);
@@ -693,4 +689,14 @@ table.people th a {
   height: auto;
   max-width: 100%;
   margin-bottom: 0.5rem;
+}
+
+/* Status cells: the icon colour echoes the state, the words say it. */
+.status .icon-check {
+  color: var(--ribbon);
+}
+
+.status .icon-x,
+.status .icon-triangle-alert {
+  color: var(--accent-dark);
 }

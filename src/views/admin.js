@@ -1,4 +1,5 @@
 import { html, raw } from '../html.js';
+import { iconText } from '../icons.js';
 import { exchangeWhen, formatDate, LANGS, t } from '../i18n/index.js';
 import { PASTE_TEXT_MAX } from '../people.js';
 
@@ -93,7 +94,7 @@ function deleteForm(lang, action, { label, warning }) {
 <form method="post" action="${action}" class="stack">
 <p>${warning}</p>
 <label class="check"><input type="checkbox" name="confirm" value="1" required> <span>${t(lang, 'admin.delete.confirm')}</span></label>
-<button type="submit" class="danger">${label}</button>
+<button type="submit" class="danger with-icon">${iconText('trash-2', label)}</button>
 </form>
 </section>`;
 }
@@ -145,23 +146,34 @@ ${deleteForm(lang, `/admin/events/${event.id}/delete`, { label: t(lang, 'admin.e
   return { title, body };
 }
 
-// With email off nobody is ever invited by mail, so "not yet" would never change.
-function inviteCell(lang, row, mailEnabled) {
-  if (!row.participant.email || !mailEnabled) return html`<span class="muted">${t(lang, 'admin.status.notApplicable')}</span>`;
-  const state = row.mail.invite;
-  if (state) return html`<span class="state-${state}">${t(lang, `admin.invite.${state}`)}</span>`;
-  if (row.participant.invitedAt) return t(lang, 'admin.status.yes');
-  return html`<span class="muted">${t(lang, 'admin.status.notYet')}</span>`;
+// The icon repeats the status at a glance; the words stay for reading and
+// for screen readers.
+const STATUS_ICONS = { done: 'check', waiting: 'hourglass', failed: 'x', warn: 'triangle-alert', none: 'minus' };
+
+function status(kind, content, className = '') {
+  return html`<span class="status with-icon${className ? ` ${className}` : ''}">${iconText(STATUS_ICONS[kind], content)}</span>`;
 }
 
-function dateOrNo(lang, iso, tz, noKey = 'admin.status.no') {
-  return iso ? shortDate(lang, iso, tz) : html`<span class="muted">${t(lang, noKey)}</span>`;
+const INVITE_STATES = { queued: 'waiting', sent: 'done', retrying: 'warn', failed: 'failed' };
+
+// With email off nobody is ever invited by mail, so "not yet" would never change.
+function inviteCell(lang, row, mailEnabled) {
+  if (!row.participant.email || !mailEnabled) return status('none', t(lang, 'admin.status.notApplicable'), 'muted');
+  const state = row.mail.invite;
+  if (state) return status(INVITE_STATES[state], t(lang, `admin.invite.${state}`), `state-${state}`);
+  if (row.participant.invitedAt) return status('done', t(lang, 'admin.status.yes'));
+  return status('waiting', t(lang, 'admin.status.notYet'), 'muted');
+}
+
+function dateOrNo(lang, iso, tz, { noKey = 'admin.status.no', noKind = 'waiting' } = {}) {
+  return iso ? status('done', shortDate(lang, iso, tz)) : status(noKind, t(lang, noKey), 'muted');
 }
 
 function failureText(lang, failure, tz) {
   const kind = t(lang, `admin.mailKind.${failure.kind}`);
   const state = failure.retrying ? t(lang, 'admin.failure.retrying') : t(lang, 'admin.failure.gaveUp', { date: shortDate(lang, failure.at, tz) });
-  return html`<span class="state-failed">${kind}: <code>${failure.errorCode}</code></span> <span class="small">${state}</span>`;
+  return status(failure.retrying ? 'warn' : 'failed',
+    html`<span class="state-failed">${kind}: <code>${failure.errorCode}</code></span> <span class="small">${state}</span>`);
 }
 
 // A mail still being retried goes out by itself; only one given up on can be
@@ -169,22 +181,22 @@ function failureText(lang, failure, tz) {
 function resendFailedForm(lang, participantId, { back = null } = {}) {
   return html`<form method="post" action="/admin/participants/${participantId}/resend-failed" class="inline-form">
 ${back ? html`<input type="hidden" name="back" value="${back}">` : ''}
-<button type="submit">${t(lang, 'admin.failure.resend')}</button>
+<button type="submit" class="with-icon">${iconText('rotate-ccw', t(lang, 'admin.failure.resend'))}</button>
 </form>`;
 }
 
 function failureCell(lang, failure, tz, participantId, mailEnabled) {
-  if (!failure) return html`<span class="muted">${t(lang, 'admin.status.none')}</span>`;
+  if (!failure) return status('none', t(lang, 'admin.status.none'), 'muted');
   const resend = !failure.retrying && mailEnabled ? resendFailedForm(lang, participantId, { back: 'group' }) : '';
   return html`${failureText(lang, failure, tz)}${resend}`;
 }
 
 function cardCell(lang, row) {
-  if (!row.participant.printedAt) return html`<span class="muted">${t(lang, 'admin.card.notPrinted')}</span>`;
+  if (!row.participant.printedAt) return status('none', t(lang, 'admin.card.notPrinted'), 'muted');
   if (row.cardOutOfDate) {
-    return html`<a class="state-failed" href="/admin/participants/${row.participant.id}/card">${t(lang, 'admin.card.outOfDate')}</a>`;
+    return html`<a class="status with-icon state-failed" href="/admin/participants/${row.participant.id}/card">${iconText('triangle-alert', t(lang, 'admin.card.outOfDate'))}</a>`;
   }
-  return t(lang, 'admin.card.current');
+  return status('done', t(lang, 'admin.card.current'));
 }
 
 // A break opportunity before the @ keeps a narrow column from splitting
@@ -201,13 +213,13 @@ function participantRow(lang, row, tz, mailEnabled) {
   const cell = (key, content, text = label(key)) => html`<td data-label="${text}"><div>${content}</div></td>`;
   return html`<tr>
 <th scope="row"><a href="/admin/participants/${p.id}">${p.name}</a></th>
-${cell('email', p.email ? emailText(p.email) : html`<span class="muted">${t(lang, 'admin.noEmail')}</span>`)}
+${cell('email', p.email ? emailText(p.email) : status('none', t(lang, 'admin.noEmail'), 'muted'))}
 ${cell('invited', inviteCell(lang, row, mailEnabled))}
 ${cell('visited', dateOrNo(lang, p.visitedAt, tz), `${label('visited')} ${label('visitedNote')}`)}
-${cell('wishes', row.hasWishes ? t(lang, 'admin.status.yes') : html`<span class="muted">${t(lang, 'admin.status.no')}</span>`)}
+${cell('wishes', row.hasWishes ? status('done', t(lang, 'admin.status.yes')) : status('waiting', t(lang, 'admin.status.no'), 'muted'))}
 ${cell('drawn', dateOrNo(lang, p.drawnAt, tz))}
 ${cell('givesTo', receiver ? receiver.name : html`<span class="muted">${t(lang, 'admin.status.unpaired')}</span>`)}
-${cell('reminder', dateOrNo(lang, row.mail.lastReminderAt, tz, 'admin.status.none'))}
+${cell('reminder', dateOrNo(lang, row.mail.lastReminderAt, tz, { noKey: 'admin.status.none', noKind: 'none' }))}
 ${cell('failure', failureCell(lang, row.mail.lastFailure, tz, p.id, mailEnabled))}
 ${cell('card', cardCell(lang, row))}
 </tr>`;
@@ -269,7 +281,7 @@ function invitePanelBody(lang, { group, mailEnabled, uninvited }) {
   if (!mailEnabled && group.invitationsSentAt) return html`<p>${t(lang, 'admin.invite.sharedNoMail')}</p>`;
   return html`<p>${mailEnabled ? t(lang, 'admin.invite.pending', { count: uninvited }) : t(lang, 'admin.invite.mailOff')}</p>
 <form method="post" action="/admin/groups/${group.id}/invite">
-<button type="submit" class="primary">${t(lang, mailEnabled ? 'admin.invite.button' : 'admin.invite.buttonNoMail')}</button>
+<button type="submit" class="primary with-icon">${iconText('send', t(lang, mailEnabled ? 'admin.invite.button' : 'admin.invite.buttonNoMail'))}</button>
 </form>`;
 }
 
@@ -281,14 +293,14 @@ function openErrorKey(error, mailEnabled) {
 
 function drawPanel(lang, { group, rows, openError, mailEnabled }) {
   const arrange = rows.some((r) => r.receiver)
-    ? html`<p><a href="/admin/groups/${group.id}/arrange">${t(lang, 'admin.draw.arrange')}</a></p>`
+    ? html`<p><a class="with-icon" href="/admin/groups/${group.id}/arrange">${iconText('arrow-left-right', t(lang, 'admin.draw.arrange'))}</a></p>`
     : '';
   const open = group.openedAt
     ? html`<p>${t(lang, 'admin.draw.isOpen')}</p>`
     : html`<p>${t(lang, mailEnabled ? 'admin.draw.openIntro' : 'admin.draw.openIntroNoMail')}</p>
 ${!group.invitationsSentAt && openError !== 'no-invitations' ? html`<p class="hint">${t(lang, openErrorKey('no-invitations', mailEnabled))}</p>` : ''}
 <form method="post" action="/admin/groups/${group.id}/open">
-<button type="submit" class="primary">${t(lang, 'admin.draw.openButton')}</button>
+<button type="submit" class="primary with-icon">${iconText('door-open', t(lang, 'admin.draw.openButton'))}</button>
 </form>`;
   return html`<section class="panel" id="draw">
 <h2>${t(lang, 'admin.draw.title')}</h2>
@@ -307,7 +319,7 @@ function resendAllPanel(lang, groupId, count, mailEnabled) {
   return html`<div class="notice warn resend-all">
 <p>${t(lang, 'admin.failure.groupCount', { count })}</p>
 <form method="post" action="/admin/groups/${groupId}/resend-failed">
-<button type="submit">${t(lang, 'admin.failure.resendAll')}</button>
+<button type="submit" class="with-icon">${iconText('rotate-ccw', t(lang, 'admin.failure.resendAll'))}</button>
 </form>
 </div>`;
 }
@@ -434,14 +446,11 @@ export function messageView(lang, { titleKey, messageKey, href, linkText }) {
   return { title, body };
 }
 
-const LOCK_ICON = raw('<svg class="lock-icon" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">'
-  + '<path fill="currentColor" d="M4 7V5a4 4 0 0 1 8 0v2h1a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1h1zm2 0h4V5a2 2 0 0 0-4 0v2z"/></svg>');
-
 function pairRow(lang, { pair, others, groupId, version, swapped, canSwap }) {
   const { giver, receiver, locked } = pair;
   const classes = ['pair', locked ? 'is-locked' : '', swapped ? 'is-swapped' : ''].filter(Boolean).join(' ');
   let action = '';
-  if (locked) action = html`<p class="lock">${LOCK_ICON} ${t(lang, 'admin.arrange.locked')}</p>`;
+  if (locked) action = html`<p class="lock with-icon">${iconText('lock', t(lang, 'admin.arrange.locked'))}</p>`;
   else if (canSwap) {
     action = html`<form method="post" action="/admin/groups/${groupId}/swap" class="pair-swap">
 <input type="hidden" name="a" value="${giver.id}">
@@ -451,7 +460,7 @@ function pairRow(lang, { pair, others, groupId, version, swapped, canSwap }) {
 <option value="">${t(lang, 'admin.arrange.choose')}</option>
 ${others.filter((o) => o.giver.id !== giver.id).map((o) => html`<option value="${o.giver.id}">${t(lang, 'admin.arrange.option', { giver: o.giver.name, receiver: o.receiver.name })}</option>`)}
 </select>
-<button type="submit">${t(lang, 'admin.arrange.swap')}</button>
+<button type="submit" class="with-icon">${iconText('arrow-left-right', t(lang, 'admin.arrange.swap'))}</button>
 </form>`;
   }
   const data = locked || !canSwap ? '' : html` data-giver="${giver.id}" data-receiver="${receiver.id}" data-name="${giver.name}"`;
@@ -467,7 +476,7 @@ function confirmBar(lang) {
   return html`<li class="arrange-bar" data-arrange-bar hidden role="group" aria-label="${t(lang, 'admin.arrange.barLabel')}" data-confirm="${t(lang, 'admin.arrange.confirm')}" data-self="${t(lang, 'admin.arrange.selfNote')}" data-next="${t(lang, 'admin.arrange.pickNext')}">
 <p class="arrange-bar-text" data-text></p>
 <div class="arrange-bar-actions">
-<button type="button" class="primary" data-swap>${t(lang, 'admin.arrange.swap')}</button>
+<button type="button" class="primary with-icon" data-swap>${iconText('arrow-left-right', t(lang, 'admin.arrange.swap'))}</button>
 <button type="button" data-cancel>${t(lang, 'admin.arrange.cancel')}</button>
 </div>
 </li>`;
@@ -549,19 +558,19 @@ function linkPanel(lang, { participant: p, link }) {
 <p class="hint" id="person-link-hint">${t(lang, 'admin.person.link.hint', { name: p.name })}</p>
 <div class="copy-row">
 <input id="person-link" type="text" readonly value="${link}" spellcheck="false" autocomplete="off" aria-describedby="person-link-hint" data-copy-source>
-<button type="button" data-copy hidden>${t(lang, 'admin.person.link.copy')}</button>
+<button type="button" class="with-icon" data-copy hidden>${iconText('copy', t(lang, 'admin.person.link.copy'))}</button>
 </div>
 <p class="small" aria-live="polite" data-copy-status></p>
 </div>
 <div class="qr">
 <img src="/admin/participants/${p.id}/qr" width="180" height="180" alt="${t(lang, 'admin.person.qr.alt', { name: p.name })}">
-<p class="hint">${t(lang, 'admin.person.qr.hint')} <a href="/admin/participants/${p.id}/qr">${t(lang, 'admin.person.qr.open')}</a></p>
+<p class="hint">${t(lang, 'admin.person.qr.hint')} <a class="with-icon" href="/admin/participants/${p.id}/qr">${iconText('qr-code', t(lang, 'admin.person.qr.open'))}</a></p>
 </div>
 <form method="post" action="/admin/participants/${p.id}/regenerate-link" class="stack">
 <h3>${t(lang, 'admin.person.regenerate.title')}</h3>
 <p class="hint">${t(lang, 'admin.person.regenerate.warning')}</p>
 <label class="check"><input type="checkbox" name="confirm" value="1" required> <span>${t(lang, 'admin.person.regenerate.confirm')}</span></label>
-<button type="submit">${t(lang, 'admin.person.regenerate.button')}</button>
+<button type="submit" class="with-icon">${iconText('refresh-cw', t(lang, 'admin.person.regenerate.button'))}</button>
 </form>
 </section>`;
 }
@@ -580,13 +589,13 @@ function mailPanel(lang, { participant: p, mail, remindKind, mailEnabled, tz }) 
     const failure = mail.lastFailure;
     const remind = remindKind && p.invitedAt
       ? html`<form method="post" action="/admin/participants/${p.id}/remind" class="inline-form">
-<button type="submit">${t(lang, 'admin.person.mail.remind')}</button>
+<button type="submit" class="with-icon">${iconText('bell', t(lang, 'admin.person.mail.remind'))}</button>
 </form>`
       : '';
     content = html`${failure ? html`<p>${t(lang, 'admin.person.mail.failure')} ${failureText(lang, failure, tz)}</p>` : ''}
 <div class="button-row">
 <form method="post" action="/admin/participants/${p.id}/resend-invite" class="inline-form">
-<button type="submit">${t(lang, 'admin.person.mail.resendInvite')}</button>
+<button type="submit" class="with-icon">${iconText('mail', t(lang, 'admin.person.mail.resendInvite'))}</button>
 </form>
 ${remind}
 ${failure && !failure.retrying ? resendFailedForm(lang, p.id) : ''}
@@ -633,19 +642,19 @@ function behalfPanel(lang, { participant: p, group, receiver, cardOutOfDate, tz 
   const base = `/admin/participants/${p.id}`;
   const draw = group.openedAt && receiver
     ? html`<form method="post" action="${base}/draw" class="stack">
-<button type="submit"${p.drawnAt ? '' : raw(' class="primary"')}>${t(lang, p.drawnAt ? 'admin.behalf.drawAgain' : 'admin.behalf.draw', { name: p.name })}</button>
+<button type="submit" class="${p.drawnAt ? '' : 'primary '}with-icon">${iconText('gift', t(lang, p.drawnAt ? 'admin.behalf.drawAgain' : 'admin.behalf.draw', { name: p.name }))}</button>
 </form>
 ${p.drawnAt ? '' : html`<p class="hint">${t(lang, 'admin.behalf.drawHint', { name: p.name })}</p>`}`
     : html`<p class="muted">${t(lang, 'admin.behalf.notOpen')}</p>`;
   const card = p.drawnAt
-    ? html`<p><a href="${base}/card">${t(lang, 'admin.behalf.card')}</a></p>
+    ? html`<p><a class="with-icon" href="${base}/card">${iconText('printer', t(lang, 'admin.behalf.card'))}</a></p>
 <p class="small">${cardStatus(lang, p, cardOutOfDate, tz)}</p>`
     : html`<p class="muted">${t(lang, 'admin.behalf.cardAfterDraw')}</p>`;
   return html`<section class="panel behalf${p.email ? '' : ' emphasis'}" id="behalf">
 <h2>${t(lang, 'admin.behalf.title', { name: p.name })}</h2>
 <p class="hint">${t(lang, p.email ? 'admin.behalf.intro' : 'admin.behalf.introNoEmail', { name: p.name })}</p>
 <h3>${t(lang, 'admin.behalf.wishesTitle')}</h3>
-<p><a href="${base}/about">${t(lang, 'admin.behalf.about', { name: p.name })}</a></p>
+<p><a class="with-icon" href="${base}/about">${iconText('pencil', t(lang, 'admin.behalf.about', { name: p.name }))}</a></p>
 <h3>${t(lang, 'admin.behalf.drawTitle')}</h3>
 ${draw}
 <h3>${t(lang, 'admin.behalf.cardTitle')}</h3>
@@ -674,7 +683,7 @@ ${editPanel(lang, { participant, values, error, duplicate })}
 <section class="panel danger">
 <h2>${t(lang, 'admin.person.remove.title')}</h2>
 <p>${t(lang, 'admin.person.remove.intro', { name: participant.name })}</p>
-<p><a class="button-link" href="/admin/participants/${participant.id}/remove">${t(lang, 'admin.person.remove.link')}</a></p>
+<p><a class="button-link with-icon" href="/admin/participants/${participant.id}/remove">${iconText('trash-2', t(lang, 'admin.person.remove.link'))}</a></p>
 </section>`;
   return { title, body, scripts: ['copy-link.js'] };
 }
@@ -707,7 +716,7 @@ ${effect}
 <form method="post" action="/admin/participants/${participant.id}/remove" class="button-row">
 <input type="hidden" name="group" value="${group.id}">
 <input type="hidden" name="plan" value="${JSON.stringify({ version: plan.version, map: plan.map })}">
-<button type="submit" class="danger">${t(lang, 'admin.remove.confirm', { name: participant.name })}</button>
+<button type="submit" class="danger with-icon">${iconText('trash-2', t(lang, 'admin.remove.confirm', { name: participant.name }))}</button>
 <a href="/admin/participants/${participant.id}">${t(lang, 'admin.remove.cancel')}</a>
 </form>
 </section>`;
@@ -725,7 +734,7 @@ export function cardTools(lang, { participant, cardOutOfDate }) {
 <p><a href="${base}">${t(lang, 'admin.behalf.back', { name: participant.name })}</a></p>
 ${note}
 <form method="post" action="${base}/card/printed">
-<button type="submit">${t(lang, 'admin.card.print')}</button>
+<button type="submit" class="with-icon">${iconText('printer', t(lang, 'admin.card.print'))}</button>
 </form>
 <p class="card-hint">${t(lang, 'admin.card.printHint')}</p>
 </div>`;

@@ -1,4 +1,5 @@
 import { html, raw } from '../html.js';
+import { icon, iconInline } from '../icons.js';
 import { exchangeLine, LANGS, t, themeText } from '../i18n/index.js';
 import { detailPrompt, hasWishes, PET_IDS, wishLines, wishOptions } from '../wishes.js';
 
@@ -8,10 +9,18 @@ import { detailPrompt, hasWishes, PET_IDS, wishLines, wishOptions } from '../wis
 const TEXT_MAX = 1000;
 const checked = (on) => (on ? raw(' checked') : '');
 
+// The place gets its own pin inside the sentence, so the sentence is split
+// around a marker the way givesTo splits around the name.
+function exchangeText(lang, group, tz) {
+  if (!group.exchangePlace) return exchangeLine(lang, group, tz);
+  const [before, after = ''] = exchangeLine(lang, { ...group, exchangePlace: '{place}' }, tz).split('{place}');
+  return html`${before}${iconInline('map-pin', group.exchangePlace)}${after}`;
+}
+
 function themeBlock({ event, group, lang, tz }) {
   return html`<section class="theme">
 <p>${themeText(event, lang)}</p>
-<p class="date">${exchangeLine(lang, group, tz)}</p>
+<p class="date">${icon('calendar')}${exchangeText(lang, group, tz)}</p>
 </section>`;
 }
 
@@ -31,7 +40,7 @@ export function welcomeView({ participant, event, group, lang, tz, editHref, lan
   const body = html`<h1>${t(lang, 'welcome.greeting', { name: participant.name })}</h1>
 <p class="lead">${t(lang, 'welcome.intro')}</p>
 ${themeBlock({ event, group, lang, tz })}
-<a class="button" href="${editHref}">${t(lang, 'welcome.button')}</a>
+<a class="button" href="${editHref}">${iconInline('pencil', t(lang, 'welcome.button'))}</a>
 ${footer({ lang, langAction, showLangSwitch })}`;
   return { title: t(lang, 'welcome.title'), body };
 }
@@ -39,10 +48,13 @@ ${footer({ lang, langAction, showLangSwitch })}`;
 // emailOn is false when the app sends no mail at all: an address alone does
 // not mean an email will come.
 export function waitingView({ participant, event, group, lang, tz, editHref, langAction, showLangSwitch, emailOn }) {
+  const lead = participant.email && emailOn
+    ? html`<p class="lead">${iconInline('mail', t(lang, 'waiting.thanks'))}</p>`
+    : html`<p class="lead">${t(lang, 'waiting.thanksNoEmail')}</p>`;
   const body = html`<h1>${t(lang, 'welcome.greeting', { name: participant.name })}</h1>
-<p class="lead">${t(lang, participant.email && emailOn ? 'waiting.thanks' : 'waiting.thanksNoEmail')}</p>
+${lead}
 ${themeBlock({ event, group, lang, tz })}
-<a class="button" href="${editHref}">${t(lang, 'waiting.edit')}</a>
+<a class="button" href="${editHref}">${iconInline('pencil', t(lang, 'waiting.edit'))}</a>
 ${footer({ lang, langAction, showLangSwitch })}`;
   return { title: t(lang, 'waiting.title'), body };
 }
@@ -128,7 +140,7 @@ export function drawView({ lang, drawAction, langAction, showLangSwitch }) {
 <p class="lead">${t(lang, 'draw.intro')}</p>
 ${bowl()}
 <form method="post" action="${drawAction}">
-<button type="submit" class="button">${t(lang, 'draw.button')}</button>
+<button type="submit" class="button">${iconInline('gift', t(lang, 'draw.button'))}</button>
 </form>
 ${footer({ lang, langAction, showLangSwitch })}`;
   return { title: t(lang, 'draw.title'), body };
@@ -176,7 +188,7 @@ ${heading}
 <div class="result-rest">
 ${themeBlock({ event, group, lang, tz })}
 ${wishCard({ receiver, event, lang })}
-<a class="edit-link" href="${editHref}">${editText ?? ownText}</a>
+<a class="edit-link" href="${editHref}">${iconInline('pencil', editText ?? ownText)}</a>
 ${footer({ lang, langAction, showLangSwitch })}
 </div>`;
   return { title: t(lang, 'result.title'), body, scripts: reveal ? ['reveal.js'] : [] };

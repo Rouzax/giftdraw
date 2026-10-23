@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { makeTestApp, seedGroup } from './helpers.js';
+import { makeTestApp, seedGroup, textOf } from './helpers.js';
 
 const T0 = Date.parse('2026-11-01T10:00:00.000Z');
 const NL_THEME = 'Dit jaar doen we een regift';
@@ -21,7 +21,7 @@ test('first visit shows the welcome screen with theme, date and one button', asy
   assert.ok(res.body.includes(NL_THEME));
   assert.ok(res.body.includes('vrijdag 18 december'));
   assert.ok(res.body.includes(`href="/p/${ada.token}/about"`));
-  assert.ok(res.body.includes('Vertel iets over jezelf'));
+  assert.ok(textOf(res.body).includes('Vertel iets over jezelf'));
   assert.ok(res.body.includes(`action="/p/${ada.token}/lang"`));
   assert.ok(!res.body.includes('Ben'));
 });

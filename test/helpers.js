@@ -105,3 +105,7 @@ export function seedGroup(ctx, { names, withEmail = true, invited = true, opened
     people: added.map((p) => repo.getParticipant(p.id)),
   };
 }
+
+// The words a page shows, without markup: an icon may share a nowrap box
+// with the first word of a label, which splits the label in the source.
+export const textOf = (body) => body.replace(/<[^>]+>/g, '');

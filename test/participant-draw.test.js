@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { drawFor } from '../src/people.js';
-import { makeTestApp, seedGroup } from './helpers.js';
+import { makeTestApp, seedGroup, textOf } from './helpers.js';
 
 const T0 = Date.parse('2026-11-20T10:00:00.000Z');
 const NAMES = ['Ada', 'Ben', 'Cor', 'Dirk', 'Eva'];
@@ -24,7 +24,7 @@ test('an open group shows the draw screen with one button', async () => {
   assert.ok(res.body.includes('Je mag een naam trekken'));
   assert.ok(res.body.includes(`action="/p/${ada.token}/draw"`));
   assert.equal(count(res.body, 'class="button"'), 1);
-  assert.ok(res.body.includes('Trek een naam'));
+  assert.ok(textOf(res.body).includes('Trek een naam'));
   assert.ok(!res.body.includes(receiver.name));
   assert.ok(!res.body.includes('data-reveal'));
 });
@@ -142,9 +142,9 @@ test('the result invites someone without wishes to fill them in, others to chang
   const { app, ada, ctx } = await setup();
   drawFor(ctx, ada.id);
   let res = await app.inject(`/p/${ada.token}`);
-  assert.ok(res.body.includes('Vertel wat jij leuk vindt'));
-  assert.ok(!res.body.includes('Mijn eigen antwoorden aanpassen'));
+  assert.ok(textOf(res.body).includes('Vertel wat jij leuk vindt'));
+  assert.ok(!textOf(res.body).includes('Mijn eigen antwoorden aanpassen'));
   ctx.repo.updateParticipant(ada.id, { wishes: { likes: [], pets: [], hobbies: 'tuinieren' } });
   res = await app.inject(`/p/${ada.token}`);
-  assert.ok(res.body.includes('Mijn eigen antwoorden aanpassen'));
+  assert.ok(textOf(res.body).includes('Mijn eigen antwoorden aanpassen'));
 });

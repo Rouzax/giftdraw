@@ -4,7 +4,7 @@ import { escape } from '../src/html.js';
 import { exchangeLine } from '../src/i18n/index.js';
 import { KINDS, renderEmail } from '../src/mail/templates.js';
 import { aboutFormView, cardView, resultView, waitingView, welcomeView } from '../src/views/participant.js';
-import { makeTestApp, seedGroup } from './helpers.js';
+import { makeTestApp, seedGroup, textOf } from './helpers.js';
 
 const TZ = 'Europe/Amsterdam';
 const DATE = '2026-12-18';
@@ -50,7 +50,7 @@ for (const [name, view] of Object.entries(VIEWS)) {
   test(`the ${name} screen shows the time and the escaped place`, () => {
     const body = view().body.toString();
     assert.ok(body.includes('om 10:30 bij'), body);
-    assert.ok(body.includes(escape(PLACE)));
+    assert.ok(textOf(body).includes(escape(PLACE)));
     assert.ok(!body.includes('<b>'));
   });
 }
@@ -72,7 +72,9 @@ test('a participant page shows the stored place escaped', async () => {
   t.ctx.repo.updateGroup(seeded.group.id, { exchangeTime: '10:30', exchangePlace: PLACE });
   const res = await t.app.inject(`/p/${seeded.people[0].token}`);
   assert.equal(res.statusCode, 200);
-  assert.ok(res.body.includes(`om 10:30 bij ${escape(PLACE)}.`));
+  const flat = res.body.replace(/<\/?span[^>]*>/g, '').replace(/<svg class="icon icon-map-pin".*?<\/svg>/, '');
+  assert.ok(flat.includes(`om 10:30 bij ${escape(PLACE)}.`));
+  assert.ok(res.body.includes('bij <span class="nowrap"><svg class="icon icon-map-pin"'));
   assert.ok(!res.body.includes('<b>'));
 });
 
