@@ -499,7 +499,7 @@ ${rows}
 </ul>`;
     how = html`<p class="notice warn">${t(lang, 'admin.arrange.groupOfThree')}</p>`;
   } else if (pairs.length) {
-    list = html`<ul class="pairs" data-arrange data-pick="${t(lang, 'admin.arrange.pick')}" data-pick-label="${t(lang, 'admin.arrange.pickLabel')}">
+    list = html`<ul class="pairs" data-arrange data-arrange-url="/admin/groups/${group.id}/arrange" data-pick="${t(lang, 'admin.arrange.pick')}" data-pick-label="${t(lang, 'admin.arrange.pickLabel')}">
 ${rows}
 ${confirmBar(lang)}
 </ul>

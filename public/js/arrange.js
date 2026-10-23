@@ -7,9 +7,14 @@
   // Browsers keep this page in the back/forward cache despite no-store, and
   // going back restores it exactly as it was left: the pairs and version
   // from before the swap, and the bar open with its buttons disabled by
-  // submit(). Load it afresh instead.
+  // submit(). Load the arrange page afresh instead. Not reload(): this script
+  // also runs on the swap-refusal page, the answer to a POST, and reloading
+  // that would ask to send the form again.
   window.addEventListener('pageshow', function (event) {
-    if (event.persisted) window.location.reload();
+    if (!event.persisted) return;
+    var pairs = document.querySelector('[data-arrange]');
+    var url = pairs && pairs.getAttribute('data-arrange-url');
+    if (url) window.location.replace(url);
   });
 
   var list = document.querySelector('[data-arrange]');

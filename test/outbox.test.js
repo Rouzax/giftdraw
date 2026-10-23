@@ -38,9 +38,8 @@ test('a pending row is sent once and marked sent', async () => {
   assert.ok(!logs.join('').includes('@'), 'no address in logs');
 });
 
-// Who gets a receiver mail says who gives to whom, and the receiver shows up
-// in nearby lines (wishes_saved, participant_removed), so these lines carry
-// no participant id.
+// A receiver mail goes to that receiver's giver and follows something the
+// receiver did, so these lines carry no participant id.
 test('receiver mails are logged without a participant id, sent or failed', async () => {
   const { ctx, mailer, ada, drain, logs } = await setup();
   ctx.repo.updateParticipant(ada.id, { drawnAt: ctx.nowIso() });

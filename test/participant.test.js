@@ -100,6 +100,16 @@ test('saving wishes in a closed group leads to the waiting screen', async () => 
   assert.doesNotMatch(form.body, /name="likes" value="wine" checked/);
 });
 
+// Fifteen minutes later the wish-update lines say something about this
+// person's giver, so the save itself names only the group.
+test('a wish save logs the group, not the participant', async () => {
+  const { post, ada, group, logs } = await setup();
+  await post(`/p/${ada.token}/about`, { hobbies: 'reading' });
+  const line = logs.map((l) => JSON.parse(l)).find((l) => l.msg === 'wishes_saved');
+  assert.equal(line.group_id, group.id);
+  assert.ok(!Object.hasOwn(line, 'participant_id'));
+});
+
 test('saved HTML comes back escaped', async () => {
   const { app, post, ada } = await setup();
   await post(`/p/${ada.token}/about`, { hobbies: '<script>alert(1)</script>', pets_other: '"><b>x' });

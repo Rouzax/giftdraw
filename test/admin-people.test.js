@@ -50,6 +50,23 @@ async function removeVia(t, id) {
   return { preview, form, res };
 }
 
+// How many givers changed and whether one was mailed both say something
+// about the removed person's giver, so the line names only who left where.
+test('a removal logs the group and the removed participant only', async () => {
+  const t = await setup({ names: SIX, opened: true });
+  const before = t.ctx.repo.getAssignment(t.groupId);
+  const dropout = t.people[0];
+  const giverId = giverOf(before, dropout.id);
+  markDrawn(t, [giverId]);
+  const { res } = await removeVia(t, dropout.id);
+  assert.equal(res.statusCode, 303);
+  const line = t.logs.map((l) => JSON.parse(l)).find((l) => l.msg === 'participant_removed');
+  assert.equal(line.group_id, t.groupId);
+  assert.equal(line.participant_id, dropout.id);
+  for (const key of ['queued', 'changed', 'giver_id']) assert.ok(!Object.hasOwn(line, key), key);
+  assert.ok(!Object.values(line).includes(giverId));
+});
+
 function changedGivers(before, after, removed) {
   return [...after.keys()].filter((g) => g !== removed && before.get(g) !== after.get(g)).sort((a, b) => a - b);
 }

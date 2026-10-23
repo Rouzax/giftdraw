@@ -64,6 +64,14 @@ test('the organiser fills in wishes on behalf and the dashboard shows them fille
   assert.equal(t.logs.some((line) => line.includes('gardening')), false);
 });
 
+test('a wish save on behalf logs the group, not the participant', async () => {
+  const t = await withNoEmailAda({ names: ['Ada', 'Ben', 'Cor'] });
+  await t.adminPost(`/admin/participants/${t.ada.id}/about`, { hobbies: 'gardening' });
+  const line = t.logs.map((l) => JSON.parse(l)).find((l) => l.msg === 'wishes_saved_on_behalf');
+  assert.equal(line.group_id, t.groupId);
+  assert.ok(!Object.hasOwn(line, 'participant_id'));
+});
+
 test('drawing on behalf sets drawnAt and reveals the receiver with the participant reveal', async () => {
   const t = await withNoEmailAda({ names: ['Ada', 'Ben', 'Cor'], opened: true });
   const receiver = receiverOf(t, t.ada.id);

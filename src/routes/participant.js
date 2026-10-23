@@ -100,7 +100,9 @@ export function participantRoutes(app, ctx, { sendPage, sendError, isParticipant
 
   app.post('/p/:token/about', { onRequest: loadParticipant }, async (request, reply) => {
     saveWishes(ctx, request.participant.id, request.body);
-    request.log.info({ participant_id: request.participant.id }, 'wishes_saved');
+    // No participant id: the wish-update lines that follow say something
+    // about this person's giver, and together they would reveal the pair.
+    request.log.info({ group_id: request.participant.groupId }, 'wishes_saved');
     return reply.redirect(`/p/${request.participant.token}`, 303);
   });
 

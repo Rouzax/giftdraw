@@ -162,7 +162,9 @@ export function adminPeopleRoutes(app, ctx, { render, renderBehalf, renderPrint,
 
   app.post('/admin/participants/:id/about', loadParticipant, async (request, reply) => {
     saveWishes(ctx, request.record.id, request.body);
-    request.log.info({ participant_id: request.record.id }, 'wishes_saved_on_behalf');
+    // No participant id, like wishes_saved: it would tie this receiver to
+    // the giver described by the wish-update lines that follow.
+    request.log.info({ group_id: request.record.groupId }, 'wishes_saved_on_behalf');
     return reply.redirect(personUrl(request.record.id, 'wishes-saved'), 303);
   });
 
@@ -251,10 +253,9 @@ export function adminPeopleRoutes(app, ctx, { render, renderBehalf, renderPrint,
       const view = messageView(lang, { titleKey: 'admin.remove.refusedTitle', messageKey: REMOVE_MESSAGE[result.error], ...link });
       return render(request, reply, view, REMOVE_STATUS[result.error]);
     }
-    request.log.info(
-      { participant_id: id, group_id: result.removed.groupId, changed: result.changed.length, queued: result.queued },
-      'participant_removed',
-    );
+    // No counts: how many givers changed and whether one was mailed say
+    // something about the removed person's giver.
+    request.log.info({ participant_id: id, group_id: result.removed.groupId }, 'participant_removed');
     return reply.redirect(`/admin/groups/${result.removed.groupId}`, 303);
   });
 }

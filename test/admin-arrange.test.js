@@ -312,26 +312,46 @@ test('the arrange page keeps the live region outside the confirm bar', async () 
   assert.ok(/<p class="visually-hidden" aria-live="polite" data-live><\/p>/.test(res.body));
 });
 
-// Runs the shipped script against a page without a pairs list, which is
-// enough to reach the pageshow listener it registers first.
-function runArrangeScript() {
+// Runs the shipped script against a page whose pairs list carries only its
+// URL, which is enough to reach the pageshow listener it registers first.
+function runArrangeScript(url = '/admin/groups/7/arrange') {
   const handlers = {};
-  const reloads = [];
+  const navigations = [];
   const window = {
     addEventListener: (type, fn) => { handlers[type] = fn; },
-    location: { reload: () => reloads.push(true) },
+    location: {
+      reload: () => navigations.push(['reload']),
+      replace: (to) => navigations.push(['replace', to]),
+    },
   };
-  const document = { querySelector: () => null, documentElement: { classList: {} } };
+  const list = { getAttribute: (name) => (name === 'data-arrange-url' ? url : null) };
+  const document = {
+    querySelector: (selector) => (selector === '[data-arrange]' ? list : null),
+    documentElement: { classList: {} },
+  };
   const source = readFileSync(new URL('../public/js/arrange.js', import.meta.url), 'utf8');
   vm.runInNewContext(source, { window, document });
-  return { handlers, reloads };
+  return { handlers, navigations };
 }
 
-test('arrange.js reloads a page restored from the back/forward cache', () => {
-  const { handlers, reloads } = runArrangeScript();
+// The script also runs on the swap-refusal page, the answer to a POST, where
+// reload() would ask to send the form again; it goes to the arrange URL.
+test('arrange.js loads the arrange URL afresh when restored from the back/forward cache', () => {
+  const { handlers, navigations } = runArrangeScript();
   assert.equal(typeof handlers.pageshow, 'function');
   handlers.pageshow({ persisted: false });
-  assert.equal(reloads.length, 0, 'a normal load is left alone');
+  assert.deepEqual(navigations, [], 'a normal load is left alone');
   handlers.pageshow({ persisted: true });
-  assert.equal(reloads.length, 1, 'a restored page, with its stale pairs and disabled buttons, is fetched again');
+  assert.deepEqual(navigations, [['replace', '/admin/groups/7/arrange']]);
+});
+
+test('the arrange page and the swap-refusal page carry the arrange URL', async () => {
+  const t = await setup();
+  const url = `/admin/groups/${t.groupId}/arrange`;
+  const page = await t.adminGet(url);
+  assert.ok(page.body.includes(`data-arrange-url="${url}"`));
+  const refused = await t.adminPost(`/admin/groups/${t.groupId}/swap`, { a: '1', b: '2', version: '0000000000000000' });
+  assert.ok(refused.statusCode >= 400);
+  assert.ok(refused.body.includes('/static/js/arrange.js'));
+  assert.ok(refused.body.includes(`data-arrange-url="${url}"`));
 });
