@@ -26,7 +26,10 @@ admin header.
 1. **Create an event**, for example "Gifts 2026". Set the default
    language, how many weeks after the exchange the data is deleted, the
    theme text, and the choices people can tick under "I like...". Empty
-   fields use the built-in regift text and choice list.
+   fields use the built-in regift text and choice list. A choice can ask a
+   short question with a text field: write it after a question mark, as in
+   `Books? Which author?`. A question mark alone (`Books?`) asks "Anything
+   in particular?".
 2. **Create a group** per class or team, with the date the presents are
    exchanged and, if you like, a date on which drawing opens by itself
    (at 09:00). You can also give the time and the place of the exchange,

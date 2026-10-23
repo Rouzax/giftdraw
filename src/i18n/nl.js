@@ -34,7 +34,7 @@ export default {
   'wish.like.plants': 'Planten of bloemen',
   'wish.like.wine': 'Wijn',
   'wish.detail.chocolate': 'Welke smaak?',
-  'wish.detail': 'Welke soort?',
+  'wish.detail': 'Iets in het bijzonder?',
   'wish.pets': 'Huisdieren',
   'wish.pet.dog': 'Hond',
   'wish.pet.cat': 'Kat',
@@ -124,7 +124,7 @@ export default {
   'admin.event.themeHint': 'Dit lezen de deelnemers bovenaan hun pagina. Laat je het leeg, dan staat er de standaardtekst.',
   'admin.event.options': 'Keuzes bij "Ik houd van..."',
   'admin.event.optionsHint':
-    'Eén keuze per regel. Zet een vraagteken achter een keuze om te vragen welke soort. Laat je het leeg, dan krijg je de standaardlijst.',
+    'Eén keuze per regel. Wil je er een vraag bij, zet die dan achter een vraagteken, bijvoorbeeld: Boeken? Welke schrijver? Laat je het leeg, dan krijg je de standaardlijst.',
   'admin.event.delete': 'Evenement verwijderen',
   'admin.event.deleteWarning': 'Dit wist het evenement met alle groepen, deelnemers en wensen. Dat kan niet ongedaan worden.',
   'admin.event.error.name': 'Vul een naam in.',

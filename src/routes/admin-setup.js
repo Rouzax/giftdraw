@@ -6,7 +6,7 @@ import {
   resendGroupFailed, sendInvitations,
 } from '../people.js';
 import { todayIn } from '../time.js';
-import { mergeOptionLabels, wishOptions } from '../wishes.js';
+import { mergeOptionLabels, optionLines, wishOptions } from '../wishes.js';
 import { adminLang } from './admin-auth.js';
 import { field, parseJsonField } from './admin-shared.js';
 import { eventsView, eventView, GROUP_DONE, messageView, pasteConfirmView } from '../views/admin.js';
@@ -78,13 +78,12 @@ export function adminSetupRoutes(app, ctx, { render, sendError, groupPage, loadE
       exchangePlace: latest?.exchangePlace ?? '',
       autoOpenAt: latest?.autoOpenAt && latest.autoOpenAt >= today() ? latest.autoOpenAt : '',
     };
-    const options = wishOptions(event).map((o) => `${o.label(event.language)}${o.detail ? '?' : ''}`).join('\n');
     return eventView(lang, {
       event,
       groups,
       newGroup,
       themeValue: event.themeText ?? t(event.language, 'theme.default'),
-      optionsValue: options,
+      optionsValue: optionLines(wishOptions(event), event.language),
       tz: config.tz,
       ...extra,
     });

@@ -7,6 +7,7 @@ export const PET_IDS = ['dog', 'cat', 'other'];
 const DEFAULT_IDS = new Set(DEFAULT_LIKE_IDS);
 const DETAIL_IDS = new Set(['chocolate']);
 const TEXT_MAX = 1000;
+const QUESTION_MAX = 80;
 const SLUG_MAX = 32;
 
 const defaultLabel = (id) => (lang) => t(lang, `wish.like.${id}`);
@@ -16,17 +17,42 @@ const allTranslations = (id) => LANGS.map(defaultLabel(id));
 // edited the list; organiser-typed labels are shown as typed in every language.
 export function wishOptions(event) {
   if (!event.wishOptions) {
-    return DEFAULT_LIKE_IDS.map((id) => ({ id, label: defaultLabel(id), detail: DETAIL_IDS.has(id) }));
+    return DEFAULT_LIKE_IDS.map((id) => ({ id, label: defaultLabel(id), detail: DETAIL_IDS.has(id), question: null }));
   }
-  return event.wishOptions.map(({ id, label, detail }) => ({
+  return event.wishOptions.map(({ id, label, detail, question }) => ({
     id,
     label: DEFAULT_IDS.has(id) ? defaultLabel(id) : () => label,
     detail: Boolean(detail),
+    question: typeof question === 'string' && question ? question : null,
   }));
 }
 
+// The organiser's own question is shown as typed in every language, like a
+// typed label.
 export function detailPrompt(option, lang) {
-  return t(lang, option.id === 'chocolate' ? 'wish.detail.chocolate' : 'wish.detail');
+  if (option.question) return option.question;
+  return t(lang, DETAIL_IDS.has(option.id) ? 'wish.detail.chocolate' : 'wish.detail');
+}
+
+// The inverse of the line format mergeOptionLabels reads, so saving the
+// textarea unchanged stores the same options.
+export function optionLines(options, lang) {
+  return options
+    .map((o) => {
+      const label = labelOf(o, lang);
+      if (!o.detail) return label;
+      return o.question ? `${label}? ${o.question}` : `${label}?`;
+    })
+    .join('\n');
+}
+
+function parseQuestion(rest) {
+  let question = rest.trim();
+  if (!question) return null;
+  if (!question.endsWith('?')) question += '?';
+  const chars = Array.from(question);
+  if (chars.length <= QUESTION_MAX) return question;
+  return `${chars.slice(0, QUESTION_MAX - 1).join('').trimEnd()}?`;
 }
 
 function labelOf(option, lang) {
@@ -70,15 +96,16 @@ export function mergeOptionLabels(text, currentOptions, lang) {
   const used = new Set();
   const out = [];
   for (const line of String(text ?? '').split(/\r?\n/)) {
-    let label = line.trim();
-    const detail = label.endsWith('?');
-    if (detail) label = label.slice(0, -1).trim();
+    const mark = line.indexOf('?');
+    const detail = mark !== -1;
+    const label = (detail ? line.slice(0, mark) : line).trim();
     if (!label) continue;
+    const question = detail ? parseQuestion(line.slice(mark + 1)) : null;
     const match = candidates.find((c) => !used.has(c.id) && c.labels.some((l) => sameLabel(l, label)));
     const id = match ? match.id : newId(label, taken);
     used.add(id);
     taken.add(id);
-    out.push({ id, label, detail });
+    out.push(question ? { id, label, detail, question } : { id, label, detail });
   }
   return out;
 }

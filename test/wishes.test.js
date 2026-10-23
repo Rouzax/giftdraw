@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   DEFAULT_LIKE_IDS,
   detailPrompt,
+  optionLines,
   PET_IDS,
   hasWishes,
   mergeOptionLabels,
@@ -22,9 +23,28 @@ test('default options are the spec list with detail only on chocolate', () => {
   assert.equal(defaults[1].label('en'), 'Tea');
 });
 
-test('detailPrompt asks for a flavour on chocolate and a kind elsewhere', () => {
+test('detailPrompt asks for a flavour on chocolate and something particular elsewhere', () => {
   assert.equal(detailPrompt(defaults[0], 'en'), 'Which flavour?');
-  assert.equal(detailPrompt({ id: 'wol-ab12' }, 'nl'), 'Welke soort?');
+  assert.equal(detailPrompt(defaults[0], 'nl'), 'Welke smaak?');
+  assert.equal(detailPrompt({ id: 'wol-ab12' }, 'nl'), 'Iets in het bijzonder?');
+  assert.equal(detailPrompt({ id: 'wol-ab12' }, 'en'), 'Anything in particular?');
+});
+
+test('detailPrompt uses the organiser question in every language, also on chocolate', () => {
+  assert.equal(detailPrompt({ id: 'books', question: 'Welke schrijver?' }, 'en'), 'Welke schrijver?');
+  assert.equal(detailPrompt({ id: 'chocolate', question: 'Welke soort chocola?' }, 'nl'), 'Welke soort chocola?');
+});
+
+test('stored options without a question still load, with the generic prompt', () => {
+  const [option] = wishOptions({ wishOptions: [{ id: 'wol-ab12', label: 'Wol', detail: true }] });
+  assert.equal(option.question, null);
+  assert.equal(detailPrompt(option, 'nl'), 'Iets in het bijzonder?');
+});
+
+test('a stored question comes back on the option', () => {
+  const [option] = wishOptions({ wishOptions: [{ id: 'wol-ab12', label: 'Wol', detail: true, question: 'Welke kleur?' }] });
+  assert.equal(option.question, 'Welke kleur?');
+  assert.equal(detailPrompt(option, 'en'), 'Welke kleur?');
 });
 
 test('stored custom options keep their typed label in both languages', () => {
@@ -191,4 +211,55 @@ test('mergeOptionLabels gives a repeated line its own id', () => {
   assert.notEqual(merged[1].id, 'tea');
   assert.match(merged[2].id, /^option-[0-9a-f]{4}$/);
   assert.equal(new Set(merged.map((o) => o.id)).size, 3);
+});
+
+const parseOne = (line, current = defaults) => {
+  const [option] = mergeOptionLabels(line, current, 'nl');
+  return { label: option.label, detail: option.detail, question: option.question ?? null };
+};
+
+test('mergeOptionLabels reads the question after the first question mark', () => {
+  assert.deepEqual(parseOne('Boeken? Welke schrijver?'), { label: 'Boeken', detail: true, question: 'Welke schrijver?' });
+  assert.deepEqual(parseOne('Boeken? welke schrijver'), { label: 'Boeken', detail: true, question: 'welke schrijver?' });
+  assert.deepEqual(parseOne('Boeken?'), { label: 'Boeken', detail: true, question: null });
+  assert.deepEqual(parseOne('Boeken?   '), { label: 'Boeken', detail: true, question: null });
+  assert.deepEqual(parseOne('Boeken'), { label: 'Boeken', detail: false, question: null });
+  assert.deepEqual(parseOne('Boeken? Welke schrijver? Of genre?'), {
+    label: 'Boeken', detail: true, question: 'Welke schrijver? Of genre?',
+  });
+});
+
+test('mergeOptionLabels stores no question key when there is none', () => {
+  const [plain, generic] = mergeOptionLabels('Boeken\nWol?', [], 'nl');
+  assert.ok(!Object.hasOwn(plain, 'question'));
+  assert.ok(!Object.hasOwn(generic, 'question'));
+});
+
+test('chocolate keeps its flavour prompt unless the organiser asks her own question', () => {
+  const [plain] = mergeOptionLabels('Chocolade?', defaults, 'nl');
+  assert.equal(plain.id, 'chocolate');
+  assert.equal(detailPrompt(wishOptions({ wishOptions: [plain] })[0], 'nl'), 'Welke smaak?');
+  const [custom] = mergeOptionLabels('Chocolade? Welke soort chocola?', defaults, 'nl');
+  assert.equal(custom.id, 'chocolate');
+  assert.equal(detailPrompt(wishOptions({ wishOptions: [custom] })[0], 'en'), 'Welke soort chocola?');
+});
+
+test('mergeOptionLabels caps a question at 80 characters and keeps its question mark', () => {
+  const [option] = mergeOptionLabels(`Boeken? ${'x'.repeat(200)}`, [], 'nl');
+  assert.equal(Array.from(option.question).length, 80);
+  assert.ok(option.question.endsWith('?'));
+});
+
+test('optionLines writes the options back so a re-save changes nothing', () => {
+  const text = 'Boeken? Welke schrijver?\nChocolade?\nThee\nWol?';
+  const first = mergeOptionLabels(text, defaults, 'nl');
+  const options = wishOptions({ wishOptions: first });
+  const shown = optionLines(options, 'nl');
+  assert.equal(shown, text);
+  assert.deepEqual(mergeOptionLabels(shown, options, 'nl'), first);
+});
+
+test('optionLines shows the default list with chocolate as a plain detail', () => {
+  assert.equal(optionLines(defaults, 'en').split('\n')[0], 'Chocolate?');
+  assert.equal(optionLines(defaults, 'nl').split('\n')[1], 'Thee');
 });

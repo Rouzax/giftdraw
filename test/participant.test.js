@@ -52,6 +52,24 @@ test('the about form has every wish field, the theme and the date', async () => 
   assert.ok(res.body.includes('vrijdag 18 december'));
 });
 
+test('the about form shows the organiser question, escaped, and the generic prompt elsewhere', async () => {
+  const { app, ctx, ada, group } = await setup();
+  ctx.repo.updateEvent(group.eventId, {
+    wishOptions: [
+      { id: 'books', label: 'Boeken', detail: true, question: 'Welke <b>schrijver</b>?' },
+      { id: 'wol-ab12', label: 'Wol', detail: true },
+      { id: 'chocolate', label: 'Chocolade', detail: true },
+    ],
+  });
+  const res = await app.inject(`/p/${ada.token}/about`);
+  assert.equal(res.statusCode, 200);
+  assert.ok(res.body.includes('Welke &lt;b&gt;schrijver&lt;/b&gt;?'));
+  assert.ok(!res.body.includes('<b>schrijver'));
+  assert.ok(res.body.includes('name="detail_wol-ab12"'));
+  assert.ok(res.body.includes('Iets in het bijzonder?'));
+  assert.ok(res.body.includes('Welke smaak?'));
+});
+
 test('saving wishes in a closed group leads to the waiting screen', async () => {
   const { app, ctx, post, ada, clock } = await setup();
   clock.ms += 60_000;

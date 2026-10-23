@@ -312,6 +312,23 @@ test('event settings save theme and wish options, and reordering keeps saved lik
   assert.ok(page.body.includes('Sokken\nChocolade?\nThee'));
 });
 
+test('a custom question is stored, shown back in the textarea and survives an unchanged save', async () => {
+  const t = await setup();
+  const eventId = await createEvent(t);
+  const save = (wishText) => t.adminPost(`/admin/events/${eventId}`, {
+    name: 'Lootjes 2026', language: 'nl', cleanupWeeks: '4', themeText: '', wishOptions: wishText,
+  });
+  assert.equal((await save('Boeken? welke schrijver\nChocolade?\nThee')).statusCode, 303);
+  const stored = t.ctx.repo.getEvent(eventId).wishOptions;
+  assert.equal(stored[0].question, 'welke schrijver?');
+  const page = await t.adminGet(`/admin/events/${eventId}`);
+  const shown = 'Boeken? welke schrijver?\nChocolade?\nThee';
+  assert.ok(page.body.includes(shown));
+  assert.ok(page.body.includes('Boeken? Welke schrijver?'), 'the hint gives an example');
+  await save(shown);
+  assert.deepEqual(t.ctx.repo.getEvent(eventId).wishOptions, stored);
+});
+
 test('empty theme and wish options fall back to the defaults', async () => {
   const t = await setup();
   const eventId = await createEvent(t);
