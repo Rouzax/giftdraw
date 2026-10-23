@@ -110,3 +110,31 @@ test('wish-form.js keeps the detail when its box is ticked', () => {
   box.handlers.change();
   assert.equal(input.value, 'puur');
 });
+
+test('wish-form.js brings the cleared detail back when the box is ticked again', () => {
+  const { box, input } = runWishForm();
+  input.value = 'puur';
+  input.handlers.input();
+  box.checked = false;
+  box.handlers.change();
+  box.checked = true;
+  box.handlers.change();
+  assert.equal(input.value, 'puur');
+});
+
+test('wish-form.js sends no detail for a box left unticked, and new typing replaces the kept text', () => {
+  const { box, input } = runWishForm();
+  input.value = 'puur';
+  input.handlers.input();
+  box.checked = false;
+  box.handlers.change();
+  assert.equal(input.value, '', 'the field the form submits is empty');
+  input.value = 'melk';
+  input.handlers.input();
+  assert.equal(box.checked, true);
+  box.checked = false;
+  box.handlers.change();
+  box.checked = true;
+  box.handlers.change();
+  assert.equal(input.value, 'melk');
+});
