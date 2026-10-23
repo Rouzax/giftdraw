@@ -77,13 +77,15 @@ function textArea(name, label, value) {
 <textarea id="${name}" name="${name}" rows="${rowsFor(value)}" maxlength="${TEXT_MAX}">${value ?? ''}</textarea>`;
 }
 
-function textInput(name, label, value) {
+// tick names the box this field belongs to; wish-form.js ticks it while
+// typing, the way parseWishesForm already counts a filled-in field as ticked.
+function textInput(name, label, value, tick) {
   return html`<label class="field-label sub" for="${name}">${label}</label>
-<input type="text" id="${name}" name="${name}" maxlength="${TEXT_MAX}" value="${value ?? ''}">`;
+<input type="text" id="${name}" name="${name}" maxlength="${TEXT_MAX}" value="${value ?? ''}" data-tick="${tick}">`;
 }
 
-function checkbox(name, value, label, on) {
-  return html`<label class="check"><input type="checkbox" name="${name}" value="${value}"${checked(on)}> <span>${label}</span></label>`;
+function checkbox(id, name, value, label, on) {
+  return html`<label class="check"><input type="checkbox" id="${id}" name="${name}" value="${value}"${checked(on)}> <span>${label}</span></label>`;
 }
 
 export function aboutFormView({ event, group, wishes, lang, tz, formAction, langAction, showLangSwitch }) {
@@ -91,13 +93,14 @@ export function aboutFormView({ event, group, wishes, lang, tz, formAction, lang
   const likes = new Set(w.likes ?? []);
   const pets = new Set(w.pets ?? []);
   const likeFields = wishOptions(event).map((option) => {
-    const box = checkbox('likes', option.id, option.label(lang), likes.has(option.id));
+    const boxId = `like-${option.id}`;
+    const box = checkbox(boxId, 'likes', option.id, option.label(lang), likes.has(option.id));
     if (!option.detail) return box;
     const name = `detail_${option.id}`;
     return html`${box}
-<div class="detail">${textInput(name, detailPrompt(option, lang), w.likeDetails?.[option.id])}</div>`;
+<div class="detail">${textInput(name, detailPrompt(option, lang), w.likeDetails?.[option.id], boxId)}</div>`;
   });
-  const petFields = PET_IDS.map((id) => checkbox('pets', id, t(lang, `wish.pet.${id}`), pets.has(id)));
+  const petFields = PET_IDS.map((id) => checkbox(`pet-${id}`, 'pets', id, t(lang, `wish.pet.${id}`), pets.has(id)));
 
   const body = html`<h1>${t(lang, 'about.title')}</h1>
 <p class="lead">${t(lang, 'about.intro')}</p>
@@ -111,14 +114,14 @@ ${likeFields}
 <fieldset>
 <legend>${t(lang, 'wish.pets')}</legend>
 ${petFields}
-<div class="detail">${textInput('pets_other', t(lang, 'wish.petsOther'), w.petsOther)}</div>
+<div class="detail">${textInput('pets_other', t(lang, 'wish.petsOther'), w.petsOther, 'pet-other')}</div>
 </fieldset>
 ${textArea('avoid', t(lang, 'wish.avoid'), w.avoid)}
 ${textArea('other', t(lang, 'wish.other'), w.other)}
 <button type="submit" class="button">${t(lang, 'about.save')}</button>
 </form>
 ${footer({ lang, langAction, showLangSwitch, from: 'about' })}`;
-  return { title: t(lang, 'about.title'), body };
+  return { title: t(lang, 'about.title'), body, scripts: ['wish-form.js'] };
 }
 
 const BOWL_SLIPS = 7;
