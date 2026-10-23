@@ -62,9 +62,25 @@ function wishUpdates(ctx, now) {
       if (!current?.notifyGiverDueAt || current.notifyGiverDueAt > nowIso) return false;
       repo.updateParticipant(current.id, { notifyGiverDueAt: null });
       const giver = repo.giverOf(current.id);
-      if (!giver?.drawnAt || !giver.email) return false;
-      return enqueueMail(ctx, giver.id, 'wishes-updated', nowIso);
+      const reason = dropReason(ctx, giver);
+      const ids = { participant_id: current.id, giver_id: giver?.id ?? null };
+      // Info, not debug: the default logs must explain why a due update sent nothing.
+      if (reason) {
+        ctx.log.info({ ...ids, reason }, 'wish_update_dropped');
+        return false;
+      }
+      enqueueMail(ctx, giver.id, 'wishes-updated', nowIso);
+      ctx.log.info(ids, 'wish_update_queued');
+      return true;
     }));
+}
+
+function dropReason(ctx, giver) {
+  if (!giver) return 'no-giver';
+  if (!giver.drawnAt) return 'giver-not-drawn';
+  if (!giver.email) return 'giver-no-email';
+  if (!mailOn(ctx)) return 'mail-off';
+  return null;
 }
 
 function cleanup(ctx, now) {

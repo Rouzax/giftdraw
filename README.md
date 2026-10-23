@@ -257,6 +257,11 @@ With email on, the app sends:
 - "Your person has changed" to the one giver affected by a dropout or late
   joiner.
 
+The "wishes updated" note goes only to a giver who has already drawn. It
+is sent about 15 minutes after the first change, and further changes in
+that window go into the same mail. All other mail goes out within a
+minute.
+
 Mail goes out through a queue that the app works through every minute. A
 failed send is retried after 1, 5, 30 and 120 minutes; after that it is
 marked as failed. The dashboard's "Mail failure" column shows the latest

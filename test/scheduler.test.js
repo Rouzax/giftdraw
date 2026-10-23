@@ -100,6 +100,64 @@ test('three wish saves within 15 minutes give one wishes-updated to the drawn gi
   assert.equal(ctx.repo.getParticipant(ben.id).notifyGiverDueAt, null);
 });
 
+test('a queued wishes-updated mail logs the receiver and giver ids only', async () => {
+  const t = await setup({ opened: true });
+  const { ctx, clock, logs, people } = t;
+  const ben = people[1];
+  const giver = markGiverDrawn(t, ben);
+  saveWishes(ctx, ben.id, { hobbies: 'secret hobby' });
+  clock.ms += 15 * MINUTE;
+  await tick(ctx);
+  const queued = logLines(logs).filter((l) => l.msg === 'wish_update_queued');
+  assert.equal(queued.length, 1);
+  assert.equal(queued[0].level, 30);
+  assert.equal(queued[0].participant_id, ben.id);
+  assert.equal(queued[0].giver_id, giver.id);
+  const text = logs.join('');
+  for (const leak of ['@', 'secret hobby', ben.name, giver.name]) assert.ok(!text.includes(leak), leak);
+});
+
+const dropped = (logs) => logLines(logs).filter((l) => l.msg === 'wish_update_dropped');
+
+test('a cleared flag without a mail logs the reason at info', async () => {
+  const t = await setup({ opened: true });
+  const { ctx, clock, logs, people, group } = t;
+  const ben = people[1];
+  const giver = markGiverDrawn(t, ben);
+  saveWishes(ctx, ben.id, { hobbies: 'reading' });
+  const map = ctx.repo.getAssignment(group.id);
+  ctx.repo.setAssignment(group.id, new Map([...map].map(([g, r]) => [r, g])), ctx.nowIso());
+  clock.ms += 15 * MINUTE;
+  await tick(ctx);
+  const [line] = dropped(logs);
+  assert.equal(line.level, 30);
+  assert.equal(line.participant_id, ben.id);
+  assert.equal(line.giver_id, ctx.repo.giverOf(ben.id).id);
+  assert.notEqual(line.giver_id, giver.id);
+  assert.equal(line.reason, 'giver-not-drawn');
+  assert.equal(logLines(logs).filter((l) => l.msg === 'wish_update_queued').length, 0);
+});
+
+test('a drawn giver without email or with mail off drops the update with that reason', async () => {
+  for (const [reason, prepare] of [
+    ['giver-no-email', (t, giver) => t.ctx.repo.updateParticipant(giver.id, { email: null })],
+    ['mail-off', (t) => { t.mailer.enabled = false; }],
+  ]) {
+    const t = await setup({ opened: true });
+    const ben = t.people[1];
+    const giver = markGiverDrawn(t, ben);
+    saveWishes(t.ctx, ben.id, { hobbies: 'reading' });
+    prepare(t, giver);
+    t.clock.ms += 15 * MINUTE;
+    await tick(t.ctx);
+    assert.deepEqual(
+      dropped(t.logs).map((l) => [l.participant_id, l.giver_id, l.reason]),
+      [[ben.id, giver.id, reason]],
+      reason,
+    );
+  }
+});
+
 test('wish saves before the giver drew set no flag and send nothing', async () => {
   const { ctx, clock, db, people } = await setup({ opened: true });
   const ben = people[1];
