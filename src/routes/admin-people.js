@@ -246,8 +246,8 @@ export function adminPeopleRoutes(app, ctx, {
   // No loader here: a repeated confirm whose form token is not on record
   // finds the participant already gone and is answered as outdated.
   app.post('/admin/participants/:id/remove', async (request, reply) => {
-    const again = resubmitted(request);
-    if (again) return reply.redirect(again, 303);
+    const again = resubmitted(request, reply);
+    if (again) return again;
     const lang = adminLang(request);
     if (!ID.test(request.params.id)) return sendError(reply, 404, lang);
     const id = Number(request.params.id);
@@ -266,7 +266,6 @@ export function adminPeopleRoutes(app, ctx, {
     // No counts: how many givers changed and whether one was mailed say
     // something about the removed person's giver.
     request.log.info({ participant_id: id, group_id: result.removed.groupId }, 'participant_removed');
-    const done = result.tellGivers ? 'removed-tell' : 'removed';
-    return redirectDone(request, reply, `/admin/groups/${result.removed.groupId}?done=${done}`);
+    return redirectDone(request, reply, `/admin/groups/${result.removed.groupId}?done=removed`, result.tellGivers ? 'tell' : null);
   });
 }

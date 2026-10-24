@@ -49,8 +49,9 @@ const STORE_AS_JSON = new Set(['wishes', 'wishOptions', 'formConfig']);
 // kind for that person supersedes it, whatever its status: a later failure
 // is the one to resend, and a later sent or queued mail already did the job.
 // A skipped row would only be skipped again.
+const SKIP_LIST = SKIP_CODES.map((code) => `'${code}'`).join(', ');
 const RESENDABLE = `o.status IN ('failed', 'gaveup')
-  AND ifnull(o.error_code, '') NOT IN (${SKIP_CODES.map((code) => `'${code}'`).join(', ')})
+  AND ifnull(o.error_code, '') NOT IN (${SKIP_LIST})
   AND NOT EXISTS (SELECT 1 FROM outbox later
                   WHERE later.participant_id = o.participant_id AND later.kind = o.kind AND later.id > o.id)`;
 
@@ -330,8 +331,11 @@ export function createRepo(db) {
     const pending = db
       .prepare(`SELECT count(*) AS n FROM outbox WHERE participant_id = ? AND status IN ('pending', 'sending')`)
       .get(participantId);
+    // An invite skipped because it no longer applied is no failure, so the
+    // column shows the invite before it, if any.
     const invite = db
       .prepare(`SELECT status, error_code FROM outbox WHERE participant_id = ? AND kind = 'invite'
+                AND NOT (status IN ('failed', 'gaveup') AND ifnull(error_code, '') IN (${SKIP_LIST}))
                 ORDER BY id DESC LIMIT 1`)
       .get(participantId);
     return {

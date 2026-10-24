@@ -326,6 +326,7 @@ export default {
   'admin.person.edit.name': 'Name',
   'admin.person.edit.email': 'Email address',
   'admin.person.edit.emailHint': 'Leave empty for someone without email. A new address gets no mail by itself: resend the invitation afterwards.',
+  'admin.person.edit.emailHintNoMail': 'Leave empty for someone without email. Email is off, so nothing is sent to this address.',
   'admin.person.edit.language': 'Language',
   'admin.person.edit.saveAnyway': 'Save anyway',
   'admin.person.error.name': 'Please enter a name.',

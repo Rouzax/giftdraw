@@ -91,7 +91,9 @@ async function sendOne(ctx, row) {
     } catch (markErr) {
       ctx.log.error({ ...fields, code: errorCode(markErr), step: 'failed' }, 'mail_mark_failed');
     }
-    const level = !skipped && !retry ? 'error' : 'warn';
+    // A skip is the queue working as meant (the mail no longer applies), so
+    // it needs no one's attention.
+    const level = skipped ? 'info' : retry ? 'warn' : 'error';
     ctx.log[level]({ ...fields, code, attempts: row.attempts, gaveup: !retry }, 'mail_failed');
     return false;
   }

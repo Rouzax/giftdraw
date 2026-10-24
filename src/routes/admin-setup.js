@@ -29,7 +29,7 @@ function isDate(value) {
 }
 
 export function adminSetupRoutes(app, ctx, {
-  render, sendError, groupPage, loadEvent, loadGroup, resubmitted, redirectDone,
+  render, sendError, groupPage, loadEvent, loadGroup, resubmitted, redirectDone, takeFlash,
 }) {
   const { repo, config } = ctx;
 
@@ -132,8 +132,8 @@ export function adminSetupRoutes(app, ctx, {
   }
 
   app.post('/admin/events', async (request, reply) => {
-    const again = resubmitted(request);
-    if (again) return reply.redirect(again, 303);
+    const again = resubmitted(request, reply);
+    if (again) return again;
     const name = field(request.body, 'name', NAME_MAX).trim();
     const language = isLang(request.body?.language) ? request.body.language : 'nl';
     const lang = adminLang(request);
@@ -188,8 +188,8 @@ export function adminSetupRoutes(app, ctx, {
   });
 
   app.post('/admin/events/:id/groups', loadEvent, async (request, reply) => {
-    const again = resubmitted(request);
-    if (again) return reply.redirect(again, 303);
+    const again = resubmitted(request, reply);
+    if (again) return again;
     const event = request.record;
     const { values, error } = readGroupForm(request.body);
     if (error) {
@@ -202,7 +202,9 @@ export function adminSetupRoutes(app, ctx, {
   });
 
   app.get('/admin/groups/:id', loadGroup, async (request, reply) => {
-    const done = GROUP_DONE.has(request.query?.done) ? request.query.done : null;
+    let done = GROUP_DONE.has(request.query?.done) ? request.query.done : null;
+    const flash = takeFlash(request, reply);
+    if (flash === 'tell' && (done === 'added' || done === 'removed')) done = `${done}-tell`;
     return render(request, reply, groupPage(adminLang(request), request.record, { done }));
   });
 
@@ -224,8 +226,8 @@ export function adminSetupRoutes(app, ctx, {
   });
 
   app.post('/admin/groups/:id/participants', loadGroup, async (request, reply) => {
-    const again = resubmitted(request);
-    if (again) return reply.redirect(again, 303);
+    const again = resubmitted(request, reply);
+    if (again) return again;
     const group = request.record;
     const lang = adminLang(request);
     const dashboard = `/admin/groups/${group.id}`;
@@ -243,7 +245,7 @@ export function adminSetupRoutes(app, ctx, {
         return render(request, reply, view, stale ? 409 : 400);
       }
       request.log.info({ group_id: group.id, added: result.added.length }, 'participants_added');
-      return redirectDone(request, reply, `${dashboard}?done=${result.tellGivers ? 'added-tell' : 'added'}`);
+      return redirectDone(request, reply, `${dashboard}?done=added`, result.tellGivers ? 'tell' : null);
     }
 
     const raw = typeof request.body?.text === 'string' ? request.body.text : '';
@@ -259,7 +261,7 @@ export function adminSetupRoutes(app, ctx, {
       const result = commitAddParticipants(ctx, group.id, plan);
       if (result.error) throw new Error(`fresh plan refused: ${result.error}`);
       request.log.info({ group_id: group.id, added: result.added.length }, 'participants_added');
-      return redirectDone(request, reply, `${dashboard}?done=${result.tellGivers ? 'added-tell' : 'added'}`);
+      return redirectDone(request, reply, `${dashboard}?done=added`, result.tellGivers ? 'tell' : null);
     }
     const changes = open ? previewChanges(plan, repo.listParticipants(group.id)) : null;
     const view = pasteConfirmView(lang, { group, plan, errors, changes, text: raw, mailEnabled: ctx.mailer.enabled });

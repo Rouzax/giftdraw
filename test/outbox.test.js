@@ -309,14 +309,14 @@ test('a drain request arriving while a drain runs is not lost', async () => {
   assert.equal(ctx.state.drain, undefined);
 });
 
-test('a final give-up after retries logs at error, an immediate skip at warn', async () => {
+test('a final give-up after retries logs at error, an immediate skip at info', async () => {
   const { ctx, mailer, ada, ben, drain, clock, logs } = await setup();
   ctx.repo.updateParticipant(ben.id, { email: null });
   ctx.repo.enqueue(ben.id, 'invite', ctx.nowIso());
   await drain();
   const skip = logLines(logs).find((l) => l.msg === 'mail_failed');
   assert.equal(skip.code, 'no-email');
-  assert.equal(skip.level, 40);
+  assert.equal(skip.level, 30);
   mailer.fail = () => Object.assign(new Error('down'), { code: 'ECONNECTION' });
   ctx.repo.enqueue(ada.id, 'invite', ctx.nowIso());
   for (const minutes of [0, 1, 5, 30, 120]) {
@@ -367,4 +367,18 @@ test('an invite to someone who has not drawn yet still goes out in an open group
   ctx.repo.enqueue(ada.id, 'draw-open', ctx.nowIso());
   await drain();
   assert.deepEqual(mails.map((m) => m.to), [ada.email, ada.email]);
+});
+
+test('an invite skipped as stale shows as the earlier invite, not as a failure', async () => {
+  const { ctx, ada, ben, group, drain } = await setup();
+  ctx.repo.enqueue(ada.id, 'invite', ctx.nowIso());
+  await drain();
+  ctx.repo.markInvitationsSent(group.id, ctx.nowIso());
+  ctx.repo.markGroupOpened(group.id, ctx.nowIso());
+  for (const p of [ada, ben]) ctx.repo.updateParticipant(p.id, { drawnAt: ctx.nowIso() });
+  ctx.repo.enqueue(ada.id, 'invite', ctx.nowIso());
+  ctx.repo.enqueue(ben.id, 'invite', ctx.nowIso());
+  await drain();
+  assert.equal(ctx.repo.mailStatus(ada.id).invite, 'sent');
+  assert.equal(ctx.repo.mailStatus(ben.id).invite, null);
 });

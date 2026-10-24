@@ -211,7 +211,7 @@ test('the participant page keeps the receiver hidden until drawn, then behind a 
   const after = await t.adminGet(`/admin/participants/${t.ada.id}`);
   const disclosure = /<details[^>]*>\s*<summary>([^<]*)<\/summary>([\s\S]*?)<\/details>/.exec(after.body);
   assert.ok(disclosure, 'a disclosure holds the receiver');
-  assert.equal(disclosure[1], tr('nl', 'admin.person.showReceiver', { name: 'Ada' }));
+  assert.equal(disclosure[1], 'Toon wie Ada getrokken heeft');
   assert.ok(disclosure[2].includes(tr('nl', 'admin.person.givesTo', { name: receiver.name })));
   assert.equal(after.body.split(receiver.name).length - 1, 1, 'the name appears only inside the disclosure');
 });

@@ -1,11 +1,12 @@
 import { cardOutOfDate, groupWarnings } from '../status.js';
-import { createSubmitLog } from '../submit-log.js';
+import { createSubmitLog, formFingerprint } from '../submit-log.js';
 import { hasWishes, wishForm } from '../wishes.js';
 import { adminLang } from './admin-auth.js';
 import { behalfPage, printPage, renderAdminPage } from '../views/layout.js';
 import { groupView } from '../views/admin.js';
 
 export const ID = /^\d{1,15}$/;
+const FLASH_COOKIE = 'giftdraw_flash';
 
 export function field(body, name, max = 1000) {
   const value = body?.[name];
@@ -29,17 +30,41 @@ export function adminShared(ctx, { sendPage, sendError }) {
   const { repo, config } = ctx;
   const submitLog = createSubmitLog({ now: () => ctx.now().getTime() });
 
-  // Where the first post of this form led, or null. A route calls this
-  // before doing anything and redirectDone after, with no await between.
-  function resubmitted(request) {
-    const location = submitLog.replay(request.body?.formToken);
-    if (location) request.log.info('form_resubmitted');
-    return location;
+  const flashCookie = {
+    path: '/admin', httpOnly: true, sameSite: 'lax', secure: config.appUrl.startsWith('https:'), maxAge: 300,
+  };
+
+  function redirectWith(reply, { location, flash }) {
+    if (flash) reply.setCookie(FLASH_COOKIE, flash, flashCookie);
+    return reply.redirect(location, 303);
   }
 
-  function redirectDone(request, reply, location) {
-    submitLog.record(request.body?.formToken, location);
-    return reply.redirect(location, 303);
+  // Answers a repeat of an earlier post the way the first one was answered
+  // and returns the reply, or returns null for a post to act on. A route
+  // calls this before doing anything and redirectDone after, with no await
+  // between.
+  function resubmitted(request, reply) {
+    const result = submitLog.replay(request.body?.formToken, formFingerprint(request.body));
+    if (!result) return null;
+    request.log.info('form_resubmitted');
+    return redirectWith(reply, result);
+  }
+
+  // flash is a note for the next page that must stay out of the URL, which
+  // the reverse proxy logs: "tell" says a giver who had drawn got no mail,
+  // a hint about the pairing.
+  function redirectDone(request, reply, location, flash = null) {
+    const result = { location, flash };
+    submitLog.record(request.body?.formToken, formFingerprint(request.body), result);
+    return redirectWith(reply, result);
+  }
+
+  // Read once: the cookie is cleared by the page that shows it.
+  function takeFlash(request, reply) {
+    const value = request.cookies?.[FLASH_COOKIE];
+    if (value === undefined) return null;
+    reply.clearCookie(FLASH_COOKIE, { path: flashCookie.path });
+    return value;
   }
 
   function render(request, reply, view, status = 200) {
@@ -104,6 +129,7 @@ export function adminShared(ctx, { sendPage, sendError }) {
     render,
     resubmitted,
     redirectDone,
+    takeFlash,
     renderBehalf,
     renderPrint,
     groupPage,

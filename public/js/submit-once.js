@@ -22,12 +22,26 @@
     }, 0);
   });
 
-  // Back to a page kept in the browser's memory: its forms may be used again.
+  // Sixteen random bytes as unpadded base64url, the server's token format.
+  function newToken() {
+    var bytes = new Uint8Array(16);
+    window.crypto.getRandomValues(bytes);
+    var text = '';
+    Array.prototype.forEach.call(bytes, function (b) { text += String.fromCharCode(b); });
+    return window.btoa(text).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+
+  // Back to a page kept in the browser's memory: its forms may be used
+  // again, for something new, so they get their buttons back and a token
+  // that was not used yet.
   window.addEventListener('pageshow', function (event) {
     if (!event.persisted) return;
     Array.prototype.forEach.call(document.querySelectorAll('[' + MARK + ']'), function (button) {
       button.disabled = false;
       button.removeAttribute(MARK);
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('input[name="formToken"]'), function (input) {
+      input.value = newToken();
     });
   });
 })();

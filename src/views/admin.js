@@ -51,7 +51,7 @@ ${LANGS.map((code) => html`<option value="${code}"${selected(code === value)}>${
 // Forms that create or remove something carry a one-time token, so a
 // repeated post of the same form leads to the first one's result.
 function formToken() {
-  return html`<input type="hidden" name="formToken" value="${newFormToken()}">`;
+  return html`<input type="hidden" name="formToken" value="${newFormToken()}" autocomplete="off">`;
 }
 
 function backLink(href, label) {
@@ -356,7 +356,7 @@ ${arrange}
 // and the changes that redirect there.
 export const GROUP_DONE = new Set([
   'failed-requeued', 'all-requeued', 'no-failure', 'mail-off', 'already-queued', 'added', 'removed', 'opened',
-  'group-created', 'added-tell', 'removed-tell',
+  'group-created',
 ]);
 export const EVENT_DONE = new Set(['event-created']);
 
@@ -675,7 +675,7 @@ ${content}
 
 // duplicate: {email, groupName} when the entered address is already used
 // elsewhere in the event; saving again with confirmDuplicate goes ahead.
-function editPanel(lang, { participant: p, values, error, duplicate }) {
+function editPanel(lang, { participant: p, values, error, duplicate, mailEnabled }) {
   const form = values ?? { name: p.name, email: p.email ?? '', language: p.language };
   return html`<section class="panel" id="edit">
 <h2>${t(lang, 'admin.person.edit.title')}</h2>
@@ -685,7 +685,7 @@ ${duplicate ? html`<p class="notice warn" role="alert">${t(lang, 'admin.paste.du
 <label for="person-name">${t(lang, 'admin.person.edit.name')}</label>
 <input id="person-name" name="name" type="text" maxlength="100" required value="${form.name}">
 <label for="person-email">${t(lang, 'admin.person.edit.email')}</label>
-<p class="hint" id="person-email-hint">${t(lang, 'admin.person.edit.emailHint')}</p>
+<p class="hint" id="person-email-hint">${t(lang, mailEnabled ? 'admin.person.edit.emailHint' : 'admin.person.edit.emailHintNoMail')}</p>
 <input id="person-email" name="email" type="email" maxlength="254" value="${form.email}" aria-describedby="person-email-hint">
 <label for="person-language">${t(lang, 'admin.person.edit.language')}</label>
 ${languageSelect('person-language', form.language)}
@@ -744,7 +744,7 @@ ${first}
 ${linkPanel(lang, { participant, link })}
 ${mailPanel(lang, { participant, mail, remindKind, mailEnabled, tz })}
 ${later}
-${editPanel(lang, { participant, values, error, duplicate })}
+${editPanel(lang, { participant, values, error, duplicate, mailEnabled })}
 <section class="panel danger">
 <h2>${t(lang, 'admin.person.remove.title')}</h2>
 <p>${t(lang, 'admin.person.remove.intro', { name: participant.name })}</p>

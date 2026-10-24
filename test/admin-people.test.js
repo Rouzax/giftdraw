@@ -581,8 +581,9 @@ test('with email off the add and remove previews tell the organiser to inform dr
   assert.ok(pasted.body.includes(tr('nl', 'admin.paste.changeTell', { giver: changed.name })));
 
   const confirmed = await t.adminPost(`/admin/groups/${t.groupId}/participants`, { confirm: '1', plan: JSON.stringify(plan) });
-  assert.equal(confirmed.headers.location, `/admin/groups/${t.groupId}?done=added-tell`);
-  const dashboard = await t.adminGet(confirmed.headers.location);
+  assert.equal(confirmed.headers.location, `/admin/groups/${t.groupId}?done=added`);
+  const flash = [confirmed.headers['set-cookie']].flat().find((c) => c?.startsWith('giftdraw_flash='));
+  const dashboard = await t.adminGet(confirmed.headers.location, { cookie: `${t.adminCookie()}; ${flash.split(';')[0]}` });
   assert.ok(dashboard.body.includes(tr('nl', 'admin.person.done.added-tell')));
 
   // Someone whose giver had drawn, so the newcomer is not the one to change.
@@ -596,7 +597,8 @@ test('with email off the add and remove previews tell the organiser to inform dr
   const removed = await t.adminPost(`/admin/participants/${dropout.id}/remove`, {
     plan: hidden(preview.body, 'plan'), group: hidden(preview.body, 'group'),
   });
-  assert.equal(removed.headers.location, `/admin/groups/${t.groupId}?done=removed-tell`);
+  assert.equal(removed.headers.location, `/admin/groups/${t.groupId}?done=removed`);
+  assert.ok([removed.headers['set-cookie']].flat().some((c) => c?.startsWith('giftdraw_flash=tell')));
 });
 
 test('with email on, a drawn giver with an address is told by mail and the dashboard says plainly added', async () => {
@@ -626,4 +628,14 @@ test('renaming the receiver marks the printed card of the giver out of date; sav
   assert.equal(await outOfDate(), false, 'same name');
   await t.adminPost(`/admin/participants/${receiver.id}`, { ...form, name: `${receiver.name} de Vries` });
   assert.equal(await outOfDate(), true, 'new name');
+});
+
+test('with email off the edit form does not ask to resend the invitation', async () => {
+  const t = await setup({ names: ['Ada', 'Ben', 'Cor'] });
+  const on = await t.adminGet(`/admin/participants/${t.people[0].id}`);
+  assert.ok(on.body.includes(tr('nl', 'admin.person.edit.emailHint')));
+  t.mailer.enabled = false;
+  const off = await t.adminGet(`/admin/participants/${t.people[0].id}`);
+  assert.ok(!off.body.includes(tr('nl', 'admin.person.edit.emailHint')));
+  assert.ok(off.body.includes(tr('nl', 'admin.person.edit.emailHintNoMail')));
 });
