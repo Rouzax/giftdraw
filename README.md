@@ -128,7 +128,7 @@ To build it yourself instead, from a checkout of this repository:
 docker build -t ghcr.io/rouzax/giftdraw:latest .
 ```
 
-The image is based on `node:22.23.3-alpine` (Alpine 3.24) pinned by digest, installs only
+The image is based on `node:22.23.4-alpine` (Alpine 3.24) pinned by digest, installs only
 production dependencies with install scripts disabled, runs as the
 unprivileged `node` user, and uses `tini` so `docker stop` shuts the app
 down cleanly.
@@ -200,7 +200,7 @@ password and session secret, where spaces count.
 | `ADMIN_AUTH` | required | `password` or `proxy`. See [Admin access](#admin-access). |
 | `ADMIN_PASSWORD` | none | Password mode: the organiser password, at least 12 characters. Changing it logs out every session. |
 | `SESSION_SECRET` | none | Password mode: at least 32 characters, signs the login cookie. Changing it also logs everyone out. |
-| `TRUSTED_PROXIES` | none | Comma-separated IP addresses or CIDRs of your reverse proxy, for example `192.0.2.10` or `192.0.2.0/24`. Required in proxy mode. |
+| `TRUSTED_PROXIES` | none | Comma-separated IP addresses or CIDRs of your reverse proxy, for example `192.0.2.10` or `192.0.2.0/24`. Write IPv4 ranges as IPv4 (`192.0.2.0/24`, not `::ffff:192.0.2.0/120`); a `/0` range is refused. Required in proxy mode. |
 | `ADMIN_USER_HEADER` | `Remote-User` | Proxy mode: the header carrying the logged-in user name. |
 | `SMTP_HOST` | none | Mail server. Leave unset to run with email off. |
 | `SMTP_PORT` | `587` | `587` (STARTTLS, required) or `465` (TLS from the start). Mail is never sent unencrypted. |
@@ -313,7 +313,7 @@ smaller.
 **Proxy mode: every `/admin` page shows "No access" (403).**
 The connection did not come from `TRUSTED_PROXIES`, or the user header was
 missing. The log shows `admin_proxy_rejected` with `reason`
-`untrusted_source` or `missing_user`. For `untrusted_source`, set
+`untrusted_source` (at info level) or `missing_user` (at warn level). For `untrusted_source`, set
 `TRUSTED_PROXIES` to the address the container sees (the proxy's Docker
 network address or the gateway, not its public IP). For `missing_user`,
 check that forward auth covers `/admin` and that the header name matches

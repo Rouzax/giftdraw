@@ -148,3 +148,15 @@ test('the result invites someone without wishes to fill them in, others to chang
   res = await app.inject(`/p/${ada.token}`);
   assert.ok(textOf(res.body).includes('Mijn eigen antwoorden aanpassen'));
 });
+
+test('the result screen escapes the name and wishes of the receiver', async () => {
+  const { app, ctx, ada, receiver } = await setup();
+  const evil = '<img src=x onerror=alert(1)>';
+  ctx.repo.updateParticipant(receiver.id, { name: `Bo ${evil}`, wishes: { hobbies: evil, avoid: `"${evil}"` } });
+  ctx.repo.updateParticipant(ada.id, { drawnAt: ctx.nowIso() });
+  const res = await app.inject(`/p/${ada.token}`);
+  assert.equal(res.statusCode, 200);
+  assert.ok(!res.body.includes(evil));
+  assert.ok(res.body.includes('Bo &lt;img src=x onerror=alert(1)&gt;'));
+  assert.ok(res.body.includes('&quot;&lt;img src=x onerror=alert(1)&gt;&quot;'));
+});

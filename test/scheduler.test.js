@@ -320,6 +320,19 @@ test('a group past exchange date plus cleanup weeks is deleted with its people a
   assert.equal(cleaned.count, 1);
 });
 
+test('a group is kept through the last day of its cleanup weeks and goes at local midnight after', async () => {
+  const clock = { ms: T0 };
+  const { ctx } = await makeTestApp({ clock: () => new Date(clock.ms) });
+  const { group } = seedGroup(ctx, { names: ['Ada', 'Ben', 'Cor'] });
+  // Exchange 2026-12-18 + 4 weeks = 2027-01-15, the last day it is kept.
+  clock.ms = Date.parse('2027-01-15T22:59:59.000Z'); // 23:59:59 in Amsterdam
+  assert.equal((await tick(ctx)).deleted, 0);
+  assert.ok(ctx.repo.getGroup(group.id));
+  clock.ms = Date.parse('2027-01-15T23:00:00.000Z'); // 00:00 on 2027-01-16 in Amsterdam
+  assert.equal((await tick(ctx)).deleted, 1);
+  assert.equal(ctx.repo.getGroup(group.id), null);
+});
+
 test('a sending row older than 10 minutes is retried', async () => {
   const { ctx, clock, db, mails, people } = await setup();
   const id = ctx.repo.enqueue(people[0].id, 'invite', ctx.nowIso());

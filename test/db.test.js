@@ -81,3 +81,9 @@ test('a fresh database has events.form_config', () => {
   assert.ok(columns.includes('form_config'));
   db.close();
 });
+
+test('a connection waits for a lock instead of failing at once', () => {
+  const db = openDb(':memory:');
+  assert.ok(db.prepare('PRAGMA busy_timeout').get().timeout >= 1000);
+  db.close();
+});

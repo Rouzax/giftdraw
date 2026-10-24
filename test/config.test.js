@@ -157,3 +157,24 @@ test('no error message echoes a secret value', () => {
     });
   }
 });
+
+test('TRUSTED_PROXIES refuses a /0 and an IPv4-mapped CIDR, naming the variable', () => {
+  const env = (value) => ({ APP_URL: 'https://gifts.example.com', ADMIN_AUTH: 'proxy', TRUSTED_PROXIES: value });
+  for (const value of ['0.0.0.0/0', '::/0', '::ffff:192.0.2.10/120', '::FFFF:192.0.2.0/104']) {
+    assert.throws(() => loadConfig(env(value)), (err) => {
+      assert.match(err.message, /\bTRUSTED_PROXIES\b/);
+      assert.doesNotMatch(err.message, /192\.0\.2/, 'the value itself stays out of the message');
+      return true;
+    }, value);
+  }
+  // A mapped address without a prefix is matched as the IPv4 address.
+  assert.deepEqual(loadConfig(env('::ffff:192.0.2.10')).trustedProxies, ['::ffff:192.0.2.10']);
+});
+
+test('a trailing carriage return from a CRLF env file is dropped from the password and the secret', () => {
+  const config = loadConfig(passwordEnv({ ADMIN_PASSWORD: `${PASSWORD}\r`, SESSION_SECRET: `${SECRET}\r` }));
+  assert.equal(config.adminPassword, PASSWORD);
+  assert.equal(config.sessionSecret, SECRET);
+  // Other whitespace stays significant.
+  assert.equal(loadConfig(passwordEnv({ ADMIN_PASSWORD: ` ${PASSWORD} ` })).adminPassword, ` ${PASSWORD} `);
+});

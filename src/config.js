@@ -37,14 +37,21 @@ function parseAppUrl(env) {
   return { appUrl: raw.replace(/\/+$/, ''), appOrigin: url.origin };
 }
 
-function isProxyEntry(entry) {
+// Returns null for a valid entry, otherwise the problem to report.
+function proxyEntryProblem(entry) {
   const [address, prefix, ...rest] = entry.split('/');
-  if (rest.length > 0) return false;
   const family = isIP(address);
-  if (family === 0) return false;
-  if (prefix === undefined) return true;
-  if (!/^\d+$/.test(prefix)) return false;
-  return Number(prefix) <= (family === 4 ? 32 : 128);
+  if (rest.length > 0 || family === 0) return 'must be a comma-separated list of IP addresses or CIDRs';
+  if (prefix === undefined) return null;
+  if (!/^\d+$/.test(prefix) || Number(prefix) > (family === 4 ? 32 : 128)) {
+    return 'must be a comma-separated list of IP addresses or CIDRs';
+  }
+  // Trusting every address would let anyone send the user header.
+  if (Number(prefix) === 0) return 'must not contain a /0 range';
+  // Clients are matched as plain IPv4, so a mapped range would never match
+  // and the matcher cannot build it.
+  if (/^::ffff:/i.test(address)) return 'must give IPv4 ranges as IPv4 CIDRs, not IPv4-mapped IPv6';
+  return null;
 }
 
 function parseTrustedProxies(env, required) {
@@ -55,7 +62,8 @@ function parseTrustedProxies(env, required) {
   }
   const entries = raw.split(',').map((entry) => entry.trim()).filter(Boolean);
   for (const entry of entries) {
-    if (!isProxyEntry(entry)) fail('TRUSTED_PROXIES', 'must be a comma-separated list of IP addresses or CIDRs');
+    const problem = proxyEntryProblem(entry);
+    if (problem) fail('TRUSTED_PROXIES', problem);
   }
   if (required && entries.length === 0) fail('TRUSTED_PROXIES', 'is required when ADMIN_AUTH is proxy');
   return entries;
@@ -94,9 +102,11 @@ export function loadConfig(env) {
   let adminPassword = null;
   let sessionSecret = null;
   if (adminAuth === 'password') {
-    // Raw values, not trimmed: whitespace in a password is significant.
-    adminPassword = env.ADMIN_PASSWORD ?? '';
-    sessionSecret = env.SESSION_SECRET ?? '';
+    // Raw values, not trimmed: whitespace in a password is significant. Only
+    // the carriage return a CRLF env file leaves behind is dropped, since
+    // nobody can type it into the login form.
+    adminPassword = (env.ADMIN_PASSWORD ?? '').replace(/\r$/, '');
+    sessionSecret = (env.SESSION_SECRET ?? '').replace(/\r$/, '');
     if (adminPassword.length < 12) fail('ADMIN_PASSWORD', 'must be at least 12 characters');
     if (sessionSecret.length < 32) fail('SESSION_SECRET', 'must be at least 32 characters');
   }

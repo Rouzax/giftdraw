@@ -126,7 +126,10 @@ export function registerAdminAuth(app, ctx, { sendPage, isAdminPath }) {
       if (!trusted(request.socket.remoteAddress)) reason = 'untrusted_source';
       else if (!String(request.headers[config.adminUserHeader] ?? '').trim()) reason = 'missing_user';
       if (reason === null) return;
-      request.log.warn({ reason }, 'admin_proxy_rejected');
+      // Anyone can reach the port and be refused, which needs no action; a
+      // trusted proxy without the user header is a misconfiguration.
+      if (reason === 'untrusted_source') request.log.info({ reason }, 'admin_proxy_rejected');
+      else request.log.warn({ reason }, 'admin_proxy_rejected');
       // The switch posts to /admin/lang, which this same check would refuse.
       return render(request, reply, noAccessView(adminLang(request)), 403, { showLangSwitch: false });
     });

@@ -84,6 +84,14 @@ test('proxy mode: a trusted proxy without the user header is refused', async () 
   assert.equal((await asProxy(app, { user: '   ' })).statusCode, 403);
 });
 
+test('proxy mode: an outside source is logged at info, a missing user at warn', async () => {
+  const { app, logs } = await proxySetup();
+  await asProxy(app, { remoteAddress: '198.51.100.9' });
+  await asProxy(app, { user: null });
+  const rejected = logs.map((line) => JSON.parse(line)).filter((l) => l.msg === 'admin_proxy_rejected');
+  assert.deepEqual(rejected.map((l) => [l.reason, l.level]), [['untrusted_source', 30], ['missing_user', 40]]);
+});
+
 test('proxy mode: a spoofed X-Forwarded-For from an outside address is refused', async () => {
   const { app } = await proxySetup();
   const res = await asProxy(app, { remoteAddress: '198.51.100.9', headers: { 'x-forwarded-for': '192.0.2.10' } });

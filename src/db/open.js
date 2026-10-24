@@ -25,6 +25,9 @@ export function applyMigrations(db, migrations) {
 export function openDb(path) {
   const db = new DatabaseSync(path);
   db.exec('PRAGMA foreign_keys = ON');
+  // An outside reader such as `sqlite3 .backup` holds a lock for a moment;
+  // waiting for it beats failing the request with SQLITE_BUSY.
+  db.exec('PRAGMA busy_timeout = 5000');
   // Overwrite deleted content so expired groups do not linger in free pages.
   db.exec('PRAGMA secure_delete = ON');
   if (path !== ':memory:') {
