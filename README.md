@@ -199,7 +199,9 @@ after the next start.
 ## Configuration
 
 All settings are environment variables. Values are trimmed, except the
-password and session secret, where spaces count.
+password and session secret, where spaces count; only a trailing carriage
+return (left by an env file saved with Windows line endings) is dropped
+from those two.
 
 | Variable | Default | What it does |
 | --- | --- | --- |
@@ -227,6 +229,8 @@ key. The organiser pages under `/admin` are protected in one of two ways.
 ### Password mode (`ADMIN_AUTH=password`)
 
 The app shows its own login page. A login lasts 30 days in that browser.
+A form sent after the login ran out is not carried out; the app shows the
+login page with a note saying so.
 
 - Wrong passwords are limited to 10 per 15 minutes per client address,
   and to 50 per hour in total. When the total limit is reached, nobody can

@@ -57,6 +57,29 @@ test('a detail filled in without a tick is saved as a like and comes back ticked
   assert.doesNotMatch(form.body, /value="chocolate" checked/);
 });
 
+// Without script the detail keeps its text when the box is unticked, so the
+// untick alone has to count.
+test('without script, unticking a box whose detail is unchanged drops the like and its detail', async () => {
+  const t = await setup();
+  await t.post(`/p/${t.ada.token}/about`, { likes: ['books', 'tea'], detail_books: 'Annie M.G. Schmidt', pets: 'other', pets_other: 'konijn' });
+  // The same detail texts come back with the boxes unticked.
+  await t.post(`/p/${t.ada.token}/about`, { likes: 'tea', detail_books: 'Annie M.G. Schmidt', pets_other: 'konijn' });
+  const stored = t.ctx.repo.getParticipant(t.ada.id).wishes;
+  assert.deepEqual(stored.likes, ['tea']);
+  assert.deepEqual(stored.likeDetails, {});
+  assert.deepEqual(stored.pets, []);
+  assert.equal(stored.petsOther, '');
+});
+
+test('a changed detail next to an unticked box still ticks it', async () => {
+  const t = await setup();
+  await t.post(`/p/${t.ada.token}/about`, { likes: 'books', detail_books: 'Annie M.G. Schmidt' });
+  await t.post(`/p/${t.ada.token}/about`, { detail_books: 'Paul Biegel' });
+  const stored = t.ctx.repo.getParticipant(t.ada.id).wishes;
+  assert.deepEqual(stored.likes, ['books']);
+  assert.deepEqual(stored.likeDetails, { books: 'Paul Biegel' });
+});
+
 function element(props = {}) {
   const handlers = {};
   return {

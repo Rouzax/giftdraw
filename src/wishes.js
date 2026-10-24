@@ -240,21 +240,29 @@ function pickIds(value, allowed) {
   return out;
 }
 
+const listOf = (value) => (Array.isArray(value) ? value : []);
+
 // The built-in other-pet detail keeps its own field and stored key, so
 // rows saved before the pet list was editable read the same.
 const petDetailField = (id) => (id === 'other' ? 'pets_other' : `pet_detail_${id}`);
 
 // Ticked ids plus the details typed for detail options. A filled-in detail
-// counts as ticking its box, so a forgotten tick does not throw it away.
-function parseList(b, options, idsField, detailField) {
+// counts as ticking its box, so a forgotten tick does not throw it away. A
+// box that was ticked and comes back unticked with its stored detail
+// unchanged was unticked on purpose: without script the field keeps its
+// text, which would otherwise tick the box again on every save.
+function parseList(b, options, idsField, detailField, before) {
   const ids = pickIds(field(b, idsField), new Set(options.map((o) => o.id)));
   const details = {};
   for (const option of options) {
     if (!option.detail) continue;
     const detail = text(field(b, detailField(option.id)));
     if (!detail) continue;
+    if (!ids.includes(option.id)) {
+      if (before.ids.includes(option.id) && before.details[option.id] === detail) continue;
+      ids.push(option.id);
+    }
     details[option.id] = detail;
-    if (!ids.includes(option.id)) ids.push(option.id);
   }
   return { ids, details };
 }
@@ -273,8 +281,12 @@ function postedSections(b) {
 export function parseWishesForm(body, form, previous = null) {
   const b = body ?? {};
   const posted = postedSections(b);
-  const likes = parseList(b, form.likes, 'likes', (id) => `detail_${id}`);
-  const pets = parseList(b, form.pets, 'pets', petDetailField);
+  const likes = parseList(b, form.likes, 'likes', (id) => `detail_${id}`, {
+    ids: listOf(previous?.likes), details: { ...previous?.likeDetails },
+  });
+  const pets = parseList(b, form.pets, 'pets', petDetailField, {
+    ids: listOf(previous?.pets), details: { ...previous?.petDetails, other: previous?.petsOther },
+  });
   const { other: petsOther = '', ...petDetails } = pets.details;
   const wishes = {
     hobbies: text(field(b, 'hobbies')),

@@ -15,6 +15,16 @@ const ADMIN_PATH = /^\/admin(\/|$)/;
 // pattern, so only these handlers are exempt, never another spelling.
 const OPEN_ROUTES = new Set(['/admin/login', '/admin/lang']);
 const SESSION_VALUE = /^(\d{1,15})\.([A-Za-z0-9_-]{43})$/;
+// Admin paths a GET shows as a page. A page that answers a POST (a refusal,
+// a confirmation step) carries the POST's path, which may be no page at all.
+const ADMIN_PAGES = [
+  /^\/admin$/,
+  /^\/admin\/login$/,
+  /^\/admin\/events\/\d+$/,
+  /^\/admin\/groups\/\d+(\/arrange)?$/,
+  /^\/admin\/participants\/\d+(\/about|\/remove)?$/,
+];
+const SWAP_PATH = /^(\/admin\/groups\/\d+)\/swap$/;
 
 const sha256 = (value) => createHash('sha256').update(value).digest();
 
@@ -66,11 +76,21 @@ export function adminLang(request) {
   return isLang(lang) ? lang : 'nl';
 }
 
+// The nearest page at or above the path; a refused swap belongs to the
+// arrange page rather than the dashboard.
+function pageFor(pathname) {
+  if (SWAP_PATH.test(pathname)) return pathname.replace(SWAP_PATH, '$1/arrange');
+  for (let path = pathname; ADMIN_PATH.test(path); path = path.slice(0, path.lastIndexOf('/'))) {
+    if (ADMIN_PAGES.some((page) => page.test(path))) return path;
+  }
+  return '/admin';
+}
+
 // Same-origin admin pages only, so the switch cannot redirect elsewhere.
 function returnPath(referer, appOrigin) {
   try {
     const url = new URL(referer);
-    if (url.origin === appOrigin && ADMIN_PATH.test(url.pathname)) return url.pathname;
+    if (url.origin === appOrigin && ADMIN_PATH.test(url.pathname)) return pageFor(url.pathname);
   } catch {
     // Missing or malformed Referer: fall through to the dashboard.
   }
@@ -150,7 +170,9 @@ export function registerAdminAuth(app, ctx, { sendPage, isAdminPath }) {
       if (OPEN_ROUTES.has(request.routeOptions.url)) return;
       if (request.method === 'GET' || request.method === 'HEAD') return reply.redirect('/admin/login', 303);
       request.log.info({ method: request.method }, 'admin_session_missing');
-      return render(request, reply, noAccessView(adminLang(request)), 403);
+      // Mostly a session that ran out while a form was open: say so and
+      // offer the login rather than a dead end.
+      return render(request, reply, loginView(adminLang(request), { error: 'admin.login.expired' }), 403);
     });
 
     app.get('/admin/login', async (request, reply) => render(request, reply, loginView(adminLang(request))));

@@ -1,7 +1,7 @@
 // The server already counts a filled-in detail as ticking its box; this
-// shows that tick while typing. Unticking empties the detail, because a
-// detail left behind would tick the box again on save, but keeps the text
-// so ticking the box again after a mistaken tap brings it back.
+// shows that tick while typing. Unticking empties the detail, so what is
+// sent matches what the box says, but keeps the text so ticking the box
+// again after a mistaken tap brings it back.
 (function () {
   'use strict';
 

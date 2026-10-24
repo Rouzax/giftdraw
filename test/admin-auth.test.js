@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { t as tr } from '../src/i18n/index.js';
 import { adminCookieValue, formBody, makeTestApp, seedGroup } from './helpers.js';
 
 const T0 = Date.parse('2026-11-01T10:00:00.000Z');
@@ -349,4 +350,42 @@ test('proxy mode: health is reachable from anywhere without the user header', as
   const res = await app.inject({ method: 'GET', url: '/health', remoteAddress: '198.51.100.7' });
   assert.equal(res.statusCode, 200);
   assert.deepEqual(res.json(), { ok: true });
+});
+
+test('the language switch on a page that answered a post returns to a page that exists', async () => {
+  const { adminPost, adminGet } = await setup();
+  const cases = [
+    ['/admin/groups/1/participants', '/admin/groups/1'],
+    ['/admin/groups/1/swap', '/admin/groups/1/arrange'],
+    ['/admin/groups/1/open', '/admin/groups/1'],
+    ['/admin/groups/1', '/admin/groups/1'],
+    ['/admin/groups/1/arrange', '/admin/groups/1/arrange'],
+    ['/admin/events', '/admin'],
+    ['/admin/events/1/groups', '/admin/events/1'],
+    ['/admin/events/1', '/admin/events/1'],
+    ['/admin/participants/2', '/admin/participants/2'],
+    ['/admin/participants/2/remove', '/admin/participants/2/remove'],
+    ['/admin/participants/2/about', '/admin/participants/2/about'],
+    ['/admin/login', '/admin/login'],
+    ['/admin/nothing/here', '/admin'],
+  ];
+  for (const [from, to] of cases) {
+    const res = await adminPost('/admin/lang', { lang: 'en' }, { referer: `https://gifts.example.com${from}?x=1` });
+    assert.equal(res.headers.location, to, from);
+  }
+  // Every target the seeded group can reach really is a page.
+  for (const to of ['/admin/groups/1', '/admin/groups/1/arrange', '/admin/events/1', '/admin/participants/2']) {
+    assert.equal((await adminGet(to)).statusCode, 200, to);
+  }
+});
+
+test('password mode: a post after the session ran out shows the login form in the organiser language', async () => {
+  const { post } = await setup();
+  for (const [cookie, lang] of [['', 'nl'], ['giftdraw_lang=en', 'en']]) {
+    const res = await post('/admin/groups/1/participants', { text: 'Dirk' }, { cookie });
+    assert.equal(res.statusCode, 403);
+    assert.ok(res.body.includes('action="/admin/login"'), lang);
+    assert.ok(res.body.includes(tr(lang, 'admin.login.expired')), lang);
+    assert.ok(!res.body.includes(tr(lang, 'admin.noAccess.body')), lang);
+  }
 });

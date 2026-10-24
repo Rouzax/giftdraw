@@ -107,6 +107,7 @@ export default {
   'admin.login.submit': 'Inloggen',
   'admin.login.wrong': 'Dat wachtwoord klopt niet.',
   'admin.login.tooMany': 'Te veel pogingen. Probeer het later opnieuw.',
+  'admin.login.expired': 'Je bent niet meer ingelogd, dus dit is niet uitgevoerd. Log opnieuw in en probeer het daarna nog een keer.',
   'admin.noAccess.title': 'Geen toegang',
   'admin.noAccess.body': "De beheerpagina's zijn alleen bereikbaar via het inlogportaal.",
   'admin.events.title': 'Evenementen',

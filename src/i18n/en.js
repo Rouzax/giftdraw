@@ -106,6 +106,7 @@ export default {
   'admin.login.submit': 'Log in',
   'admin.login.wrong': 'That password is not correct.',
   'admin.login.tooMany': 'Too many attempts. Please try again later.',
+  'admin.login.expired': 'You are no longer logged in, so this was not carried out. Log in again, then try once more.',
   'admin.noAccess.title': 'No access',
   'admin.noAccess.body': 'Admin access goes through the login portal.',
   'admin.events.title': 'Events',
