@@ -37,6 +37,7 @@ test('event round trip', () => {
     wishOptions: null,
     themeChangedAt: null,
     createdAt: T0,
+    formConfig: null,
   });
   const options = [{ id: 'book', label: 'A book', detail: null }];
   repo.updateEvent(eventId, { name: 'Friends', cleanupWeeks: 6, themeText: null, wishOptions: options }, T1);
@@ -54,6 +55,19 @@ test('event round trip', () => {
   assert.throws(() => repo.updateEvent(eventId, { createdAt: T1 }), /createdAt/);
   repo.deleteEvent(eventId);
   assert.equal(repo.getEvent(eventId), null);
+});
+
+test('formConfig round-trips as JSON and a real change marks the card text changed', () => {
+  const { repo, eventId } = setup();
+  const config = { sections: { pets: { show: false } } };
+  repo.updateEvent(eventId, { formConfig: config }, T1);
+  assert.deepEqual(repo.getEvent(eventId).formConfig, config);
+  assert.equal(repo.getEvent(eventId).themeChangedAt, T1);
+  repo.updateEvent(eventId, { formConfig: { sections: { pets: { show: false } } } }, T2);
+  assert.equal(repo.getEvent(eventId).themeChangedAt, T1, 'an equal config is no change');
+  repo.updateEvent(eventId, { formConfig: null }, T2);
+  assert.equal(repo.getEvent(eventId).formConfig, null);
+  assert.equal(repo.getEvent(eventId).themeChangedAt, T2);
 });
 
 test('group round trip', () => {

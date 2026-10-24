@@ -63,3 +63,21 @@ test('a database newer than the code is refused', () => {
   assert.throws(() => applyMigrations(db, ['CREATE TABLE a (x INTEGER)']), /newer/);
   db.close();
 });
+
+test('migration 2 adds events.form_config to a version 1 database and keeps its rows', () => {
+  const db = new DatabaseSync(':memory:');
+  applyMigrations(db, migrations.slice(0, 1));
+  db.prepare("INSERT INTO events (name, language, wish_options, created_at) VALUES ('Gifts', 'nl', '[]', '2026-01-01')").run();
+  applyMigrations(db, migrations);
+  assert.equal(userVersion(db), migrations.length);
+  const row = db.prepare('SELECT name, wish_options, form_config FROM events').get();
+  assert.deepEqual({ ...row }, { name: 'Gifts', wish_options: '[]', form_config: null });
+  db.close();
+});
+
+test('a fresh database has events.form_config', () => {
+  const db = openDb(':memory:');
+  const columns = db.prepare('PRAGMA table_info(events)').all().map((c) => c.name);
+  assert.ok(columns.includes('form_config'));
+  db.close();
+});

@@ -1,7 +1,7 @@
 import { html, raw } from '../html.js';
 import { icon, iconInline } from '../icons.js';
 import { exchangeLine, LANGS, t, themeText } from '../i18n/index.js';
-import { detailPrompt, hasWishes, PET_IDS, wishLines, wishOptions } from '../wishes.js';
+import { detailPrompt, endsInMark, hasWishes, sectionHeading, wishForm, wishLines } from '../wishes.js';
 
 // Fragments take their links and form targets as arguments so the organiser
 // can show the same screens inside the admin shell when acting on behalf.
@@ -88,36 +88,45 @@ function checkbox(id, name, value, label, on) {
   return html`<label class="check"><input type="checkbox" id="${id}" name="${name}" value="${value}"${checked(on)}> <span>${label}</span></label>`;
 }
 
+// One tick box per option; a detail option gets its text field right under
+// its box. detailName and detailValue say where that text is posted and kept.
+function tickList(options, name, prefix, chosen, lang, detailName, detailValue) {
+  return options.map((option) => {
+    const boxId = `${prefix}-${option.id}`;
+    const box = checkbox(boxId, name, option.id, option.label(lang), chosen.has(option.id));
+    if (!option.detail) return box;
+    return html`${box}
+<div class="detail">${textInput(detailName(option.id), detailPrompt(option, lang), detailValue(option.id), boxId)}</div>`;
+  });
+}
+
 export function aboutFormView({ event, group, wishes, lang, tz, formAction, langAction, showLangSwitch }) {
   const w = wishes ?? {};
-  const likes = new Set(w.likes ?? []);
-  const pets = new Set(w.pets ?? []);
-  const likeFields = wishOptions(event).map((option) => {
-    const boxId = `like-${option.id}`;
-    const box = checkbox(boxId, 'likes', option.id, option.label(lang), likes.has(option.id));
-    if (!option.detail) return box;
-    const name = `detail_${option.id}`;
-    return html`${box}
-<div class="detail">${textInput(name, detailPrompt(option, lang), w.likeDetails?.[option.id], boxId)}</div>`;
-  });
-  const petFields = PET_IDS.map((id) => checkbox(`pet-${id}`, 'pets', id, t(lang, `wish.pet.${id}`), pets.has(id)));
+  const form = wishForm(event);
+  const fields = {
+    hobbies: (heading) => textArea('hobbies', heading, w.hobbies),
+    likes: (heading) => html`<fieldset>
+<legend>${heading}</legend>
+${tickList(form.likes, 'likes', 'like', new Set(w.likes ?? []), lang, (id) => `detail_${id}`, (id) => w.likeDetails?.[id])}
+</fieldset>`,
+    pets: (heading) => html`<fieldset>
+<legend>${heading}</legend>
+${tickList(form.pets, 'pets', 'pet', new Set(w.pets ?? []), lang,
+    (id) => (id === 'other' ? 'pets_other' : `pet_detail_${id}`),
+    (id) => (id === 'other' ? w.petsOther : w.petDetails?.[id]))}
+</fieldset>`,
+    avoid: (heading) => textArea('avoid', heading, w.avoid),
+    other: (heading) => textArea('other', heading, w.other),
+  };
+  const sections = form.sections
+    .filter((section) => section.show)
+    .map((section) => fields[section.id](sectionHeading(section, lang)));
 
   const body = html`<h1>${t(lang, 'about.title')}</h1>
 <p class="lead">${t(lang, 'about.intro')}</p>
 ${themeBlock({ event, group, lang, tz })}
 <form class="about" method="post" action="${formAction}">
-${textArea('hobbies', t(lang, 'wish.hobbies'), w.hobbies)}
-<fieldset>
-<legend>${t(lang, 'wish.likes')}</legend>
-${likeFields}
-</fieldset>
-<fieldset>
-<legend>${t(lang, 'wish.pets')}</legend>
-${petFields}
-<div class="detail">${textInput('pets_other', t(lang, 'wish.petsOther'), w.petsOther, 'pet-other')}</div>
-</fieldset>
-${textArea('avoid', t(lang, 'wish.avoid'), w.avoid)}
-${textArea('other', t(lang, 'wish.other'), w.other)}
+${sections}
 <button type="submit" class="button">${t(lang, 'about.save')}</button>
 </form>
 ${footer({ lang, langAction, showLangSwitch, from: 'about' })}`;
@@ -158,9 +167,9 @@ function givesTo(lang, name, reveal) {
 }
 
 function wishCard({ receiver, event, lang }) {
-  const lines = wishLines(receiver.wishes, wishOptions(event), lang);
+  const lines = wishLines(receiver.wishes, wishForm(event), lang);
   const content = lines.length
-    ? html`<dl>${lines.map((line) => html`<div><dt>${line.label}</dt><dd>${line.value}</dd></div>`)}</dl>`
+    ? html`<dl>${lines.map((line) => html`<div><dt${endsInMark(line.label) ? raw(' class="ends-in-mark"') : ''}>${line.label}</dt><dd>${line.value}</dd></div>`)}</dl>`
     : html`<p>${t(lang, 'result.noWishes', { name: receiver.name })}</p>`;
   return html`<section class="wishes">
 <h2>${t(lang, 'result.wishesTitle', { name: receiver.name })}</h2>
@@ -210,7 +219,7 @@ function cardSize(lines, ...texts) {
 
 // The printed counterpart of the result screen, for someone without a device.
 export function cardView({ participant, receiver, event, group, lang, tz }) {
-  const lines = wishLines(receiver.wishes, wishOptions(event), lang);
+  const lines = wishLines(receiver.wishes, wishForm(event), lang);
   const size = cardSize(lines, themeText(event, lang), exchangeLine(lang, group, tz));
   const [before, after = ''] = t(lang, 'result.givesTo').split('{name}');
   const body = html`<article class="card${size ? ` ${size}` : ''}">

@@ -30,7 +30,17 @@ admin header.
    short question with a text field: write it after a question mark, as in
    `Books? Which author?`. A question mark alone (`Books?`) asks "Anything
    in particular?", except on the built-in chocolate choice, which keeps
-   asking "Which flavour?".
+   asking "Which flavour?". Under "The form" you choose which parts of the
+   wish form participants see (Hobbies, I like, Pets, Rather not, Anything
+   else, always in that order) and can give each part your own heading.
+   An empty heading shows the usual one in each participant's language; a
+   typed heading (one line, at most 80 characters) is shown as typed to
+   everyone. A hidden part disappears from the form, the result page, the
+   wishes mail and the printed card, but answers already given are kept and
+   come back when you show the part again. The pet choices work like the
+   "I like..." choices; empty gives Dog, Cat and Other (which asks
+   "Which animal?"). Changing the parts, headings or pet choices marks
+   printed cards as out of date.
 2. **Create a group** per class or team, with the date the presents are
    exchanged and, if you like, a date on which drawing opens by itself
    (at 09:00). You can also give the time and the place of the exchange,

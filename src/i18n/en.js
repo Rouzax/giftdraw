@@ -124,6 +124,12 @@ export default {
   'admin.event.options': 'Choices under "I like..."',
   'admin.event.optionsHint':
     'One choice per line. To ask a question with it, put the question after a question mark, for example "Books? Which author?". A question mark alone gives a text field with a general question. Leave it empty for the default list.',
+  'admin.event.form': 'The form',
+  'admin.event.formHint': 'The parts of the form participants fill in, in this order. Turn Show off to leave a part out; anything already filled in is kept and comes back when you turn it on again. Leave a heading empty for the usual heading in the participant\'s language. A heading you type is shown as typed to everyone.',
+  'admin.event.show': 'Show',
+  'admin.event.heading': 'Heading',
+  'admin.event.petOptions': 'Choices under "Pets"',
+  'admin.event.petOptionsHint': 'One choice per line, as under "I like...", for example "Bird? What kind?". Leave it empty for the default list.',
   'admin.event.delete': 'Delete event',
   'admin.event.deleteWarning': 'This erases the event with all its groups, participants and wishes. It cannot be undone.',
   'admin.event.error.name': 'Please enter a name.',

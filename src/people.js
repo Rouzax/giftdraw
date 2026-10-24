@@ -2,7 +2,7 @@ import { chooseInsertGiver, insertIntoCycle, makeCycle, planRemoval, validateAss
 import { kickDrain } from './mail/outbox.js';
 import { reminderKind } from './reminders.js';
 import { assignmentVersion } from './status.js';
-import { hasWishes, parseWishesForm, wishOptions } from './wishes.js';
+import { hasWishes, parseWishesForm, wishForm } from './wishes.js';
 
 const MIN_GROUP = 3;
 const NAME_MAX = 100;
@@ -37,7 +37,7 @@ export function saveWishes(ctx, participantId, body) {
   return repo.tx(() => {
     const participant = repo.getParticipant(participantId);
     const event = repo.getEvent(repo.getGroup(participant.groupId).eventId);
-    const wishes = parseWishesForm(body, wishOptions(event));
+    const wishes = parseWishesForm(body, wishForm(event), participant.wishes);
     // A save without a change must not mark a printed card out of date or
     // mail the giver about nothing.
     if (sameWishes(participant.wishes, wishes)) return wishes;

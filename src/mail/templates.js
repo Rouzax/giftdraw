@@ -1,6 +1,6 @@
 import { html } from '../html.js';
 import { exchangeLine, t, themeText } from '../i18n/index.js';
-import { wishLines, wishOptions } from '../wishes.js';
+import { endsInMark, wishForm, wishLines } from '../wishes.js';
 
 // Outbox kind -> catalogue key under email.*
 const KEYS = {
@@ -33,8 +33,10 @@ const C = {
 const FONT = 'font-family:system-ui,-apple-system,\'Segoe UI\',Roboto,\'Helvetica Neue\',Arial,sans-serif;';
 const TEXT = `${FONT}font-size:20px;line-height:1.5;color:${C.ink};`;
 
+const colon = (label) => (endsInMark(label) ? label : `${label}:`);
+
 function wishesBlock(lang, receiver, event) {
-  const lines = wishLines(receiver.wishes, wishOptions(event), lang);
+  const lines = wishLines(receiver.wishes, wishForm(event), lang);
   const title = t(lang, 'result.wishesTitle', { name: receiver.name });
   if (lines.length === 0) {
     const none = t(lang, 'result.noWishes', { name: receiver.name });
@@ -44,9 +46,9 @@ function wishesBlock(lang, receiver, event) {
     html: html`<p style="${TEXT}margin:0 0 8px;font-weight:bold;">${title}</p>
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;">
         ${lines.map((line) => html`<tr><td style="${TEXT}padding:4px 0;">
-          <strong>${line.label}:</strong> ${line.value}</td></tr>`)}
+          <strong>${colon(line.label)}</strong> ${line.value}</td></tr>`)}
       </table>`,
-    text: [title, ...lines.map((line) => `- ${line.label}: ${line.value}`)],
+    text: [title, ...lines.map((line) => `- ${colon(line.label)} ${line.value}`)],
   };
 }
 

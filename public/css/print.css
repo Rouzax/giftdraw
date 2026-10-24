@@ -124,6 +124,10 @@ body {
   content: ": ";
 }
 
+.card .wishes dt.ends-in-mark::after {
+  content: " ";
+}
+
 .card .wishes dd {
   display: inline;
   margin: 0;

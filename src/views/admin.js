@@ -2,10 +2,12 @@ import { html, raw } from '../html.js';
 import { iconText } from '../icons.js';
 import { exchangeWhen, formatDate, LANGS, t } from '../i18n/index.js';
 import { PASTE_TEXT_MAX } from '../people.js';
+import { SECTION_IDS } from '../wishes.js';
 
 const LOCALES = { nl: 'nl-NL', en: 'en-GB' };
 const THEME_MAX = 2000;
 const OPTIONS_MAX = 4000;
+const HEADING_MAX = 80;
 const MIN_GROUP = 3;
 
 export function loginView(lang, { error = null } = {}) {
@@ -99,7 +101,36 @@ function deleteForm(lang, action, { label, warning }) {
 </section>`;
 }
 
-export function eventView(lang, { event, groups, newGroup, themeValue, optionsValue, tz, error = null, groupError = null }) {
+// Each section shows its built-in heading as its name and as the field's
+// placeholder, so an empty field reads as "the usual heading".
+function formSectionsBlock(lang, sections, petsValue) {
+  const items = SECTION_IDS.map((id) => {
+    const { show, heading } = sections[id];
+    const builtIn = t(lang, `wish.${id}`);
+    const pets = id === 'pets'
+      ? html`<label for="event-pets">${t(lang, 'admin.event.petOptions')}</label>
+<p class="hint" id="event-pets-hint">${t(lang, 'admin.event.petOptionsHint')}</p>
+<textarea id="event-pets" name="petOptions" rows="4" maxlength="${OPTIONS_MAX}" aria-describedby="event-pets-hint">${petsValue}</textarea>`
+      : '';
+    return html`<div class="form-section">
+<h3 id="section-${id}">${builtIn}</h3>
+<label class="check"><input type="checkbox" id="show-${id}" aria-describedby="section-${id}" name="show_${id}" value="1"${show ? raw(' checked') : ''}> <span>${t(lang, 'admin.event.show')}</span></label>
+<label for="heading-${id}">${t(lang, 'admin.event.heading')}</label>
+<input id="heading-${id}" name="heading_${id}" type="text" maxlength="${HEADING_MAX}" value="${heading ?? ''}" placeholder="${builtIn}" aria-describedby="section-${id} form-sections-hint">
+${pets}
+</div>`;
+  });
+  return html`<fieldset class="form-sections">
+<legend>${t(lang, 'admin.event.form')}</legend>
+<p class="hint" id="form-sections-hint">${t(lang, 'admin.event.formHint')}</p>
+<input type="hidden" name="formSections" value="1">
+${items}
+</fieldset>`;
+}
+
+export function eventView(lang, {
+  event, groups, newGroup, themeValue, optionsValue, sections, petsValue, tz, error = null, groupError = null,
+}) {
   const title = event.name;
   const groupList = groups.length
     ? html`<ul class="group-list">${groups.map(({ group, size }) => html`<li>
@@ -139,6 +170,7 @@ ${languageSelect('event-language', event.language)}
 <label for="event-options">${t(lang, 'admin.event.options')}</label>
 <p class="hint" id="event-options-hint">${t(lang, 'admin.event.optionsHint')}</p>
 <textarea id="event-options" name="wishOptions" rows="9" maxlength="${OPTIONS_MAX}" aria-describedby="event-options-hint">${optionsValue}</textarea>
+${formSectionsBlock(lang, sections, petsValue)}
 <button type="submit" class="primary">${t(lang, 'admin.save')}</button>
 </form>
 </section>

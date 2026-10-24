@@ -125,6 +125,12 @@ export default {
   'admin.event.options': 'Keuzes bij "Ik houd van..."',
   'admin.event.optionsHint':
     'Eén keuze per regel. Wil je er een vraag bij, zet die dan achter een vraagteken, bijvoorbeeld "Boeken? Welke schrijver?". Alleen een vraagteken geeft een tekstvak met een algemene vraag. Laat je het leeg, dan krijg je de standaardlijst.',
+  'admin.event.form': 'Het formulier',
+  'admin.event.formHint': 'De onderdelen van het formulier dat deelnemers invullen, in deze volgorde. Zet Tonen uit om een onderdeel weg te laten; wat al is ingevuld blijft bewaard en komt terug als je het weer aanzet. Laat je een kopje leeg, dan staat er het gewone kopje in de taal van de deelnemer. Een ingevuld kopje ziet iedereen zo.',
+  'admin.event.show': 'Tonen',
+  'admin.event.heading': 'Kopje',
+  'admin.event.petOptions': 'Keuzes bij "Huisdieren"',
+  'admin.event.petOptionsHint': 'Eén keuze per regel, net als bij "Ik houd van...", bijvoorbeeld "Vogel? Welke soort?". Laat je het leeg, dan krijg je de standaardlijst.',
   'admin.event.delete': 'Evenement verwijderen',
   'admin.event.deleteWarning': 'Dit wist het evenement met alle groepen, deelnemers en wensen. Dat kan niet ongedaan worden.',
   'admin.event.error.name': 'Vul een naam in.',

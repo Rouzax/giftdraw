@@ -306,6 +306,10 @@ h1 {
   content: ": ";
 }
 
+.wishes dt.ends-in-mark::after {
+  content: " ";
+}
+
 .wishes dd {
   display: inline;
   margin: 0;

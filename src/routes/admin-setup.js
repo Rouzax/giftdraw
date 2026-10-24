@@ -6,7 +6,9 @@ import {
   resendGroupFailed, sendInvitations,
 } from '../people.js';
 import { todayIn } from '../time.js';
-import { mergeOptionLabels, optionLines, wishOptions } from '../wishes.js';
+import {
+  cleanHeading, formConfigValue, mergeOptionLabels, optionLines, petOptions, readFormConfig, SECTION_IDS, wishOptions,
+} from '../wishes.js';
 import { adminLang } from './admin-auth.js';
 import { field, parseJsonField } from './admin-shared.js';
 import { eventsView, eventView, GROUP_DONE, messageView, pasteConfirmView } from '../views/admin.js';
@@ -17,6 +19,7 @@ const NAME_MAX = 100;
 const PLACE_MAX = 200;
 const THEME_MAX = 2000;
 const OPTIONS_MAX = 4000;
+const HEADING_MAX = 80;
 
 function isDate(value) {
   if (!DATE.test(value)) return false;
@@ -84,9 +87,41 @@ export function adminSetupRoutes(app, ctx, { render, sendError, groupPage, loadE
       newGroup,
       themeValue: event.themeText ?? t(event.language, 'theme.default'),
       optionsValue: optionLines(wishOptions(event), event.language),
+      sections: readFormConfig(event.formConfig).sections,
+      petsValue: optionLines(petOptions(event), event.language),
       tz: config.tz,
       ...extra,
     });
+  }
+
+  // Built-in ids show their translations whatever label was typed, so the
+  // shown default list saved unchanged stays the default rather than
+  // becoming a stored copy (which would also mark printed cards out of date).
+  const sameAsBuiltIn = (options, builtIn) => options.length === builtIn.length
+    && options.every((o, i) => o.id === builtIn[i].id && o.detail === builtIn[i].detail && !o.question);
+
+  // The section controls post a marker, because an unticked show box sends
+  // nothing: without the marker the stored sections are kept as they are.
+  // A heading equal to a built-in one stays empty, so it keeps following
+  // each participant's language.
+  function readFormSections(body, event) {
+    const current = readFormConfig(event.formConfig);
+    let sections = current.sections;
+    if (body?.formSections === '1') {
+      sections = {};
+      for (const id of SECTION_IDS) {
+        const heading = cleanHeading(field(body, `heading_${id}`, HEADING_MAX * 4));
+        const builtIn = ['nl', 'en'].some((l) => t(l, `wish.${id}`) === heading);
+        sections[id] = { show: body[`show_${id}`] === '1', heading: builtIn ? null : heading };
+      }
+    }
+    let pets = current.petOptions;
+    if (typeof body?.petOptions === 'string') {
+      const text = field(body, 'petOptions', OPTIONS_MAX);
+      const merged = text.trim() ? mergeOptionLabels(text, petOptions(event), event.language, 'pets') : [];
+      pets = merged.length && !sameAsBuiltIn(merged, petOptions({})) ? merged : null;
+    }
+    return formConfigValue({ sections, petOptions: pets });
   }
 
   app.post('/admin/events', async (request, reply) => {
@@ -129,6 +164,7 @@ export function adminSetupRoutes(app, ctx, { render, sendError, groupPage, loadE
       cleanupWeeks: Number(weeks),
       themeText: theme && !isDefault ? theme : null,
       wishOptions: options.length ? options : null,
+      formConfig: readFormSections(body, event),
     }, ctx.nowIso());
     request.log.info({ event_id: event.id }, 'event_updated');
     return reply.redirect(`/admin/events/${event.id}`, 303);

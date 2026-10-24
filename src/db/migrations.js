@@ -65,4 +65,6 @@ export const migrations = [
   CREATE INDEX outbox_status_next_attempt_at ON outbox (status, next_attempt_at);
   CREATE INDEX outbox_participant_id ON outbox (participant_id);
   `,
+  // Wish form sections and the pet list; NULL means every default.
+  'ALTER TABLE events ADD COLUMN form_config TEXT;',
 ];

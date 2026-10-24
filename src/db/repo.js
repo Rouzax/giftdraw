@@ -1,7 +1,7 @@
 import { SKIP_CODES } from '../mail/skip-codes.js';
 import { newToken } from '../tokens.js';
 
-const JSON_COLUMNS = new Set(['wishes', 'wish_options']);
+const JSON_COLUMNS = new Set(['wishes', 'wish_options', 'form_config']);
 const BOOLEAN_COLUMNS = new Set(['manual']);
 
 function camel(column) {
@@ -35,7 +35,7 @@ function toJson(value) {
 // are deliberately absent from participants: they change only through
 // setAssignment so the change timestamp can never drift from the pairing.
 const UPDATABLE = {
-  events: new Set(['name', 'language', 'cleanupWeeks', 'themeText', 'wishOptions']),
+  events: new Set(['name', 'language', 'cleanupWeeks', 'themeText', 'wishOptions', 'formConfig']),
   groups: new Set(['name', 'exchangeDate', 'exchangeTime', 'exchangePlace', 'autoOpenAt']),
   participants: new Set([
     'name', 'email', 'language', 'token', 'wishes', 'wishesUpdatedAt', 'invitedAt',
@@ -43,7 +43,7 @@ const UPDATABLE = {
   ]),
 };
 
-const STORE_AS_JSON = new Set(['wishes', 'wishOptions']);
+const STORE_AS_JSON = new Set(['wishes', 'wishOptions', 'formConfig']);
 
 // A given-up row `o` the organiser can send again. Any later row of the same
 // kind for that person supersedes it, whatever its status: a later failure
@@ -109,22 +109,25 @@ export function createRepo(db) {
     return Number(result.lastInsertRowid);
   }
 
-  // A printed card shows the theme and the exchange date, time and place, so
-  // the update records when any of those really changed; the card is then
-  // out of date. Saving the same values again leaves the time alone.
+  // A printed card shows the theme, the wish form's sections and the
+  // exchange date, time and place, so the update records when any of those
+  // really changed; the card is then out of date. Saving the same values
+  // again leaves the time alone. JSON fields compare by content.
   function changedAt(table, id, fields, cardFields, column, now) {
     tx(() => {
       const before = one(`SELECT * FROM ${table} WHERE id = ?`, id);
       update(table, id, fields);
       if (!before) return;
-      const changed = cardFields.some((field) => fields[field] !== undefined && fields[field] !== before[field]);
+      const changed = cardFields.some((field) => fields[field] !== undefined && toJson(fields[field]) !== toJson(before[field]));
       if (changed) db.prepare(`UPDATE ${table} SET ${column} = ? WHERE id = ?`).run(defaultNow(now), id);
     });
   }
 
   const getEvent = (id) => one('SELECT * FROM events WHERE id = ?', id);
   const listEvents = () => many('SELECT * FROM events ORDER BY id');
-  const updateEvent = (id, fields, now) => changedAt('events', id, fields, ['themeText'], 'theme_changed_at', now);
+  // theme_changed_at stands for any change to the event's text on the card.
+  const updateEvent = (id, fields, now) =>
+    changedAt('events', id, fields, ['themeText', 'formConfig'], 'theme_changed_at', now);
   const deleteEvent = (id) => db.prepare('DELETE FROM events WHERE id = ?').run(id).changes > 0;
 
   // Groups
