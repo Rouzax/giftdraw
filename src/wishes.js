@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { LANGS, t } from './i18n/index.js';
-import { clipText } from './text.js';
+import { clipText, unixLines } from './text.js';
 
 export const DEFAULT_LIKE_IDS = ['chocolate', 'tea', 'coffee', 'bath', 'candles', 'books', 'plants', 'wine'];
 export const PET_IDS = ['dog', 'cat', 'other'];
@@ -229,7 +229,7 @@ function field(body, name) {
 function text(value) {
   const first = Array.isArray(value) ? value[0] : value;
   if (typeof first !== 'string') return '';
-  return clipText(first.trim(), TEXT_MAX, 'codepoints');
+  return clipText(unixLines(first.trim()), TEXT_MAX, 'codepoints');
 }
 
 function pickIds(value, allowed) {

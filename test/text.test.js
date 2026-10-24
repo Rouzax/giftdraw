@@ -87,3 +87,49 @@ test('saving the edit form unchanged keeps an emoji name as it was', async () =>
   assert.equal(over.statusCode, 303);
   assert.equal(t.ctx.repo.getParticipant(ada.id).name, 'g'.repeat(99));
 });
+
+// A textarea counts a line break as one character against its maxlength but
+// sends it as CRLF, two units, so a text typed up to the limit arrives over it.
+const lines = (count, width) => Array.from({ length: count }, (_, i) => String(i).padEnd(width, 'x')).join('\n');
+
+test('a theme, an option list and a wish typed up to the limit keep their last line', async () => {
+  const t = await makeTestApp();
+  const { event, people } = seedGroup(t.ctx, { names: ['Ada', 'Ben', 'Cor'] });
+  const theme = lines(40, 49);
+  assert.equal(theme.length, 1999);
+  const options = lines(400, 9);
+  assert.equal(options.length, 3999);
+  const crlf = (text) => text.replace(/\n/g, '\r\n');
+  const res = await t.adminPost(`/admin/events/${event.id}`, {
+    name: event.name, language: 'nl', cleanupWeeks: '4', themeText: crlf(theme), wishOptions: crlf(options),
+  });
+  assert.equal(res.statusCode, 303);
+  const stored = t.ctx.repo.getEvent(event.id);
+  assert.equal(stored.themeText, theme);
+  assert.equal(stored.wishOptions.length, 400);
+  assert.equal(stored.wishOptions.at(-1).label, '399xxxxxx');
+
+  const hobbies = lines(50, 19);
+  assert.equal(hobbies.length, 999);
+  await t.post(`/p/${people[0].token}/about`, { hobbies: crlf(hobbies) });
+  assert.equal(t.ctx.repo.getParticipant(people[0].id).wishes.hobbies, hobbies);
+});
+
+// Texts saved before line breaks were normalised are stored with CRLF; the
+// same text sent again is no change.
+test('saving an old CRLF text unchanged marks nothing as changed', async () => {
+  const t = await makeTestApp();
+  const { event, people } = seedGroup(t.ctx, { names: ['Ada', 'Ben', 'Cor'] });
+  t.ctx.repo.updateEvent(event.id, { themeText: 'Regel een\r\nRegel twee' });
+  const themeChangedAt = t.ctx.repo.getEvent(event.id).themeChangedAt;
+  await t.adminPost(`/admin/events/${event.id}`, { name: event.name, language: 'nl', cleanupWeeks: '4', themeText: 'Regel een\r\nRegel twee' });
+  assert.equal(t.ctx.repo.getEvent(event.id).themeChangedAt, themeChangedAt);
+
+  const ada = people[0];
+  const old = { hobbies: 'Breien\r\nLezen', likes: [], likeDetails: {}, pets: [], petsOther: '', avoid: '', other: '' };
+  t.ctx.repo.updateParticipant(ada.id, { wishes: old });
+  const giver = t.ctx.repo.giverOf(ada.id);
+  t.ctx.repo.updateParticipant(giver.id, { drawnAt: t.ctx.nowIso() });
+  await t.post(`/p/${ada.token}/about`, { hobbies: 'Breien\r\nLezen' });
+  assert.equal(t.ctx.repo.getParticipant(ada.id).notifyGiverDueAt, null);
+});

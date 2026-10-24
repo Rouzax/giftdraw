@@ -174,6 +174,42 @@ test('switching language on the about form keeps what was typed', async () => {
   assert.ok(again.body.includes('Yoga en wandelen'));
 });
 
+test('switching language with the answers unchanged tells the giver nothing', async () => {
+  const { ctx, post, ada } = await setup();
+  await post(`/p/${ada.token}/about`, { hobbies: 'Breien', likes: 'tea' });
+  const giver = ctx.repo.giverOf(ada.id);
+  ctx.repo.updateParticipant(giver.id, { drawnAt: ctx.nowIso() });
+  const before = ctx.repo.getParticipant(ada.id);
+  await post(`/p/${ada.token}/lang`, { lang: 'en', from: 'about', sections: 'hobbies likes pets avoid other', hobbies: 'Breien', likes: 'tea' });
+  const after = ctx.repo.getParticipant(ada.id);
+  assert.equal(after.language, 'en');
+  assert.equal(after.notifyGiverDueAt, null);
+  assert.equal(after.wishesUpdatedAt, before.wishesUpdatedAt);
+});
+
+test('the language switch keeps answers of sections the posted form did not show', async () => {
+  const { ctx, post, ada, event } = await setup();
+  await post(`/p/${ada.token}/about`, { hobbies: 'Breien', avoid: 'Noten', other: 'Graag iets kleins' });
+  // A form loaded before the organiser showed "avoid" again lists only hobbies.
+  await post(`/p/${ada.token}/lang`, { lang: 'en', from: 'about', sections: 'hobbies', hobbies: 'Breien en lezen', avoid: '' });
+  let wishes = ctx.repo.getParticipant(ada.id).wishes;
+  assert.equal(wishes.hobbies, 'Breien en lezen');
+  assert.equal(wishes.avoid, 'Noten');
+  // A section the organiser hid keeps its answer through the switch too.
+  ctx.repo.updateEvent(event.id, { formConfig: { sections: { other: { show: false } } } });
+  await post(`/p/${ada.token}/lang`, { lang: 'nl', from: 'about', sections: 'hobbies likes pets avoid', hobbies: 'Breien en lezen', avoid: 'Noten', other: '' });
+  wishes = ctx.repo.getParticipant(ada.id).wishes;
+  assert.equal(wishes.other, 'Graag iets kleins');
+});
+
+test('the on-behalf wish form has no language switch', async () => {
+  const { adminGet, ada } = await setup();
+  const res = await adminGet(`/admin/participants/${ada.id}/about`);
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.includes('class="lang-switch"'), false);
+  assert.equal(res.body.includes('formaction='), false);
+});
+
 test('switching language away from the form leaves the wishes alone', async () => {
   const { ctx, post, ada } = await setup();
   await post(`/p/${ada.token}/about`, { hobbies: 'Breien' });

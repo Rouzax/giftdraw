@@ -9,6 +9,11 @@ const MEASURES = {
   codepoints: (segment) => Array.from(segment).length,
 };
 
+// Browsers send a textarea's line breaks as CRLF but count each as one
+// character against its maxlength; read as one, a text typed up to the
+// limit still fits it.
+export const unixLines = (text) => text.replace(/\r\n?/g, '\n');
+
 // The longest start of `text` of at most `max` in the given measure that
 // ends on a cluster boundary, so a limit drops a whole emoji rather than
 // half of one.

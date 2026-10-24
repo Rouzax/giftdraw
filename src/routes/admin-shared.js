@@ -1,6 +1,6 @@
 import { cardOutOfDate, groupWarnings } from '../status.js';
 import { createSubmitLog, formFingerprint } from '../submit-log.js';
-import { clipText } from '../text.js';
+import { clipText, unixLines } from '../text.js';
 import { hasWishes, wishForm } from '../wishes.js';
 import { adminLang } from './admin-auth.js';
 import { behalfPage, printPage, renderAdminPage } from '../views/layout.js';
@@ -11,7 +11,7 @@ const FLASH_COOKIE = 'giftdraw_flash';
 
 export function field(body, name, max = 1000) {
   const value = body?.[name];
-  return typeof value === 'string' ? clipText(value, max) : '';
+  return typeof value === 'string' ? clipText(unixLines(value), max) : '';
 }
 
 // Malformed or oversized JSON becomes null, which the commit functions refuse

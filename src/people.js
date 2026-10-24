@@ -2,7 +2,7 @@ import { chooseInsertGiver, insertIntoCycle, makeCycle, planRemoval, validateAss
 import { kickDrain } from './mail/outbox.js';
 import { reminderKind } from './reminders.js';
 import { assignmentVersion } from './status.js';
-import { clipText } from './text.js';
+import { clipText, unixLines } from './text.js';
 import { hasWishes, parseWishesForm, wishForm } from './wishes.js';
 
 const MIN_GROUP = 3;
@@ -22,8 +22,10 @@ export const PLAN_JSON_MAX = 64 + PASTE_ROWS_MAX * ((NAME_MAX + EMAIL_MAX) * 6 +
 const EMAIL = /^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$/;
 const SEPARATOR = /[\t;,]/;
 
-// Likes and pets are sets, so their order does not make a change.
+// Likes and pets are sets, so their order does not make a change, and
+// texts stored with CRLF line breaks read the same as with LF.
 function canonical(value) {
+  if (typeof value === 'string') return unixLines(value);
   if (Array.isArray(value)) return value.map(canonical).sort();
   if (value && typeof value === 'object') {
     return Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonical(value[key])]));

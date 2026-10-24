@@ -5,6 +5,7 @@ import {
   commitAddParticipants, parsePasteList, PASTE_ROWS_MAX, PASTE_TEXT_MAX, PLAN_JSON_MAX, planAddParticipants,
   resendGroupFailed, sendInvitations,
 } from '../people.js';
+import { unixLines } from '../text.js';
 import { todayIn } from '../time.js';
 import {
   cleanHeading, formConfigValue, mergeOptionLabels, optionLines, petOptions, readFormConfig, sameOptions, SECTION_IDS,
@@ -166,7 +167,10 @@ export function adminSetupRoutes(app, ctx, {
 
     // Saving the shown default unchanged keeps it a default, so it follows
     // the participant's language instead of freezing one translation.
-    const theme = field(body, 'themeText', THEME_MAX).trim();
+    let theme = field(body, 'themeText', THEME_MAX).trim();
+    // A theme stored with CRLF line breaks comes back with LF: the same text,
+    // kept as stored so printed cards do not count it as changed.
+    if (event.themeText && unixLines(event.themeText) === theme) theme = event.themeText;
     const isDefault = ['nl', 'en'].some((l) => t(l, 'theme.default') === theme);
     repo.updateEvent(event.id, {
       name,
