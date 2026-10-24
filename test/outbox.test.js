@@ -89,10 +89,14 @@ test('a throwing mailer records a safe code, retries a minute later and stores n
   assert.equal(failed.outbox_id, id);
 });
 
-test('error codes are err.code when short and safe, otherwise a fallback', async () => {
+test('error codes are err.code with the SMTP reply and refused sender when short and safe, otherwise a fallback', async () => {
   const { ctx, db, mailer, ada, drain } = await setup();
   const cases = [
-    [{ code: 'ECONNREFUSED', responseCode: 421 }, 'ECONNREFUSED'],
+    [{ code: 'ECONNREFUSED', responseCode: 421 }, 'ECONNREFUSED-421'],
+    [{ code: 'EENVELOPE', responseCode: 550, command: 'RCPT TO' }, 'EENVELOPE-550'],
+    [{ code: 'EENVELOPE', responseCode: 553, command: 'MAIL FROM' }, 'EENVELOPE-553-FROM'],
+    [{ code: 'EMESSAGE', responseCode: 999 }, 'EMESSAGE'],
+    [{ code: 'E'.repeat(40), responseCode: 550 }, 'E'.repeat(40)],
     [{ code: 'ada@example.com' }, 'error'],
     [{ code: 'x'.repeat(41), responseCode: 451 }, 'smtp-451'],
     [{}, 'error'],

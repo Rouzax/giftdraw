@@ -232,6 +232,7 @@ export default {
   'admin.failure.reason.login': 'Logging in to the mail server failed.',
   'admin.failure.reason.secure': 'A secure connection to the mail server failed.',
   'admin.failure.reason.address': 'The mail server refused the address.',
+  'admin.failure.reason.sender': 'The mail server refused the sender address.',
   'admin.failure.reason.refused': 'The mail server refused the mail.',
   'admin.failure.reason.busy': 'The mail server could not take the mail just now.',
   'admin.failure.reason.other': 'The mail could not be sent.',

@@ -82,6 +82,28 @@ test('a mail failure is explained in words, with its code beside it', async () =
   assert.ok(person.body.includes('Inloggen bij de mailserver lukte niet'));
 });
 
+test('a failure reason follows the SMTP reply and tells a refused sender from a refused address', async () => {
+  const t = await setup();
+  const cases = [
+    ['EMESSAGE-554', 'De mailserver weigerde de mail.'],
+    ['EMESSAGE', 'De mailserver weigerde de mail.'],
+    ['EENVELOPE-553-FROM', 'De mailserver weigerde het afzenderadres.'],
+    ['EENVELOPE-550', 'De mailserver weigerde het adres.'],
+    ['EENVELOPE-450', 'De mailserver kon de mail even niet aannemen.'],
+    ['smtp-421', 'De mailserver kon de mail even niet aannemen.'],
+    ['EAUTH-535', 'Inloggen bij de mailserver lukte niet.'],
+    ['ECONNREFUSED-421', 'De mailserver was niet te bereiken.'],
+  ];
+  for (const [code, reason] of cases) {
+    const id = inviteRow(t, t.people[0].id, code);
+    const page = await t.adminGet(`/admin/participants/${t.people[0].id}`);
+    const shown = page.body.slice(page.body.indexOf('Laatste mailfout'));
+    assert.ok(shown.includes(reason), code);
+    assert.ok(shown.includes(`<code>${code}</code>`), code);
+    t.db.prepare('DELETE FROM outbox WHERE id = ?').run(id);
+  }
+});
+
 test('with email off the dashboard drops the mail columns and the remove page the mail sentence', async () => {
   const t = await setup();
   t.mailer.enabled = false;

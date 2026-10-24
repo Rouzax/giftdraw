@@ -13,10 +13,19 @@ const SAFE_CODE = /^[A-Z0-9_-]{1,40}$/i;
 const REMINDER_KINDS = new Set(['remind-wishes', 'remind-draw']);
 
 // Only a short code is kept: SMTP error messages and objects quote addresses
-// and server replies, which must stay out of the database and the logs.
+// and server replies, which must stay out of the database and the logs. The
+// reply number goes with it (EENVELOPE-550), and -FROM when the server
+// refused the sender rather than the recipient, so the organiser's page can
+// tell those apart.
 export function errorCode(err) {
-  if (typeof err?.code === 'string' && SAFE_CODE.test(err.code)) return err.code;
-  if (Number.isInteger(err?.responseCode)) return `smtp-${err.responseCode}`;
+  const reply = Number.isInteger(err?.responseCode) && err.responseCode >= 200 && err.responseCode <= 599
+    ? err.responseCode : null;
+  const from = reply !== null && /^MAIL FROM/i.test(String(err?.command ?? '')) ? '-FROM' : '';
+  if (typeof err?.code === 'string' && SAFE_CODE.test(err.code)) {
+    const full = reply === null ? err.code : `${err.code}-${reply}${from}`;
+    return SAFE_CODE.test(full) ? full : err.code;
+  }
+  if (reply !== null) return `smtp-${reply}${from}`;
   return 'error';
 }
 

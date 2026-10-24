@@ -220,16 +220,18 @@ function dateOrNo(lang, iso, tz, { noKey = 'admin.status.no', noKind = 'waiting'
 const FAILURE_REASONS = {
   ECONNECTION: 'unreachable', ECONNREFUSED: 'unreachable', ECONNRESET: 'unreachable', ESOCKET: 'unreachable',
   EDNS: 'unreachable', ENOTFOUND: 'unreachable', ETIMEDOUT: 'timeout', EAUTH: 'login', ETLS: 'secure',
-  EENVELOPE: 'address',
 };
 
+// code: as errorCode stores it, e.g. ECONNECTION, EENVELOPE-550-FROM, smtp-421.
 function failureReason(code) {
-  if (Object.hasOwn(FAILURE_REASONS, code)) return FAILURE_REASONS[code];
-  const smtp = /^smtp-([45])(\d\d)$/.exec(code ?? '');
-  if (!smtp) return 'other';
-  if (smtp[1] === '4') return 'busy';
+  const [, base, reply, from] = /^(.+?)(?:-([2-5]\d\d))?(-FROM)?$/.exec(code ?? '') ?? [];
+  if (Object.hasOwn(FAILURE_REASONS, base)) return FAILURE_REASONS[base];
+  if (reply?.startsWith('4')) return 'busy';
+  if (from) return 'sender';
   // 550, 551 and 553 are about the mailbox or the address itself.
-  return ['50', '51', '53'].includes(smtp[2]) ? 'address' : 'refused';
+  if (base === 'EENVELOPE' || ['550', '551', '553'].includes(reply)) return 'address';
+  if (base === 'EMESSAGE' || reply?.startsWith('5')) return 'refused';
+  return 'other';
 }
 
 // The code stays beside the reason, small, for whoever runs the mail server.

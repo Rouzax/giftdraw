@@ -358,10 +358,12 @@ SMTP settings and restart the container; queued mails then go out.
 The mail server refused the message or could not be reached, and the
 automatic retries ran out. The column says what went wrong in words
 (the server could not be reached, did not answer in time, refused the
-login, refused the address, ...) with the technical code in small print
-beside it. An invitation that reached the person earlier stays marked as
-sent; only the failed resend shows in the failure column. Check the address on the participant's page,
-then press "Send again" in that column. If every mail fails, check `SMTP_HOST`,
+login, refused the address, refused the sender, ...) with the technical
+code in small print beside it, such as `EENVELOPE-550`. An invitation
+that reached the person earlier stays marked as sent; only the failed
+resend shows in the failure column. Check the address on the
+participant's page, then press "Send again" in that column. If every
+mail fails, or the reason is a refused sender, check `SMTP_HOST`,
 `SMTP_PORT`, the login, and that the server accepts `SMTP_FROM` as
 sender.
 

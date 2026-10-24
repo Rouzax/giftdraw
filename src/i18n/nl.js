@@ -233,6 +233,7 @@ export default {
   'admin.failure.reason.login': 'Inloggen bij de mailserver lukte niet.',
   'admin.failure.reason.secure': 'Een beveiligde verbinding met de mailserver lukte niet.',
   'admin.failure.reason.address': 'De mailserver weigerde het adres.',
+  'admin.failure.reason.sender': 'De mailserver weigerde het afzenderadres.',
   'admin.failure.reason.refused': 'De mailserver weigerde de mail.',
   'admin.failure.reason.busy': 'De mailserver kon de mail even niet aannemen.',
   'admin.failure.reason.other': 'De mail kon niet worden verstuurd.',
