@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { setTimeout as wait } from 'node:timers/promises';
-import { saveWishes } from '../src/people.js';
+import { remindNow, saveWishes } from '../src/people.js';
 import { cardOutOfDate } from '../src/status.js';
 import { startScheduler, tick } from '../src/scheduler.js';
 import { makeTestApp, seedGroup } from './helpers.js';
@@ -374,4 +374,30 @@ test('with mail off the tick queues no reminders or wish updates', async () => {
   assert.equal(result.reminders, 0);
   assert.equal(result.wishUpdates, 0);
   assert.equal(outboxRows(db).length, 0);
+});
+
+test('a manual reminder spaces the next automatic one but does not count toward the two', async () => {
+  const { ctx, clock, db, people } = await setup();
+  const [ada] = people;
+  clock.ms = WISHES_DUE - 5 * MINUTE;
+  assert.equal(remindNow(ctx, ada.id), 'remind-queued');
+  clock.ms = WISHES_DUE;
+  await tick(ctx);
+  const rows = outboxRows(db, 'remind-wishes').filter((r) => r.participant_id === ada.id);
+  assert.deepEqual(rows.map((r) => r.manual), [1], 'no automatic reminder five minutes after a manual one');
+  assert.deepEqual(ctx.repo.reminderHistory(ada.id, 'remind-wishes'), { count: 0, lastAt: new Date(WISHES_DUE - 5 * MINUTE).toISOString() });
+});
+
+test('a wish change after the exchange date mails nobody and logs why', async () => {
+  const t = await setup({ opened: true });
+  const { ctx, clock, db, logs, people } = t;
+  const ben = people[1];
+  markGiverDrawn(t, ben);
+  // The seeded exchange is 2026-12-18; midnight there is 23:00Z the day before.
+  clock.ms = Date.parse('2026-12-17T23:00:00.000Z');
+  saveWishes(ctx, ben.id, { hobbies: 'reading' });
+  clock.ms += 15 * MINUTE;
+  assert.equal((await tick(ctx)).wishUpdates, 0);
+  assert.equal(outboxRows(db, 'wishes-updated').length, 0);
+  assert.deepEqual(dropped(logs).map((l) => [l.participant_id, l.reason]), [[ben.id, 'after-exchange']]);
 });

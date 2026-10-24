@@ -292,12 +292,15 @@ export function createRepo(db) {
       .get(participantId, kind) !== undefined;
   }
 
+  // count is of automatic reminders only, so a manual one never uses up the
+  // two; lastAt is of any, so an automatic one does not follow a manual one
+  // within the spacing.
   function reminderHistory(participantId, kind) {
     const row = db
       .prepare(`SELECT
-                  count(*) FILTER (WHERE status IN ('pending', 'sending', 'sent')) AS count,
+                  count(*) FILTER (WHERE status IN ('pending', 'sending', 'sent') AND manual = 0) AS count,
                   max(created_at) AS last_at
-                FROM outbox WHERE participant_id = ? AND kind = ? AND manual = 0`)
+                FROM outbox WHERE participant_id = ? AND kind = ?`)
       .get(participantId, kind);
     return { count: row.count, lastAt: row.last_at };
   }

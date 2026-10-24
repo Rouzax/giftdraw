@@ -342,3 +342,29 @@ test('once stopping, a drain finishes the send in flight and starts no other', a
   assert.equal(outboxRow(db, second).status, 'sending');
   assert.deepEqual(await drainOutbox(ctx), { sent: 0, failed: 0 });
 });
+
+test('a given-up draw-open or invite sent again after the participant drew is skipped as stale', async () => {
+  const { ctx, db, mails, ada, ben, group, drain } = await setup();
+  ctx.repo.markInvitationsSent(group.id, ctx.nowIso());
+  ctx.repo.markGroupOpened(group.id, ctx.nowIso());
+  const drawOpen = ctx.repo.enqueue(ada.id, 'draw-open', ctx.nowIso());
+  const invite = ctx.repo.enqueue(ben.id, 'invite', ctx.nowIso());
+  for (const id of [drawOpen, invite]) ctx.repo.markFailed(id, 'ECONNREFUSED', null, ctx.nowIso());
+  // Both drew through a link the organiser passed on in the meantime.
+  for (const p of [ada, ben]) ctx.repo.updateParticipant(p.id, { drawnAt: ctx.nowIso() });
+  for (const p of [ada, ben]) assert.equal(ctx.repo.requeueLastFailed(p.id, ctx.nowIso()), true);
+  await drain();
+  assert.deepEqual(mails, []);
+  for (const id of [drawOpen, invite]) assert.equal(outboxRow(db, id).error_code, 'stale-mail');
+  assert.equal(ctx.repo.mailStatus(ada.id).lastFailure, null);
+});
+
+test('an invite to someone who has not drawn yet still goes out in an open group', async () => {
+  const { ctx, mails, ada, group, drain } = await setup();
+  ctx.repo.markInvitationsSent(group.id, ctx.nowIso());
+  ctx.repo.markGroupOpened(group.id, ctx.nowIso());
+  ctx.repo.enqueue(ada.id, 'invite', ctx.nowIso());
+  ctx.repo.enqueue(ada.id, 'draw-open', ctx.nowIso());
+  await drain();
+  assert.deepEqual(mails.map((m) => m.to), [ada.email, ada.email]);
+});

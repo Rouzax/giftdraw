@@ -8,7 +8,7 @@ import { wishForm } from './wishes.js';
 
 const AUTO_OPEN_AT = '09:00';
 const STALE_SENDING_MS = 10 * 60_000;
-const RECEIVER_SAFE_REASONS = new Set(['no-giver', 'mail-off']);
+const RECEIVER_SAFE_REASONS = new Set(['no-giver', 'mail-off', 'after-exchange']);
 
 // One bad row is logged and skipped so it cannot hold up everyone after it.
 function eachRow(ctx, step, rows, idField, fn) {
@@ -67,7 +67,7 @@ function wishUpdates(ctx, now) {
       if (!current?.notifyGiverDueAt || current.notifyGiverDueAt > nowIso) return false;
       repo.updateParticipant(current.id, { notifyGiverDueAt: null });
       const giver = repo.giverOf(current.id);
-      const reason = dropReason(ctx, giver);
+      const reason = dropReason(ctx, giver, repo.getGroup(current.groupId), now);
       // The pairing is secret. A reason that describes the giver (has not
       // drawn, has no email) next to the receiver's id would narrow down who
       // gives to whom, so only reasons that say nothing about the giver carry
@@ -83,7 +83,10 @@ function wishUpdates(ctx, now) {
     }));
 }
 
-function dropReason(ctx, giver) {
+// After the exchange the present has been given, so a wish change is news
+// to nobody.
+function dropReason(ctx, giver, group, now) {
+  if (now >= instantAt(group.exchangeDate, '00:00', ctx.config.tz)) return 'after-exchange';
   if (!giver) return 'no-giver';
   if (!giver.drawnAt) return 'giver-not-drawn';
   if (!giver.email) return 'giver-no-email';

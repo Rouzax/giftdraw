@@ -39,6 +39,9 @@ function prepare(ctx, row) {
   // A reminder waits in the queue for a retry or a busy drain; by then the
   // wishes may be in, the draw open or done, and it would ask the wrong thing.
   if (REMINDER_KINDS.has(row.kind) && reminderKind(participant, group, wishForm(event)) !== row.kind) throw new Skip('stale-reminder');
+  // The same for a draw-open or invite sent again by hand after giving up:
+  // someone who has drawn since must not be asked to start.
+  if ((row.kind === 'draw-open' || row.kind === 'invite') && participant.drawnAt) throw new Skip('stale-mail');
   // Only receiver kinds load the receiver, so a failing lookup of someone
   // else's row cannot take down a mail that never uses it.
   let receiver = null;

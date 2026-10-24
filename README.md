@@ -272,16 +272,21 @@ With email on, the app sends:
   invitations" (people added later get one when you press it again);
 - "You can draw a name now" when the group opens;
 - at most two reminders to fill in wishes and at most two to draw, at
-  09:00, spaced a few days apart and never on or after the exchange date;
+  09:00, spaced a few days apart and never on or after the exchange date.
+  They only go out between 09:00 and 20:00 (`TZ`): one that becomes due
+  later in the day, for example because the app was down in the morning,
+  waits until 09:00 the next day. A reminder you send by hand does not
+  count toward the two, but the next automatic one keeps the same spacing
+  after it;
 - a short note to the giver when their person changes their wishes after
   the giver has drawn (bundled, so several quick edits give one mail);
 - "Your person has changed" to the one giver affected by a dropout or late
   joiner.
 
-The "wishes updated" note goes only to a giver who has already drawn. It
-is sent about 15 minutes after the first change, and further changes in
-that window go into the same mail. All other mail goes out within a
-minute.
+The "wishes updated" note goes only to a giver who has already drawn, and
+not from the exchange date on. It is sent about 15 minutes after the
+first change, and further changes in that window go into the same mail.
+All other mail goes out within a minute.
 
 Mail goes out through a queue that the app works through every minute. A
 failed send is retried after 1, 5, 30 and 120 minutes; after that it is
@@ -290,7 +295,9 @@ failure per person, with a "Send again" button; a button above the table
 sends every failed mail of the group again at once. Only the latest mail of each kind per
 person counts, so a failure that a later mail of the same kind replaced is
 not shown or sent again. Neither is mail that was skipped because it could
-not apply, such as one for a person without an email address.
+not apply, such as one for a person without an email address. A failed
+invitation or "You can draw a name now" sent again after that person has
+drawn is skipped too, so it does not ask them to start over.
 
 Use port `587` (STARTTLS) or `465` (TLS). On 587 the app refuses to send
 if the server does not offer encryption.

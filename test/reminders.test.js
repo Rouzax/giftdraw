@@ -136,7 +136,7 @@ const cases = [
   ['no draw reminder once drawn', { group: open(), participant: person({ drawnAt: '2026-11-21T10:00:00.000Z' }) }, '2026-11-30T08:00:00.000Z', null],
   // Nothing is sent from the exchange date on.
   ['no draw reminder on the exchange date', { group: open({ openedAt: '2026-12-08T10:00:00.000Z' }) }, '2026-12-11T23:00:00.000Z', null],
-  ['draw reminder the evening before', { group: open({ openedAt: '2026-12-08T10:00:00.000Z' }) }, '2026-12-11T22:59:59.000Z', 'remind-draw'],
+  ['draw reminder the last evening before, at 19:59', { group: open({ openedAt: '2026-12-08T10:00:00.000Z' }) }, '2026-12-11T18:59:59.000Z', 'remind-draw'],
   // Across the October daylight-saving change, 09:00 local is 08:00Z.
   ...[['just before', '2026-10-25T07:59:59.000Z', null], ['at', '2026-10-25T08:00:00.000Z', 'remind-draw']].map(([when, now, expected]) => [
     `draw reminder across DST, ${when}`,
@@ -171,3 +171,13 @@ for (const [name, input, now, expected] of cases) {
     assert.equal(due({ ...input, now }), expected);
   });
 }
+
+// Amsterdam is UTC+1 in November: 09:00 local is 08:00Z, 20:00 local 19:00Z.
+test('a due reminder goes out only between 09:00 and 20:00 local time and otherwise waits for the morning', () => {
+  const at = (now) => due({ now });
+  assert.equal(at('2026-11-08T18:59:59.000Z'), 'remind-wishes', '19:59:59');
+  assert.equal(at('2026-11-08T19:00:00.000Z'), null, '20:00');
+  assert.equal(at('2026-11-08T21:30:00.000Z'), null, '22:30');
+  assert.equal(at('2026-11-09T07:59:59.000Z'), null, '08:59:59');
+  assert.equal(at('2026-11-09T08:00:00.000Z'), 'remind-wishes', '09:00 the next morning');
+});

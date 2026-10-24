@@ -1,8 +1,11 @@
 import { addDays, instantAt, localParts } from './time.js';
 import { hasWishes, wishForm } from './wishes.js';
 
-// Reminders go out in the morning, never in the middle of the night.
+// Reminders become due at 09:00 and go out only in the daytime: one that
+// becomes due later (spacing, a cleared answer, an app that was down in the
+// morning) waits for the next 09:00 instead of arriving in the night.
 const SEND_AT = '09:00';
+const SEND_UNTIL = '20:00';
 const DAY_MS = 86_400_000;
 const MAX_PER_KIND = 2;
 const WISHES_SPACING_DAYS = 4;
@@ -33,6 +36,8 @@ export function dueReminder({ participant, group, form, history, now, tz }) {
   if (!kind || history.count >= MAX_PER_KIND) return null;
   // Nothing is sent from the exchange date on.
   if (now >= instantAt(group.exchangeDate, '00:00', tz)) return null;
+  const time = localParts(now, tz).time.slice(0, 5);
+  if (time < SEND_AT || time >= SEND_UNTIL) return null;
 
   // A late invitation, close to auto-open or into an open group, must not be
   // chased by a reminder on the next scheduler tick.
