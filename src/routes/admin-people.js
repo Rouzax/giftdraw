@@ -87,7 +87,10 @@ export function adminPeopleRoutes(app, ctx, {
         return render(request, reply, personPage(lang, participant, { values: { ...values, email }, duplicate }));
       }
     }
-    repo.updateParticipant(participant.id, { name: values.name, email, language: values.language });
+    // A giver's printed card shows this person's name with their wishes, so a
+    // new name marks that card out of date the way a wish change does.
+    const renamed = values.name !== participant.name ? { wishesUpdatedAt: ctx.nowIso() } : {};
+    repo.updateParticipant(participant.id, { name: values.name, email, language: values.language, ...renamed });
     request.log.info({ participant_id: participant.id }, 'participant_updated');
     return reply.redirect(personUrl(participant.id, 'saved'), 303);
   });

@@ -7,7 +7,8 @@ import {
 } from '../people.js';
 import { todayIn } from '../time.js';
 import {
-  cleanHeading, formConfigValue, mergeOptionLabels, optionLines, petOptions, readFormConfig, SECTION_IDS, wishOptions,
+  cleanHeading, formConfigValue, mergeOptionLabels, optionLines, petOptions, readFormConfig, sameOptions, SECTION_IDS,
+  wishOptions,
 } from '../wishes.js';
 import { adminLang } from './admin-auth.js';
 import { field, parseJsonField } from './admin-shared.js';
@@ -96,11 +97,16 @@ export function adminSetupRoutes(app, ctx, {
     });
   }
 
-  // Built-in ids show their translations whatever label was typed, so the
-  // shown default list saved unchanged stays the default rather than
-  // becoming a stored copy (which would also mark printed cards out of date).
-  const sameAsBuiltIn = (options, builtIn) => options.length === builtIn.length
-    && options.every((o, i) => o.id === builtIn[i].id && o.detail === builtIn[i].detail && !o.question);
+  // The value to store for a tick list typed into a textarea, or undefined
+  // to leave it as it is. A list that reads the same as now is left alone,
+  // so saving the page unchanged never marks printed cards out of date; the
+  // default list is stored as null, so it keeps following the language.
+  function optionsToStore(text, current, lang, kind) {
+    const merged = text.trim() ? mergeOptionLabels(text, current, lang, kind) : [];
+    const builtIn = kind === 'pets' ? petOptions({}) : wishOptions({});
+    if (sameOptions(merged.length ? merged : builtIn, current, kind)) return undefined;
+    return merged.length && !sameOptions(merged, builtIn, kind) ? merged : null;
+  }
 
   // The section controls post a marker, because an unticked show box sends
   // nothing: without the marker the stored sections are kept as they are.
@@ -119,9 +125,8 @@ export function adminSetupRoutes(app, ctx, {
     }
     let pets = current.petOptions;
     if (typeof body?.petOptions === 'string') {
-      const text = field(body, 'petOptions', OPTIONS_MAX);
-      const merged = text.trim() ? mergeOptionLabels(text, petOptions(event), event.language, 'pets') : [];
-      pets = merged.length && !sameAsBuiltIn(merged, petOptions({})) ? merged : null;
+      const value = optionsToStore(field(body, 'petOptions', OPTIONS_MAX), petOptions(event), event.language, 'pets');
+      if (value !== undefined) pets = value;
     }
     return formConfigValue({ sections, petOptions: pets });
   }
@@ -162,14 +167,12 @@ export function adminSetupRoutes(app, ctx, {
     // the participant's language instead of freezing one translation.
     const theme = field(body, 'themeText', THEME_MAX).trim();
     const isDefault = ['nl', 'en'].some((l) => t(l, 'theme.default') === theme);
-    const optionsText = field(body, 'wishOptions', OPTIONS_MAX);
-    const options = optionsText.trim() ? mergeOptionLabels(optionsText, wishOptions(event), event.language) : [];
     repo.updateEvent(event.id, {
       name,
       language,
       cleanupWeeks: Number(weeks),
       themeText: theme && !isDefault ? theme : null,
-      wishOptions: options.length ? options : null,
+      wishOptions: optionsToStore(field(body, 'wishOptions', OPTIONS_MAX), wishOptions(event), event.language, 'likes'),
       formConfig: readFormSections(body, event),
     }, ctx.nowIso());
     request.log.info({ event_id: event.id }, 'event_updated');

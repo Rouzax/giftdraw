@@ -585,12 +585,15 @@ test('with email off the add and remove previews tell the organiser to inform dr
   const dashboard = await t.adminGet(confirmed.headers.location);
   assert.ok(dashboard.body.includes(tr('nl', 'admin.person.done.added-tell')));
 
-  const preview = await t.adminGet(`/admin/participants/${t.people[0].id}/remove`);
+  // Someone whose giver had drawn, so the newcomer is not the one to change.
+  const map = t.ctx.repo.getAssignment(t.groupId);
+  const dropout = t.people.find((p) => t.people.some((g) => g.id === giverOf(map, p.id)));
+  const preview = await t.adminGet(`/admin/participants/${dropout.id}/remove`);
   assert.ok(!preview.body.includes(tr('nl', 'admin.paste.changeMailed')));
-  const [giverId] = planRemoveParticipant(t.ctx, t.people[0].id).changedGivers;
+  const [giverId] = planRemoveParticipant(t.ctx, dropout.id).changedGivers;
   const giver = t.ctx.repo.getParticipant(giverId);
   assert.ok(preview.body.includes(tr('nl', 'admin.paste.changeTell', { giver: giver.name })));
-  const removed = await t.adminPost(`/admin/participants/${t.people[0].id}/remove`, {
+  const removed = await t.adminPost(`/admin/participants/${dropout.id}/remove`, {
     plan: hidden(preview.body, 'plan'), group: hidden(preview.body, 'group'),
   });
   assert.equal(removed.headers.location, `/admin/groups/${t.groupId}?done=removed-tell`);
@@ -604,4 +607,23 @@ test('with email on, a drawn giver with an address is told by mail and the dashb
   assert.ok(pasted.body.includes(tr('nl', 'admin.paste.changeMailed')));
   const confirmed = await t.adminPost(`/admin/groups/${t.groupId}/participants`, { confirm: '1', plan: hidden(pasted.body, 'plan') });
   assert.equal(confirmed.headers.location, `/admin/groups/${t.groupId}?done=added`);
+});
+
+test('renaming the receiver marks the printed card of the giver out of date; saving the same name does not', async () => {
+  const t = await setup({ names: ['Ada', 'Ben', 'Cor'], opened: true });
+  const ada = t.people[0];
+  const receiver = t.ctx.repo.getParticipant(ada.receiverId);
+  drawFor(t.ctx, ada.id);
+  const outOfDate = async () => (await t.adminGet(`/admin/groups/${t.groupId}`)).body.includes('Opnieuw printen');
+  const print = () => {
+    t.clock.ms += 60_000;
+    t.ctx.repo.updateParticipant(ada.id, { printedAt: t.ctx.nowIso() });
+    t.clock.ms += 60_000;
+  };
+  const form = { name: receiver.name, email: receiver.email, language: 'nl' };
+  print();
+  await t.adminPost(`/admin/participants/${receiver.id}`, form);
+  assert.equal(await outOfDate(), false, 'same name');
+  await t.adminPost(`/admin/participants/${receiver.id}`, { ...form, name: `${receiver.name} de Vries` });
+  assert.equal(await outOfDate(), true, 'new name');
 });

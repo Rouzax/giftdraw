@@ -109,8 +109,8 @@ export function createRepo(db) {
     return Number(result.lastInsertRowid);
   }
 
-  // A printed card shows the theme, the wish form's sections and the
-  // exchange date, time and place, so the update records when any of those
+  // A printed card shows the theme, the wish form's sections and choices
+  // and the exchange date, time and place, so the update records when any of those
   // really changed; the card is then out of date. Saving the same values
   // again leaves the time alone. JSON fields compare by content.
   function changedAt(table, id, fields, cardFields, column, now) {
@@ -127,7 +127,7 @@ export function createRepo(db) {
   const listEvents = () => many('SELECT * FROM events ORDER BY id');
   // theme_changed_at stands for any change to the event's text on the card.
   const updateEvent = (id, fields, now) =>
-    changedAt('events', id, fields, ['themeText', 'formConfig'], 'theme_changed_at', now);
+    changedAt('events', id, fields, ['themeText', 'wishOptions', 'formConfig'], 'theme_changed_at', now);
   const deleteEvent = (id) => db.prepare('DELETE FROM events WHERE id = ?').run(id).changes > 0;
 
   // Groups

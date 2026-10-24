@@ -40,10 +40,12 @@ test('event round trip', () => {
     formConfig: null,
   });
   const options = [{ id: 'book', label: 'A book', detail: null }];
-  repo.updateEvent(eventId, { name: 'Friends', cleanupWeeks: 6, themeText: null, wishOptions: options }, T1);
+  repo.updateEvent(eventId, { name: 'Friends', cleanupWeeks: 6, themeText: null }, T1);
   assert.equal(repo.getEvent(eventId).themeChangedAt, null, 'an unchanged theme keeps no change time');
-  repo.updateEvent(eventId, { themeText: 'Regift' }, T1);
-  assert.equal(repo.getEvent(eventId).themeChangedAt, T1);
+  repo.updateEvent(eventId, { wishOptions: options }, T1);
+  assert.equal(repo.getEvent(eventId).themeChangedAt, T1, 'the choices are on the card');
+  repo.updateEvent(eventId, { themeText: 'Regift' }, T2);
+  assert.equal(repo.getEvent(eventId).themeChangedAt, T2);
   const updated = repo.getEvent(eventId);
   assert.equal(updated.name, 'Friends');
   assert.equal(updated.cleanupWeeks, 6);

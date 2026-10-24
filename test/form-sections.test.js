@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { renderEmail } from '../src/mail/templates.js';
 import { drawFor, saveWishes } from '../src/people.js';
-import { petOptions, SECTION_IDS } from '../src/wishes.js';
+import { DEFAULT_LIKE_IDS, petOptions, SECTION_IDS } from '../src/wishes.js';
 import { t as tr } from '../src/i18n/index.js';
 import { makeTestApp, seedGroup, textOf } from './helpers.js';
 
@@ -254,4 +254,78 @@ test('both choice lists warn that removing or renaming a choice drops what peopl
   const page = await t.adminGet(`/admin/events/${t.eventId}`);
   const warning = tr('nl', 'admin.event.optionsDropHint');
   assert.equal(page.body.split(warning).length - 1, 2);
+});
+
+function unescapeHtml(value) {
+  return value.replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+}
+
+// The event form as the page shows it, so a save is "unchanged" exactly as
+// an organiser pressing Save without typing would send it.
+async function shownEventForm(t) {
+  const page = (await t.adminGet(`/admin/events/${t.eventId}`)).body;
+  const area = (name) => unescapeHtml(new RegExp(`name="${name}"[^>]*>([^<]*)</textarea>`).exec(page)[1]);
+  const language = /<option value="(nl|en)" selected>/.exec(page)[1];
+  return { ...eventForm({ pets: area('petOptions') }), language, wishOptions: area('wishOptions') };
+}
+
+function cardWatch(t) {
+  drawFor(t.ctx, t.ada.id);
+  return {
+    outOfDate: async () => (await t.adminGet(`/admin/groups/${t.group.id}`)).body.includes('Opnieuw printen'),
+    print() {
+      t.clock.ms += 60_000;
+      t.ctx.repo.updateParticipant(t.ada.id, { printedAt: t.ctx.nowIso() });
+      t.clock.ms += 60_000;
+    },
+  };
+}
+
+test('a printed card goes out of date when a like option is renamed or removed', async () => {
+  const t = await setup();
+  const card = cardWatch(t);
+  saveWishes(t.ctx, t.receiver.id, { likes: ['tea'] });
+  card.print();
+  // The shown default list saved as it is changes nothing on the card.
+  await t.adminPost(`/admin/events/${t.eventId}`, await shownEventForm(t));
+  assert.equal(await card.outOfDate(), false, 'default list saved unchanged');
+
+  await t.adminPost(`/admin/events/${t.eventId}`, { ...(await shownEventForm(t)), wishOptions: 'Thee\nZeep' });
+  const zeep = event(t).wishOptions.find((o) => o.label === 'Zeep').id;
+  saveWishes(t.ctx, t.receiver.id, { likes: ['tea', zeep] });
+  card.print();
+  await t.adminPost(`/admin/events/${t.eventId}`, await shownEventForm(t));
+  assert.equal(await card.outOfDate(), false, 'custom list saved unchanged');
+
+  await t.adminPost(`/admin/events/${t.eventId}`, { ...(await shownEventForm(t)), wishOptions: 'Thee\nZeep en badschuim' });
+  assert.equal(await card.outOfDate(), true, 'renamed option');
+  card.print();
+  await t.adminPost(`/admin/events/${t.eventId}`, { ...(await shownEventForm(t)), wishOptions: 'Thee' });
+  assert.equal(await card.outOfDate(), true, 'removed option');
+});
+
+test('a stored copy of the default likes saved unchanged does not mark printed cards', async () => {
+  const t = await setup();
+  const card = cardWatch(t);
+  // Events saved before the default list stayed unstored hold a copy of it.
+  const copy = DEFAULT_LIKE_IDS.map((id) => ({ id, label: tr('nl', `wish.like.${id}`), detail: id === 'chocolate' }));
+  t.db.prepare('UPDATE events SET wish_options = ? WHERE id = ?').run(JSON.stringify(copy), t.eventId);
+  card.print();
+  await t.adminPost(`/admin/events/${t.eventId}`, await shownEventForm(t));
+  assert.equal(await card.outOfDate(), false);
+});
+
+test('switching the event language and saving again unchanged does not mark printed cards', async () => {
+  const t = await setup();
+  const card = cardWatch(t);
+  await t.adminPost(`/admin/events/${t.eventId}`, {
+    ...(await shownEventForm(t)), wishOptions: 'Thee\nZeep', pets: undefined, petOptions: 'Hond\nKat\nVogel?',
+  });
+  await t.adminPost(`/admin/events/${t.eventId}`, { ...(await shownEventForm(t)), language: 'en' });
+  card.print();
+  const shown = await shownEventForm(t);
+  assert.equal(shown.language, 'en');
+  assert.equal(shown.petOptions, 'Dog\nCat\nVogel?');
+  await t.adminPost(`/admin/events/${t.eventId}`, shown);
+  assert.equal(await card.outOfDate(), false);
 });

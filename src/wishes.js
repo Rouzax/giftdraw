@@ -159,6 +159,16 @@ function labelOf(option, lang) {
 
 const sameLabel = (a, b) => a.trim().toLowerCase() === b.trim().toLowerCase();
 
+// Whether two option lists read the same to participants. A built-in id
+// shows its translation whatever label is stored with it, so only typed
+// labels count: the list saved again after the event language changed, or
+// a stored copy of the defaults, is no change.
+export function sameOptions(a, b, kind = 'likes') {
+  const list = LISTS[kind];
+  const key = (o) => JSON.stringify([o.id, Boolean(o.detail), o.question || null, isDefault(list, o.id) ? null : labelOf(o, 'nl')]);
+  return a.length === b.length && a.every((o, i) => key(o) === key(b[i]));
+}
+
 function slugify(label) {
   const slug = label
     .normalize('NFD')
