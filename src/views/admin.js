@@ -215,11 +215,30 @@ function dateOrNo(lang, iso, tz, { noKey = 'admin.status.no', noKind = 'waiting'
   return iso ? status('done', shortDate(lang, iso, tz)) : status(noKind, t(lang, noKey), 'muted');
 }
 
+// Codes from the mail library and the network, grouped by what the
+// organiser can make of them; anything else gets the general reason.
+const FAILURE_REASONS = {
+  ECONNECTION: 'unreachable', ECONNREFUSED: 'unreachable', ECONNRESET: 'unreachable', ESOCKET: 'unreachable',
+  EDNS: 'unreachable', ENOTFOUND: 'unreachable', ETIMEDOUT: 'timeout', EAUTH: 'login', ETLS: 'secure',
+  EENVELOPE: 'address',
+};
+
+function failureReason(code) {
+  if (Object.hasOwn(FAILURE_REASONS, code)) return FAILURE_REASONS[code];
+  const smtp = /^smtp-([45])(\d\d)$/.exec(code ?? '');
+  if (!smtp) return 'other';
+  if (smtp[1] === '4') return 'busy';
+  // 550, 551 and 553 are about the mailbox or the address itself.
+  return ['50', '51', '53'].includes(smtp[2]) ? 'address' : 'refused';
+}
+
+// The code stays beside the reason, small, for whoever runs the mail server.
 function failureText(lang, failure, tz) {
   const kind = t(lang, `admin.mailKind.${failure.kind}`);
+  const reason = t(lang, `admin.failure.reason.${failureReason(failure.errorCode)}`);
   const state = failure.retrying ? t(lang, 'admin.failure.retrying') : t(lang, 'admin.failure.gaveUp', { date: shortDate(lang, failure.at, tz) });
   return status(failure.retrying ? 'warn' : 'failed',
-    html`<span class="state-failed">${kind}: <code>${failure.errorCode}</code></span> <span class="small">${state}</span>`);
+    html`<span class="state-failed">${kind}:</span> ${reason} <span class="small"><code>${failure.errorCode}</code> ${state}</span>`);
 }
 
 // A mail still being retried goes out by itself; only one given up on can be
@@ -260,13 +279,13 @@ function participantRow(lang, row, tz, mailEnabled) {
   return html`<tr>
 <th scope="row"><a href="/admin/participants/${p.id}">${p.name}</a></th>
 ${cell('email', p.email ? emailText(p.email) : status('none', t(lang, 'admin.noEmail'), 'muted'))}
-${cell('invited', inviteCell(lang, row, mailEnabled))}
-${cell('visited', dateOrNo(lang, p.visitedAt, tz), `${label('visited')} ${label('visitedNote')}`)}
+${mailEnabled ? cell('invited', inviteCell(lang, row, mailEnabled)) : ''}
+${cell('visited', dateOrNo(lang, p.visitedAt, tz), mailEnabled ? `${label('visited')} ${label('visitedNote')}` : label('visited'))}
 ${cell('wishes', row.hasWishes ? status('done', t(lang, 'admin.status.yes')) : status('waiting', t(lang, 'admin.status.no'), 'muted'))}
 ${cell('drawn', dateOrNo(lang, p.drawnAt, tz))}
 ${cell('givesTo', receiver ? receiver.name : html`<span class="muted">${t(lang, 'admin.status.unpaired')}</span>`)}
 ${cell('reminder', dateOrNo(lang, row.mail.lastReminderAt, tz, { noKey: 'admin.status.none', noKind: 'none' }))}
-${cell('failure', failureCell(lang, row.mail.lastFailure, tz, p.id, mailEnabled))}
+${mailEnabled ? cell('failure', failureCell(lang, row.mail.lastFailure, tz, p.id, mailEnabled)) : ''}
 ${cell('card', cardCell(lang, row))}
 </tr>`;
 }
@@ -278,9 +297,9 @@ function participantTable(lang, rows, tz, mailEnabled) {
 <div class="table-wrap">
 <table class="people">
 <thead><tr>
-${heading('name')}${heading('email')}${heading('invited')}
-<th scope="col">${t(lang, 'admin.col.visited')} <span class="small">${t(lang, 'admin.col.visitedNote')}</span></th>
-${heading('wishes')}${heading('drawn')}${heading('givesTo')}${heading('reminder')}${heading('failure')}${heading('card')}
+${heading('name')}${heading('email')}${mailEnabled ? heading('invited') : ''}
+<th scope="col">${t(lang, 'admin.col.visited')}${mailEnabled ? html` <span class="small">${t(lang, 'admin.col.visitedNote')}</span>` : ''}</th>
+${heading('wishes')}${heading('drawn')}${heading('givesTo')}${heading('reminder')}${mailEnabled ? heading('failure') : ''}${heading('card')}
 </tr></thead>
 <tbody>
 ${rows.map((row) => participantRow(lang, row, tz, mailEnabled))}
@@ -325,6 +344,9 @@ function groupStatus(lang, group, tz, mailEnabled) {
 // links; once pressed there is nothing left to do here.
 function invitePanelBody(lang, { group, mailEnabled, uninvited }) {
   if (!mailEnabled && group.invitationsSentAt) return html`<p>${t(lang, 'admin.invite.sharedNoMail')}</p>`;
+  // The button stays until it was pressed once, even with nobody to mail:
+  // the draw opens only after that.
+  if (mailEnabled && group.invitationsSentAt && uninvited === 0) return html`<p>${t(lang, 'admin.invite.allInvited')}</p>`;
   return html`<p>${mailEnabled ? t(lang, 'admin.invite.pending', { count: uninvited }) : t(lang, 'admin.invite.mailOff')}</p>
 <form method="post" action="/admin/groups/${group.id}/invite">
 <button type="submit" class="primary with-icon">${iconText('send', t(lang, mailEnabled ? 'admin.invite.button' : 'admin.invite.buttonNoMail'))}</button>
@@ -362,7 +384,7 @@ export const GROUP_DONE = new Set([
   'failed-requeued', 'all-requeued', 'no-failure', 'mail-off', 'already-queued', 'added', 'removed', 'opened',
   'group-created',
 ]);
-export const EVENT_DONE = new Set(['event-created']);
+export const EVENT_DONE = new Set(['event-created', 'saved']);
 
 // Mail still being retried goes out by itself, so only given-up mail counts.
 function resendAllPanel(lang, groupId, count, mailEnabled) {
@@ -780,7 +802,7 @@ ${changeList(lang, changes, mailEnabled)}`;
   const body = html`${back}
 <h1>${title}</h1>
 <section class="panel danger">
-<p>${t(lang, 'admin.remove.intro', { name: participant.name, group: group.name })}</p>
+<p>${t(lang, mailEnabled ? 'admin.remove.intro' : 'admin.remove.introNoMail', { name: participant.name, group: group.name })}</p>
 ${effect}
 <form method="post" action="/admin/participants/${participant.id}/remove" class="button-row">
 <input type="hidden" name="group" value="${group.id}">

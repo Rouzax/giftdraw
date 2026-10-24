@@ -270,15 +270,17 @@ Set it up like this:
 ## Email
 
 Email is optional. Without `SMTP_HOST` the app runs with **email off**:
-nothing is mailed, the dashboard says so, and you share every link
-yourself (copy it, or show or print the participant's QR code or card).
-Everything else works the same.
+nothing is mailed, the dashboard says so and leaves out the mail
+columns, and you share every link yourself (copy it, or show or print the
+participant's QR code or card). Everything else works the same.
 
 With email on, the app sends:
 
 - the invitation with the personal link, when you press "Send
   invitations" (people added later get one when you press it again);
-- "You can draw a name now" when the group opens;
+- "You can draw a name now" when the group opens. Someone invited into a
+  group that is already open, such as a late joiner, gets one invitation
+  that says they can draw straight away, and no separate mail;
 - at most two reminders to fill in wishes and at most two to draw, at
   09:00, spaced a few days apart and never on or after the exchange date.
   They only go out between 09:00 and 20:00 (`TZ`): one that becomes due
@@ -354,7 +356,11 @@ SMTP settings and restart the container; queued mails then go out.
 
 **The dashboard shows a mail failure.**
 The mail server refused the message or could not be reached, and the
-automatic retries ran out. Check the address on the participant's page,
+automatic retries ran out. The column says what went wrong in words
+(the server could not be reached, did not answer in time, refused the
+login, refused the address, ...) with the technical code in small print
+beside it. An invitation that reached the person earlier stays marked as
+sent; only the failed resend shows in the failure column. Check the address on the participant's page,
 then press "Send again" in that column. If every mail fails, check `SMTP_HOST`,
 `SMTP_PORT`, the login, and that the server accepts `SMTP_FROM` as
 sender.

@@ -177,7 +177,7 @@ export function adminSetupRoutes(app, ctx, {
       formConfig: readFormSections(body, event),
     }, ctx.nowIso());
     request.log.info({ event_id: event.id }, 'event_updated');
-    return reply.redirect(`/admin/events/${event.id}`, 303);
+    return reply.redirect(`/admin/events/${event.id}?done=saved`, 303);
   });
 
   app.post('/admin/events/:id/delete', loadEvent, async (request, reply) => {

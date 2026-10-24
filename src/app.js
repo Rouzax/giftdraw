@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import Fastify from 'fastify';
 import cookie from '@fastify/cookie';
 import formbody from '@fastify/formbody';
@@ -109,6 +111,12 @@ export async function buildApp(ctx) {
   // per-request info lines out of the log. A failing query throws into the
   // error handler, so the probe sees a 500.
   app.get('/health', { logLevel: 'warn' }, async () => ({ ok: ctx.repo.ping() }));
+
+  // Browsers fetch /favicon.ico on their own, whatever the page links; the
+  // SVG answers it so that request is no 404 in their consoles.
+  const favicon = readFileSync(join(PUBLIC_DIR, 'favicon.svg'));
+  app.get('/favicon.ico', { logLevel: 'warn' }, async (request, reply) =>
+    reply.type('image/svg+xml').header('Cache-Control', 'public, max-age=86400').send(favicon));
 
   const isParticipantPath = (request) => pathMatches(request, PARTICIPANT_PATH);
   participantRoutes(app, ctx, { sendPage, sendError, isParticipantPath });

@@ -19,6 +19,7 @@ function shell({ lang, title, body, assetVersion, styles, scripts = [] }) {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
 <title>${title} - ${t(lang, 'app.name')}</title>
+<link rel="icon" type="image/svg+xml" href="/static/favicon.svg?v=${assetVersion}">
 ${styles.map((file) => stylesheet(file, assetVersion))}
 ${scripts.map((file) => script(file, assetVersion))}
 </head>

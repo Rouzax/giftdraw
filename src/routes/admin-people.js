@@ -145,10 +145,12 @@ export function adminPeopleRoutes(app, ctx, {
     };
   }
 
-  function behalfFrame(request, participant) {
+  // noteKey: the bar's sentence, which differs between filling in for
+  // someone and drawing with them.
+  function behalfFrame(request, participant, noteKey = 'admin.behalf.bar') {
     const lang = adminLang(request);
     return {
-      note: t(lang, 'admin.behalf.bar', { name: participant.name }),
+      note: t(lang, noteKey, { name: participant.name }),
       back: { href: `/admin/participants/${participant.id}`, label: t(lang, 'admin.behalf.back', { name: participant.name }) },
     };
   }
@@ -188,7 +190,7 @@ export function adminPeopleRoutes(app, ctx, {
     if (firstTime) request.log.info({ participant_id: participant.id }, 'participant_drawn_on_behalf');
     const editText = t(adminLang(request), 'admin.behalf.editWishes', { name: participant.name });
     const view = resultView({ ...data, receiver, reveal: firstTime, editText });
-    return renderBehalf(request, reply, participant, view, behalfFrame(request, participant));
+    return renderBehalf(request, reply, participant, view, behalfFrame(request, participant, 'admin.behalf.barDraw'));
   });
 
   function cardReceiver(participant) {

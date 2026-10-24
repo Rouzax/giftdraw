@@ -56,6 +56,25 @@ test('static files are immutable and linked with the asset version', async () =>
   assert.match(res.headers['cache-control'], /max-age=31536000/);
 });
 
+// Browsers ask for /favicon.ico by themselves; a 404 there is a console
+// error on every first visit.
+test('every page links the favicon, and /favicon.ico answers with it too', async () => {
+  const { app, ctx, token, adminGet } = await setup();
+  const href = `/static/favicon.svg?v=${ctx.config.assetVersion}`;
+  for (const res of [await app.inject(`/p/${token}`), await app.inject('/nope'), await adminGet('/admin/login'), await adminGet('/admin')]) {
+    assert.ok(res.body.includes(`<link rel="icon" type="image/svg+xml" href="${href}">`));
+  }
+  const icon = await app.inject(href);
+  assert.equal(icon.statusCode, 200);
+  assert.match(icon.headers['content-type'], /^image\/svg\+xml/);
+  assert.match(icon.body, /^<svg /);
+  const ico = await app.inject('/favicon.ico');
+  assert.equal(ico.statusCode, 200);
+  assert.match(ico.headers['content-type'], /^image\/svg\+xml/);
+  assert.equal(ico.body, icon.body);
+  assertSecurityHeaders(ico);
+});
+
 test('POST from another origin is refused with an HTML page', async () => {
   const { post, token, people, ctx } = await setup();
   const res = await post(`/p/${token}/lang`, { lang: 'en' }, { origin: 'https://evil.example' });

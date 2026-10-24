@@ -2,7 +2,7 @@
 
 ## Lucide
 
-The icons in `src/icons.js` are copied from the npm package `lucide-static` 1.61.0 (https://lucide.dev). Its license, copied verbatim from that package:
+The icons in `src/icons.js` and the favicon `public/favicon.svg` (the gift icon) are copied from the npm package `lucide-static` 1.61.0 (https://lucide.dev). Its license, copied verbatim from that package:
 
 ```text
 ISC License

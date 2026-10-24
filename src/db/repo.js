@@ -338,6 +338,13 @@ export function createRepo(db) {
                 AND NOT (status IN ('failed', 'gaveup') AND ifnull(error_code, '') IN (${SKIP_LIST}))
                 ORDER BY id DESC LIMIT 1`)
       .get(participantId);
+    // Once an invitation has reached the person, a later resend that fails
+    // does not undo that; the failure shows in the failure column only.
+    const delivered = db
+      .prepare(`SELECT 1 FROM outbox WHERE participant_id = ? AND kind = 'invite' AND status = 'sent' LIMIT 1`)
+      .get(participantId) !== undefined;
+    let inviteNow = inviteState(invite);
+    if (delivered && (inviteNow === 'failed' || inviteNow === 'retrying')) inviteNow = 'sent';
     return {
       lastReminderAt: reminder.at,
       lastFailure: failure
@@ -349,7 +356,7 @@ export function createRepo(db) {
         }
         : null,
       pendingCount: pending.n,
-      invite: inviteState(invite),
+      invite: inviteNow,
     };
   }
 
