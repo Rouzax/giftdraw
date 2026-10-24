@@ -80,6 +80,9 @@ h1 {
 }
 
 .about fieldset {
+  /* A fieldset is at least as wide as its widest word by default; an
+     organiser's long option word must wrap instead of widening the page. */
+  min-inline-size: 0;
   margin: 1.5rem 0;
   padding: 0;
   border: 0;
@@ -90,6 +93,7 @@ h1 {
   display: block;
   margin: 1.5rem 0 0.5rem;
   font-weight: 700;
+  overflow-wrap: anywhere;
 }
 
 .about legend {
@@ -135,6 +139,7 @@ h1 {
   min-height: 3rem;
   padding: 0.25rem 0;
   cursor: pointer;
+  overflow-wrap: anywhere;
 }
 
 .check input {
@@ -300,6 +305,7 @@ h1 {
 .wishes dt {
   display: inline;
   font-weight: 700;
+  overflow-wrap: anywhere;
 }
 
 .wishes dt::after {

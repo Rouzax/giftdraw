@@ -101,6 +101,18 @@ test('wishes-updated lists the receiver\'s current wishes', () => {
   }
 });
 
+// A pasted shop link in a wish is one long word; on a phone it must wrap
+// rather than widen the mail past the screen.
+test('every text cell of a mail may break a long word', () => {
+  const receiver = { ...ben, wishes: { ...ben.wishes, other: `https://shop.example.com/${'p'.repeat(120)}` } };
+  for (const kind of KINDS) {
+    const { html } = render(kind, 'nl', { receiver });
+    for (const [, style] of html.matchAll(/<(?:p|td)[^>]* style="([^"]*font-size[^"]*)"/g)) {
+      assert.match(style, /overflow-wrap:anywhere/, `${kind}: ${style.slice(0, 60)}`);
+    }
+  }
+});
+
 test('an unknown kind throws', () => {
   assert.throws(() => render('nope', 'nl'), /unknown email kind/);
 });

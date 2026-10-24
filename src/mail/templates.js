@@ -30,7 +30,10 @@ const C = {
   line: '#d9c7b4',
   theme: '#fff3d6',
 };
-const FONT = 'font-family:system-ui,-apple-system,\'Segoe UI\',Roboto,\'Helvetica Neue\',Arial,sans-serif;';
+const FONT = 'font-family:system-ui,-apple-system,\'Segoe UI\',Roboto,\'Helvetica Neue\',Arial,sans-serif;'
+  // A long word, such as a shop link pasted into a wish or a name without
+  // spaces, wraps instead of widening the mail past a phone screen.
+  + 'overflow-wrap:anywhere;word-break:break-word;';
 const TEXT = `${FONT}font-size:20px;line-height:1.5;color:${C.ink};`;
 
 const colon = (label) => (endsInMark(label) ? label : `${label}:`);
@@ -88,7 +91,7 @@ export function renderEmail(kind, { lang, participant, receiver, event, group, l
       <a href="${link}" style="display:block;padding:18px 16px;${FONT}font-size:24px;font-weight:bold;line-height:1.3;color:#ffffff;text-decoration:none;">${button}</a>
     </td></tr>
   </table>
-  <p style="${TEXT}margin:0 0 16px;font-weight:bold;overflow-wrap:anywhere;word-break:break-word;">${date}</p>
+  <p style="${TEXT}margin:0 0 16px;font-weight:bold;">${date}</p>
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;">
     <tr><td style="background-color:${C.theme};border-radius:10px;padding:16px 18px;${FONT}font-size:19px;line-height:1.5;color:${C.ink};">${theme}</td></tr>
   </table>
