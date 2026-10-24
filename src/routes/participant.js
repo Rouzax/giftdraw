@@ -1,7 +1,7 @@
 import { isLang } from '../i18n/index.js';
 import { createLimiter } from '../limiter.js';
 import { drawFor, mailOn, saveWishes } from '../people.js';
-import { hasWishes } from '../wishes.js';
+import { hasWishes, wishForm } from '../wishes.js';
 import { participantScreen } from '../status.js';
 import { participantPage } from '../views/layout.js';
 import { aboutFormView, drawView, resultView, waitingView, welcomeView } from '../views/participant.js';
@@ -81,7 +81,7 @@ export function participantRoutes(app, ctx, { sendPage, sendError, isParticipant
       return render(reply, data.lang, resultView({ ...data, receiver, reveal: true }));
     }
     const screen = participantScreen({
-      hasWishes: hasWishes(participant.wishes),
+      hasWishes: hasWishes(participant.wishes, wishForm(data.event)),
       groupOpen: Boolean(data.group.openedAt),
       drawn: Boolean(participant.drawnAt),
     });

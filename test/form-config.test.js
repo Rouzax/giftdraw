@@ -170,3 +170,43 @@ test('a heading that ends in a question mark or other mark gets no extra colon',
     assert.ok(String(view.body).includes('<dt class="ends-in-mark">Waar word je blij van?</dt>'));
   }
 });
+
+test('a section the posted form did not show keeps its stored answer, even if it is shown now', () => {
+  const previous = parseWishesForm({ hobbies: 'tuinieren', likes: 'tea', avoid: 'noten' }, plain);
+  // Loaded while hobbies was hidden, saved after the organiser showed it again.
+  const saved = parseWishesForm({ sections: 'likes pets avoid other', likes: 'wine' }, plain, previous);
+  assert.equal(saved.hobbies, 'tuinieren');
+  assert.deepEqual(saved.likes, ['wine']);
+  assert.equal(saved.avoid, '', 'a listed section takes its posted value, empty included');
+  // Loaded with everything, saved after the organiser hid hobbies.
+  const hidden = withConfig({ sections: { hobbies: { show: false } } });
+  const kept = parseWishesForm({ sections: SECTION_IDS.join(' '), hobbies: '' }, hidden, previous);
+  assert.equal(kept.hobbies, 'tuinieren');
+  // A form that showed nothing changes nothing.
+  assert.deepEqual(parseWishesForm({ sections: '' }, plain, previous), previous);
+});
+
+test('a post without the section list takes every section shown now', () => {
+  const previous = parseWishesForm({ hobbies: 'tuinieren' }, plain);
+  assert.equal(parseWishesForm({ likes: 'tea' }, plain, previous).hobbies, '');
+});
+
+test('hasWishes counts only answers in shown sections', async () => {
+  const { hasWishes } = await import('../src/wishes.js');
+  const wishes = parseWishesForm({ hobbies: 'tuinieren', pets: 'dog' }, plain);
+  assert.equal(hasWishes(wishes), true);
+  assert.equal(hasWishes(wishes, plain), true);
+  assert.equal(hasWishes(wishes, withConfig({ sections: { hobbies: { show: false }, pets: { show: false } } })), false);
+  assert.equal(hasWishes(wishes, withConfig({ sections: { hobbies: { show: false } } })), true);
+});
+
+test('no wish reminder when no section is shown, and one when only hidden sections are filled in', async () => {
+  const { reminderKind } = await import('../src/reminders.js');
+  const person = { wishes: parseWishesForm({ hobbies: 'tuinieren' }, plain), drawnAt: null };
+  const closed = { openedAt: null };
+  const allHidden = withConfig({ sections: Object.fromEntries(SECTION_IDS.map((id) => [id, { show: false }])) });
+  assert.equal(reminderKind({ ...person, wishes: null }, closed, allHidden), null);
+  assert.equal(reminderKind(person, closed, withConfig({ sections: { hobbies: { show: false } } })), 'remind-wishes');
+  assert.equal(reminderKind(person, closed, plain), null);
+  assert.equal(reminderKind(person, { openedAt: '2026-11-20T15:00:00.000Z' }, allHidden), 'remind-draw');
+});

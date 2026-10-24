@@ -37,10 +37,13 @@ admin header.
    typed heading (one line, at most 80 characters) is shown as typed to
    everyone. A hidden part disappears from the form, the result page, the
    wishes mail and the printed card, but answers already given are kept and
-   come back when you show the part again. The pet choices work like the
-   "I like..." choices; empty gives Dog, Cat and Other (which asks
-   "Which animal?"). Changing the parts, headings or pet choices marks
-   printed cards as out of date.
+   come back when you show the part again. Answers that sit only in hidden
+   parts count as not filled in on the dashboard, and with every part
+   hidden no wish reminders are sent. The pet choices work like the "I
+   like..." choices; empty gives Dog, Cat and Other (which asks "Which
+   animal?"). In both lists, removing or renaming a choice drops what
+   participants had ticked for it. Changing the parts, headings or pet
+   choices marks printed cards as out of date.
 2. **Create a group** per class or team, with the date the presents are
    exchanged and, if you like, a date on which drawing opens by itself
    (at 09:00). You can also give the time and the place of the exchange,

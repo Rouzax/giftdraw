@@ -8,6 +8,7 @@ import {
 import { reminderKind } from '../reminders.js';
 import { cardOutOfDate } from '../status.js';
 import { newToken } from '../tokens.js';
+import { wishForm } from '../wishes.js';
 import { cardTools, messageView, PERSON_DONE, participantView, removeView } from '../views/admin.js';
 import { aboutFormView, cardView, resultView } from '../views/participant.js';
 import { adminLang } from './admin-auth.js';
@@ -33,15 +34,16 @@ export function adminPeopleRoutes(app, ctx, { render, renderBehalf, renderPrint,
 
   function personPage(lang, participant, extra = {}) {
     const group = repo.getGroup(participant.groupId);
+    const event = repo.getEvent(group.eventId);
     const receiver = receiverOf(participant);
     return participantView(lang, {
       participant,
       group,
       receiver,
-      cardOutOfDate: cardOutOfDate(participant, receiver, group, repo.getEvent(group.eventId)),
+      cardOutOfDate: cardOutOfDate(participant, receiver, group, event),
       mail: repo.mailStatus(participant.id),
       link: personalLink(participant),
-      remindKind: reminderKind(participant, group),
+      remindKind: reminderKind(participant, group, wishForm(event)),
       mailEnabled: ctx.mailer.enabled,
       tz: config.tz,
       ...extra,

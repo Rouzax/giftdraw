@@ -1,5 +1,5 @@
 import { addDays, instantAt, localParts } from './time.js';
-import { hasWishes } from './wishes.js';
+import { hasWishes, wishForm } from './wishes.js';
 
 // Reminders go out in the morning, never in the middle of the night.
 const SEND_AT = '09:00';
@@ -8,9 +8,12 @@ const MAX_PER_KIND = 2;
 const WISHES_SPACING_DAYS = 4;
 const DRAW_SPACING_DAYS = 3;
 
-export function reminderKind(participant, group) {
+// form is the event's wishForm. With no section shown there is nothing to
+// ask for, and answers in hidden sections do not count as given.
+export function reminderKind(participant, group, form = wishForm({})) {
   if (group.openedAt) return participant.drawnAt ? null : 'remind-draw';
-  return hasWishes(participant.wishes) ? null : 'remind-wishes';
+  if (!form.sections.some((section) => section.show)) return null;
+  return hasWishes(participant.wishes, form) ? null : 'remind-wishes';
 }
 
 function morningAfter(iso, days, tz) {
@@ -24,9 +27,9 @@ function spacedAfter(iso, days) {
   return new Date(Date.parse(iso) + days * DAY_MS);
 }
 
-export function dueReminder({ participant, group, history, now, tz }) {
+export function dueReminder({ participant, group, form, history, now, tz }) {
   if (!participant.email || !participant.invitedAt) return null;
-  const kind = reminderKind(participant, group);
+  const kind = reminderKind(participant, group, form);
   if (!kind || history.count >= MAX_PER_KIND) return null;
   // Nothing is sent from the exchange date on.
   if (now >= instantAt(group.exchangeDate, '00:00', tz)) return null;

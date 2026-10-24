@@ -131,6 +131,7 @@ export default {
   'admin.event.heading': 'Kopje',
   'admin.event.petOptions': 'Keuzes bij "Huisdieren"',
   'admin.event.petOptionsHint': 'Eén keuze per regel, net als bij "Ik houd van...", bijvoorbeeld "Vogel? Welke soort?". Laat je het leeg, dan krijg je de standaardlijst.',
+  'admin.event.optionsDropHint': 'Haal je een keuze weg of geef je die een andere naam, dan vervalt wat deelnemers daarbij hadden aangevinkt.',
   'admin.event.delete': 'Evenement verwijderen',
   'admin.event.deleteWarning': 'Dit wist het evenement met alle groepen, deelnemers en wensen. Dat kan niet ongedaan worden.',
   'admin.event.error.name': 'Vul een naam in.',

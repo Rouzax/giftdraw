@@ -130,6 +130,7 @@ export default {
   'admin.event.heading': 'Heading',
   'admin.event.petOptions': 'Choices under "Pets"',
   'admin.event.petOptionsHint': 'One choice per line, as under "I like...", for example "Bird? What kind?". Leave it empty for the default list.',
+  'admin.event.optionsDropHint': 'Removing or renaming a choice drops what participants had ticked for it.',
   'admin.event.delete': 'Delete event',
   'admin.event.deleteWarning': 'This erases the event with all its groups, participants and wishes. It cannot be undone.',
   'admin.event.error.name': 'Please enter a name.',

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { renderEmail } from '../src/mail/templates.js';
 import { drawFor, saveWishes } from '../src/people.js';
 import { petOptions, SECTION_IDS } from '../src/wishes.js';
+import { t as tr } from '../src/i18n/index.js';
 import { makeTestApp, seedGroup, textOf } from './helpers.js';
 
 const T0 = Date.parse('2026-11-01T10:00:00.000Z');
@@ -172,4 +173,85 @@ test('a printed card goes out of date when the form changes, not on an unchanged
     await t.adminPost(`/admin/events/${t.eventId}`, eventForm(change));
     assert.equal(await outOfDate(), false, `same again: ${JSON.stringify(change)}`);
   }
+});
+
+const sectionsPosted = (body) => /name="sections" value="([^"]*)"/.exec(body)?.[1];
+
+for (const [who, formUrl, postUrl, send] of [
+  ['participant', (t) => `/p/${t.ada.token}/about`, (t) => `/p/${t.ada.token}/about`, (t) => t.post],
+  ['on behalf', (t) => `/admin/participants/${t.ada.id}/about`, (t) => `/admin/participants/${t.ada.id}/about`, (t) => t.adminPost],
+]) {
+  test(`${who}: a section shown after the form was loaded keeps its hidden answer`, async () => {
+    const t = await setup();
+    saveWishes(t.ctx, t.ada.id, { hobbies: 'tuinieren', likes: 'tea' });
+    await t.adminPost(`/admin/events/${t.eventId}`, eventForm({ hidden: ['hobbies'] }));
+    const form = await t.adminGet(formUrl(t));
+    const sections = sectionsPosted(form.body);
+    assert.equal(sections, 'likes pets avoid other');
+    await t.adminPost(`/admin/events/${t.eventId}`, eventForm());
+    const res = await send(t)(postUrl(t), { sections, likes: 'wine' });
+    assert.equal(res.statusCode, 303);
+    const wishes = t.ctx.repo.getParticipant(t.ada.id).wishes;
+    assert.equal(wishes.hobbies, 'tuinieren');
+    assert.deepEqual(wishes.likes, ['wine']);
+  });
+
+  test(`${who}: a section hidden after the form was loaded keeps its answer`, async () => {
+    const t = await setup();
+    saveWishes(t.ctx, t.ada.id, { hobbies: 'tuinieren', pets: 'other', pets_other: 'konijn' });
+    const form = await t.adminGet(formUrl(t));
+    const sections = sectionsPosted(form.body);
+    assert.equal(sections, SECTION_IDS.join(' '));
+    await t.adminPost(`/admin/events/${t.eventId}`, eventForm({ hidden: ['hobbies', 'pets'] }));
+    await send(t)(postUrl(t), { sections, hobbies: '', avoid: 'noten' });
+    const wishes = t.ctx.repo.getParticipant(t.ada.id).wishes;
+    assert.equal(wishes.hobbies, 'tuinieren');
+    assert.deepEqual(wishes.pets, ['other']);
+    assert.equal(wishes.petsOther, 'konijn');
+    assert.equal(wishes.avoid, 'noten');
+  });
+}
+
+test('on behalf: saving with a hidden section keeps that answer', async () => {
+  const t = await setup();
+  saveWishes(t.ctx, t.ada.id, { hobbies: 'tuinieren' });
+  await t.adminPost(`/admin/events/${t.eventId}`, eventForm({ hidden: ['hobbies'] }));
+  await t.adminPost(`/admin/participants/${t.ada.id}/about`, { likes: 'tea' });
+  assert.equal(t.ctx.repo.getParticipant(t.ada.id).wishes.hobbies, 'tuinieren');
+});
+
+test('an unchanged save with a hidden pets section holding details does not notify the giver', async () => {
+  const t = await setup();
+  const bird = await configure(t);
+  const giver = t.people.find((p) => p.receiverId === t.ada.id);
+  drawFor(t.ctx, giver.id);
+  saveWishes(t.ctx, t.ada.id, { likes: 'tea', pets: ['other'], pets_other: 'konijn', [`pet_detail_${bird}`]: 'parkiet' });
+  t.ctx.repo.updateParticipant(t.ada.id, { notifyGiverDueAt: null });
+  const pets = event(t).formConfig.petOptions.map((o) => (o.question ? `${o.label}? ${o.question}` : o.detail ? `${o.label}?` : o.label)).join('\n');
+  await t.adminPost(`/admin/events/${t.eventId}`, eventForm({ hidden: ['hobbies', 'pets'], headings: { likes: 'Lekker en leuk' }, pets }));
+  const form = await t.app.inject({ method: 'GET', url: `/p/${t.ada.token}/about` });
+  await t.post(`/p/${t.ada.token}/about`, { sections: sectionsPosted(form.body), likes: 'tea' });
+  const after = t.ctx.repo.getParticipant(t.ada.id);
+  assert.equal(after.notifyGiverDueAt, null);
+  assert.deepEqual(after.wishes.petDetails, { [bird]: 'parkiet' });
+});
+
+test('answers only in hidden sections count as nothing filled in', async () => {
+  const t = await setup();
+  saveWishes(t.ctx, t.receiver.id, { hobbies: 'tuinieren' });
+  saveWishes(t.ctx, t.ada.id, { hobbies: 'lezen' });
+  await t.adminPost(`/admin/events/${t.eventId}`, eventForm({ hidden: ['hobbies'] }));
+  drawFor(t.ctx, t.ada.id);
+  const result = await t.app.inject({ method: 'GET', url: `/p/${t.ada.token}` });
+  assert.ok(textOf(result.body).includes(tr('nl', 'result.noWishes', { name: t.receiver.name })));
+  assert.ok(textOf(result.body).includes(tr('nl', 'result.fillIn')), 'the drawer is asked to fill in, not to change');
+  const dashboard = await t.adminGet(`/admin/groups/${t.group.id}`);
+  assert.ok(textOf(dashboard.body).includes(tr('nl', 'admin.summary.wishes', { count: 0, total: 3 })));
+});
+
+test('both choice lists warn that removing or renaming a choice drops what people ticked', async () => {
+  const t = await setup();
+  const page = await t.adminGet(`/admin/events/${t.eventId}`);
+  const warning = tr('nl', 'admin.event.optionsDropHint');
+  assert.equal(page.body.split(warning).length - 1, 2);
 });

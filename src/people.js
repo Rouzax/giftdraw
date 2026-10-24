@@ -364,7 +364,8 @@ export function remindNow(ctx, participantId) {
     if (!participant.email) return 'no-email';
     // A reminder before the invitation would be the first mail they get.
     if (!participant.invitedAt) return 'not-invited';
-    const kind = reminderKind(participant, repo.getGroup(participant.groupId));
+    const group = repo.getGroup(participant.groupId);
+    const kind = reminderKind(participant, group, wishForm(repo.getEvent(group.eventId)));
     if (!kind) return 'nothing-to-remind';
     if (repo.hasQueuedMail(participantId, kind)) return 'already-queued';
     enqueueMail(ctx, participantId, kind, ctx.nowIso(), { manual: true });

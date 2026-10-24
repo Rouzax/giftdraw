@@ -249,10 +249,20 @@ function parseList(b, options, idsField, detailField) {
   return { ids, details };
 }
 
-// A hidden section is not on the form, so its stored answer is carried over
-// from `previous` instead of being emptied by the save.
+// The about form posts the sections it showed. A section's answer is taken
+// from the post only if it is shown now and was on that form: a form loaded
+// before the organiser showed or hid a section would otherwise store an
+// empty answer over the kept one. A post without the list comes from a form
+// rendered before it existed, which showed every section shown now.
+function postedSections(b) {
+  const value = field(b, 'sections');
+  if (typeof value !== 'string') return null;
+  return new Set(value.split(/\s+/).filter((id) => SECTION_IDS.includes(id)));
+}
+
 export function parseWishesForm(body, form, previous = null) {
   const b = body ?? {};
+  const posted = postedSections(b);
   const likes = parseList(b, form.likes, 'likes', (id) => `detail_${id}`);
   const pets = parseList(b, form.pets, 'pets', petDetailField);
   const { other: petsOther = '', ...petDetails } = pets.details;
@@ -268,7 +278,7 @@ export function parseWishesForm(body, form, previous = null) {
     other: text(field(b, 'other')),
   };
   for (const section of form.sections) {
-    if (section.show) continue;
+    if (section.show && (!posted || posted.has(section.id))) continue;
     for (const name of SECTION_FIELDS[section.id]) {
       if (previous && Object.hasOwn(previous, name)) wishes[name] = previous[name];
       else if (name === 'petDetails') delete wishes[name];
@@ -277,10 +287,15 @@ export function parseWishesForm(body, form, previous = null) {
   return wishes;
 }
 
-export function hasWishes(wishes) {
+const filled = (value) => (Array.isArray(value) ? value.length > 0
+  : value && typeof value === 'object' ? Object.keys(value).length > 0 : Boolean(value));
+
+// Answers kept in hidden sections are not shown to anyone, so they do not
+// count as filled in; without a form every section counts.
+export function hasWishes(wishes, form = null) {
   if (!wishes) return false;
-  if (wishes.hobbies || wishes.petsOther || wishes.avoid || wishes.other) return true;
-  return (wishes.likes?.length ?? 0) > 0 || (wishes.pets?.length ?? 0) > 0;
+  const shown = form ? form.sections.filter((s) => s.show).map((s) => s.id) : SECTION_IDS;
+  return shown.some((id) => SECTION_FIELDS[id].some((name) => filled(wishes[name])));
 }
 
 // `own` gives the text that stands in for an option, if any: the other-pet

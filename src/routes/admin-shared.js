@@ -1,5 +1,5 @@
 import { cardOutOfDate, groupWarnings } from '../status.js';
-import { hasWishes } from '../wishes.js';
+import { hasWishes, wishForm } from '../wishes.js';
 import { adminLang } from './admin-auth.js';
 import { behalfPage, printPage, renderAdminPage } from '../views/layout.js';
 import { groupView } from '../views/admin.js';
@@ -61,12 +61,13 @@ export function adminShared(ctx, { sendPage, sendError }) {
     const event = repo.getEvent(group.eventId);
     const people = repo.listParticipants(group.id);
     const byId = new Map(people.map((p) => [p.id, p]));
+    const form = wishForm(event);
     const rows = people.map((participant) => {
       const receiver = participant.receiverId ? byId.get(participant.receiverId) ?? null : null;
       return {
         participant,
         receiver,
-        hasWishes: hasWishes(participant.wishes),
+        hasWishes: hasWishes(participant.wishes, form),
         mail: repo.mailStatus(participant.id),
         cardOutOfDate: cardOutOfDate(participant, receiver, group, event),
       };

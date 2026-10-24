@@ -1,4 +1,5 @@
 import { reminderKind } from '../reminders.js';
+import { wishForm } from '../wishes.js';
 import { SKIP_CODES } from './skip-codes.js';
 import { RECEIVER_KINDS, renderEmail } from './templates.js';
 
@@ -37,7 +38,7 @@ function prepare(ctx, row) {
   if (!event) throw new Skip('no-group');
   // A reminder waits in the queue for a retry or a busy drain; by then the
   // wishes may be in, the draw open or done, and it would ask the wrong thing.
-  if (REMINDER_KINDS.has(row.kind) && reminderKind(participant, group) !== row.kind) throw new Skip('stale-reminder');
+  if (REMINDER_KINDS.has(row.kind) && reminderKind(participant, group, wishForm(event)) !== row.kind) throw new Skip('stale-reminder');
   // Only receiver kinds load the receiver, so a failing lookup of someone
   // else's row cannot take down a mail that never uses it.
   let receiver = null;

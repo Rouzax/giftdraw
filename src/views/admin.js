@@ -109,7 +109,7 @@ function formSectionsBlock(lang, sections, petsValue) {
     const builtIn = t(lang, `wish.${id}`);
     const pets = id === 'pets'
       ? html`<label for="event-pets">${t(lang, 'admin.event.petOptions')}</label>
-<p class="hint" id="event-pets-hint">${t(lang, 'admin.event.petOptionsHint')}</p>
+<p class="hint" id="event-pets-hint">${t(lang, 'admin.event.petOptionsHint')} ${t(lang, 'admin.event.optionsDropHint')}</p>
 <textarea id="event-pets" name="petOptions" rows="4" maxlength="${OPTIONS_MAX}" aria-describedby="event-pets-hint">${petsValue}</textarea>`
       : '';
     return html`<div class="form-section">
@@ -168,7 +168,7 @@ ${languageSelect('event-language', event.language)}
 <p class="hint" id="event-theme-hint">${t(lang, 'admin.event.themeHint')}</p>
 <textarea id="event-theme" name="themeText" rows="7" maxlength="${THEME_MAX}" aria-describedby="event-theme-hint">${themeValue}</textarea>
 <label for="event-options">${t(lang, 'admin.event.options')}</label>
-<p class="hint" id="event-options-hint">${t(lang, 'admin.event.optionsHint')}</p>
+<p class="hint" id="event-options-hint">${t(lang, 'admin.event.optionsHint')} ${t(lang, 'admin.event.optionsDropHint')}</p>
 <textarea id="event-options" name="wishOptions" rows="9" maxlength="${OPTIONS_MAX}" aria-describedby="event-options-hint">${optionsValue}</textarea>
 ${formSectionsBlock(lang, sections, petsValue)}
 <button type="submit" class="primary">${t(lang, 'admin.save')}</button>

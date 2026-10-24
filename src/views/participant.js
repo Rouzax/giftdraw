@@ -118,14 +118,14 @@ ${tickList(form.pets, 'pets', 'pet', new Set(w.pets ?? []), lang,
     avoid: (heading) => textArea('avoid', heading, w.avoid),
     other: (heading) => textArea('other', heading, w.other),
   };
-  const sections = form.sections
-    .filter((section) => section.show)
-    .map((section) => fields[section.id](sectionHeading(section, lang)));
+  const shown = form.sections.filter((section) => section.show);
+  const sections = shown.map((section) => fields[section.id](sectionHeading(section, lang)));
 
   const body = html`<h1>${t(lang, 'about.title')}</h1>
 <p class="lead">${t(lang, 'about.intro')}</p>
 ${themeBlock({ event, group, lang, tz })}
 <form class="about" method="post" action="${formAction}">
+<input type="hidden" name="sections" value="${shown.map((section) => section.id).join(' ')}">
 ${sections}
 <button type="submit" class="button">${t(lang, 'about.save')}</button>
 </form>
@@ -186,7 +186,7 @@ export function resultView({
   participant, receiver, event, group, lang, tz, reveal, editHref, editText = null, langAction, showLangSwitch,
 }) {
   // Someone who draws before filling in anything is asked to, not told to "change" nothing.
-  const ownText = t(lang, hasWishes(participant?.wishes) ? 'result.edit' : 'result.fillIn');
+  const ownText = t(lang, hasWishes(participant?.wishes, wishForm(event)) ? 'result.edit' : 'result.fillIn');
   const heading = givesTo(lang, receiver.name, reveal);
   const top = reveal
     ? html`<div class="reveal" data-reveal>

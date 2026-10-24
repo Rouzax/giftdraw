@@ -4,6 +4,7 @@ import { drainOutbox, errorCode } from './mail/outbox.js';
 import { enqueueMail, mailOn } from './people.js';
 import { dueReminder, reminderKind } from './reminders.js';
 import { instantAt, todayIn } from './time.js';
+import { wishForm } from './wishes.js';
 
 const AUTO_OPEN_AT = '09:00';
 const STALE_SENDING_MS = 10 * 60_000;
@@ -38,14 +39,17 @@ function reminders(ctx, now) {
   const { repo, config } = ctx;
   if (!mailOn(ctx)) return 0;
   const groups = new Map();
+  const forms = new Map();
   return eachRow(ctx, 'reminders', repo.listAllParticipants(), 'participant_id', (participant) => {
     if (!groups.has(participant.groupId)) groups.set(participant.groupId, repo.getGroup(participant.groupId));
     const group = groups.get(participant.groupId);
     if (!group) return false;
-    const kind = reminderKind(participant, group);
+    if (!forms.has(group.eventId)) forms.set(group.eventId, wishForm(repo.getEvent(group.eventId) ?? {}));
+    const form = forms.get(group.eventId);
+    const kind = reminderKind(participant, group, form);
     if (!kind) return false;
     const history = repo.reminderHistory(participant.id, kind);
-    const due = dueReminder({ participant, group, history, now, tz: config.tz });
+    const due = dueReminder({ participant, group, form, history, now, tz: config.tz });
     return due ? enqueueMail(ctx, participant.id, due, now.toISOString()) : false;
   });
 }
