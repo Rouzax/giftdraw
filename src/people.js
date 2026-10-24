@@ -1,5 +1,6 @@
 import { domainToASCII } from 'node:url';
 import { chooseInsertGiver, insertIntoCycle, makeCycle, planRemoval, validateAssignment } from './draw/cycle.js';
+import { NAME_MAX } from './limits.js';
 import { kickDrain } from './mail/outbox.js';
 import { reminderKind } from './reminders.js';
 import { assignmentVersion } from './status.js';
@@ -7,7 +8,6 @@ import { clipText, unixLines } from './text.js';
 import { hasWishes, parseWishesForm, wishForm } from './wishes.js';
 
 const MIN_GROUP = 3;
-const NAME_MAX = 100;
 const EMAIL_MAX = 254;
 const WISH_UPDATE_DELAY_MS = 15 * 60_000;
 export const PASTE_ROWS_MAX = 500;

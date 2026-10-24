@@ -1,0 +1,196 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rouzax.github.io/giftdraw/import/event.schema.json",
+  "title": "Gift Draw event file",
+  "description": "One event to create in Gift Draw (Lootjes trekken): its settings, its groups and their participants. Importing always creates a new event. The file holds no pairs and no links; the app makes those on import. Importing sends no email. Lengths are counted as the app's form fields count them, in UTF-16 code units: most emoji count as two characters, so text full of emoji can be refused below a maxLength given here.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "event", "groups"],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Optional link to this schema."
+    },
+    "version": {
+      "const": 1,
+      "description": "The file format version. Always 1."
+    },
+    "event": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100,
+          "description": "The event's name, for the organiser, such as \"Christmas 2026\"."
+        },
+        "language": {
+          "enum": ["nl", "en"],
+          "default": "nl",
+          "description": "The language participants start in: nl (Dutch) or en (English). Each participant can switch."
+        },
+        "cleanupWeeks": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 52,
+          "default": 4,
+          "description": "Weeks after a group's exchange date after which that group and all its data are erased."
+        },
+        "theme": {
+          "type": "string",
+          "maxLength": 2000,
+          "description": "The text participants read at the top of their page, such as the rules of the exchange. Line breaks are kept. Leave it out for the app's standard text."
+        },
+        "wishOptions": {
+          "$ref": "#/$defs/options",
+          "description": "The choices participants can tick under \"I like...\", in order. Leave it out for the standard list. A label that matches a standard choice (such as Thee/Tea) is shown translated in each participant's language; other labels are shown as written."
+        },
+        "sections": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "The parts of the wish form participants fill in. Every part is shown with its usual heading unless set otherwise here. Leave out any part you do not change.",
+          "properties": {
+            "hobbies": { "$ref": "#/$defs/section", "description": "Hobbies (free text)." },
+            "likes": { "$ref": "#/$defs/section", "description": "I like... (the wishOptions tick list)." },
+            "pets": { "$ref": "#/$defs/section", "description": "Pets (the petOptions tick list)." },
+            "avoid": { "$ref": "#/$defs/section", "description": "Rather not, such as allergies (free text)." },
+            "other": { "$ref": "#/$defs/section", "description": "Anything else (free text)." }
+          }
+        },
+        "petOptions": {
+          "$ref": "#/$defs/options",
+          "description": "The choices under \"Pets\", in order. Leave it out for the standard list (dog, cat, other)."
+        }
+      }
+    },
+    "groups": {
+      "type": "array",
+      "maxItems": 50,
+      "description": "The groups, such as one per class. Each group draws names among its own participants only.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "exchangeDate"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "description": "The group's name, such as \"Monday morning\"."
+          },
+          "exchangeDate": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "description": "The day the presents are exchanged, as YYYY-MM-DD. It cannot be in the past."
+          },
+          "exchangeTime": {
+            "type": "string",
+            "pattern": "^([01]?\\d|2[0-3]):[0-5]\\d$",
+            "description": "Optional time of the exchange, 24-hour, such as 10:30."
+          },
+          "exchangePlace": {
+            "type": "string",
+            "maxLength": 200,
+            "description": "Optional place of the exchange, on one line, such as \"Studio De Lotus, Dorpsstraat 1\"."
+          },
+          "autoOpenAt": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "description": "Optional day drawing opens by itself, as YYYY-MM-DD: not in the past and not after exchangeDate. It only happens once the organiser has sent the invitations."
+          },
+          "participants": {
+            "type": "array",
+            "maxItems": 500,
+            "default": [],
+            "description": "The people in this group. A group needs at least 3 people before pairs are made. Leave it empty to add people later.",
+            "items": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100,
+                  "description": "Just the person's name."
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["name"],
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 100,
+                      "description": "The person's name as the group knows them. Make names in one group differ."
+                    },
+                    "email": {
+                      "type": ["string", "null"],
+                      "format": "email",
+                      "maxLength": 254,
+                      "description": "Optional email address, with a dot in the domain and only plain letters, digits and .!#$%&'*+/=?^_`{|}~- before the @. Without one, the organiser shares the person's link or prints a card."
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "options": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "oneOf": [
+          {
+            "type": "string",
+            "minLength": 1,
+            "description": "A choice. Text after a question mark is a question shown once the choice is ticked, as in \"Books? Which author?\"; a question mark alone, as in \"Wine?\", asks a general question."
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["label"],
+            "properties": {
+              "label": {
+                "type": "string",
+                "minLength": 1,
+                "description": "The choice as participants see it. A question mark in it is dropped."
+              },
+              "question": {
+                "type": "string",
+                "maxLength": 80,
+                "description": "A question shown in a text field under the choice once it is ticked, such as \"Which author?\". Shown as written in every language."
+              },
+              "askDetails": {
+                "type": "boolean",
+                "description": "true gives the choice a text field with a general question, when there is no question of your own."
+              }
+            }
+          }
+        ]
+      }
+    },
+    "section": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "show": {
+          "type": "boolean",
+          "default": true,
+          "description": "false hides this part of the form."
+        },
+        "heading": {
+          "type": ["string", "null"],
+          "maxLength": 80,
+          "description": "A heading of your own, shown as written in every language. Leave it out for the usual heading in each participant's language."
+        }
+      }
+    }
+  }
+}

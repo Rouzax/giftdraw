@@ -28,6 +28,12 @@ Cleanup runs every minute while the app is running, using the date in the app's 
 
 Each needs a confirmation and cannot be undone. Backups you made of the data volume are not touched; delete those yourself.
 
+## Importing and templates
+
+- An [imported file](../guide/import.md) is not kept: the app stores only the event, groups and participants it creates, as if they had been typed in.
+- **Download as a template** (*Downloaden als sjabloon*) gives the event's settings and its groups' names, dates and places. It never holds participants, email addresses, links or pairs.
+- A file made with an AI chat assistant has passed through the company behind that assistant, with whatever names and addresses you gave it. The import guide explains how to leave the addresses out.
+
 ## A link reached the wrong person
 
 Make a new link on the participant's page. The old link and QR code stop working at once. See [Changes after opening](../guide/changes.md#a-link-reached-the-wrong-person).

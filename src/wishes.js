@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { LANGS, t } from './i18n/index.js';
+import { HEADING_MAX, QUESTION_MAX } from './limits.js';
 import { clipText, unixLines } from './text.js';
 
 export const DEFAULT_LIKE_IDS = ['chocolate', 'tea', 'coffee', 'bath', 'candles', 'books', 'plants', 'wine'];
@@ -22,8 +23,6 @@ const SECTION_FIELDS = {
   other: ['other'],
 };
 const TEXT_MAX = 1000;
-const QUESTION_MAX = 80;
-const HEADING_MAX = 80;
 const SLUG_MAX = 32;
 
 const isDefault = (list, id) => list.ids.includes(id);
@@ -220,6 +219,17 @@ export function mergeOptionLabels(text, currentOptions, lang, kind = 'likes') {
     out.push(question ? { id, label, detail, question } : { id, label, detail });
   }
   return out;
+}
+
+// The value to store for a tick list in the line format, or undefined to
+// leave it as it is. A list that reads the same as now is left alone, so
+// saving the page unchanged never marks printed cards out of date; the
+// default list is stored as null, so it keeps following the language.
+export function optionsToStore(text, current, lang, kind) {
+  const merged = text.trim() ? mergeOptionLabels(text, current, lang, kind) : [];
+  const builtIn = kind === 'pets' ? petOptions({}) : wishOptions({});
+  if (sameOptions(merged.length ? merged : builtIn, current, kind)) return undefined;
+  return merged.length && !sameOptions(merged, builtIn, kind) ? merged : null;
 }
 
 function field(body, name) {

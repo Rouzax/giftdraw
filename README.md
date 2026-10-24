@@ -27,6 +27,9 @@ suits any club, family or team.
 - Pairs are fixed in one big circle when people are added: nobody gets
   themselves and no two people simply swap presents. Drawing reveals the
   name with a paper slip coming out of a bowl.
+- A whole event, with its groups and participants, can be imported from one
+  file that an AI chat assistant writes from your own description; any event
+  downloads as a template for next year.
 - The organiser can fill in wishes, draw together on their own screen and
   print an A5 card for someone without email or a phone.
 - Email is optional: with an SMTP server the app sends invitations,

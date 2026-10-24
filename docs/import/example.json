@@ -1,0 +1,47 @@
+{
+  "$schema": "https://rouzax.github.io/giftdraw/import/event.schema.json",
+  "version": 1,
+  "event": {
+    "name": "Kerstcadeautjes 2026",
+    "language": "nl",
+    "cleanupWeeks": 4,
+    "theme": "Neem een cadeautje mee dat je zelf hebt gekregen en niet gebruikt. Pak het mooi in!",
+    "wishOptions": [
+      "Chocolade",
+      "Thee",
+      { "label": "Boeken", "question": "Welke schrijver?" },
+      { "label": "Planten of bloemen", "askDetails": true },
+      "Kaarsen"
+    ],
+    "sections": {
+      "pets": { "show": false },
+      "other": { "heading": "Nog iets wat je kwijt wilt" }
+    }
+  },
+  "groups": [
+    {
+      "name": "Maandagochtend",
+      "exchangeDate": "2026-12-14",
+      "exchangeTime": "10:00",
+      "exchangePlace": "Yogastudio De Lotus, Dorpsstraat 1",
+      "autoOpenAt": "2026-11-30",
+      "participants": [
+        { "name": "Ada de Vries", "email": "ada@example.com" },
+        { "name": "Ben Jansen", "email": "ben@example.com" },
+        { "name": "Cor Bakker" },
+        { "name": "Dina Visser", "email": "dina@example.com" }
+      ]
+    },
+    {
+      "name": "Woensdagavond",
+      "exchangeDate": "2026-12-16",
+      "exchangeTime": "19:30",
+      "exchangePlace": "Buurthuis De Linde",
+      "participants": [
+        "Eva Smit",
+        "Frits Mulder",
+        { "name": "Gerda de Boer", "email": "gerda@example.com" }
+      ]
+    }
+  ]
+}

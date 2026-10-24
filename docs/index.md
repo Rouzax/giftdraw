@@ -24,6 +24,7 @@ It was built for a yoga teacher with five groups of older students, so the parti
 - **Pairs are fixed before anyone draws.** The app arranges everyone in one big circle, so nobody gets themselves and the pairs are complete from the start. "Drawing" reveals the name, with a paper slip coming out of a bowl.
 - **Made for people who rarely use a computer.** One action per screen, large type, and an organiser who can do everything on someone's behalf: fill in their wishes, draw together on the organiser's screen, and print an A5 card.
 - **Email is optional.** With a mail server the app sends the invitations and reminders. Without one, you share each link yourself, by message, QR code or printed card.
+- **Set up in one go.** An AI chat assistant can turn your description of the groups and people into a file that creates the whole event at once, and each event downloads as a template for next year.
 - **Dutch and English.** Each participant can switch language on their own page.
 - **Small and private.** One container, one database file, no accounts, no analytics, and the data of each group is erased a few weeks after the exchange.
 

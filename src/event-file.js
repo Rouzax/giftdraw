@@ -1,0 +1,486 @@
+import { makeCycle } from './draw/cycle.js';
+import { isLang, t } from './i18n/index.js';
+import {
+  groupDatesError, HEADING_MAX, NAME_MAX, OPTIONS_MAX, PLACE_MAX, QUESTION_MAX, THEME_MAX,
+} from './limits.js';
+import { normaliseEmail, PASTE_ROWS_MAX } from './people.js';
+import { unixLines } from './text.js';
+import { formConfigValue, optionsToStore, petOptions, readFormConfig, SECTION_IDS, wishOptions } from './wishes.js';
+
+// An event file describes one event to create: its settings, its groups and
+// their participants by name and email. It never holds pairs, links or
+// anything that happened since, so a file can only start something new and
+// can never be used to read or restore anyone's page.
+
+export const FILE_VERSION = 1;
+export const SCHEMA_URL = 'https://rouzax.github.io/giftdraw/import/event.schema.json';
+// Percent-encoded in the form post a character takes up to six bytes (an
+// accented letter), so this keeps the post inside the import route's body
+// limit.
+export const IMPORT_TEXT_MAX = 150_000;
+export const GROUPS_MAX = 50;
+const MIN_GROUP = 3;
+const CLEANUP_DEFAULT = 4;
+
+// Keys each object may have. Anything else is refused rather than ignored,
+// so a misspelt "exchange_date" is reported instead of silently lost.
+export const FILE_KEYS = {
+  file: ['$schema', 'version', 'event', 'groups'],
+  event: ['name', 'language', 'cleanupWeeks', 'theme', 'wishOptions', 'sections', 'petOptions'],
+  option: ['label', 'question', 'askDetails'],
+  section: ['show', 'heading'],
+  group: ['name', 'exchangeDate', 'exchangeTime', 'exchangePlace', 'autoOpenAt', 'participants'],
+  participant: ['name', 'email'],
+};
+
+// Tab and line breaks are whitespace and handled per field; other control
+// characters cannot be typed in a form and are refused.
+// eslint-disable-next-line no-control-regex
+const CONTROL = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/;
+
+const isObject = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
+const size = { units: (s) => s.length, codepoints: (s) => Array.from(s).length };
+
+// Where the object that starts at `start` ends, skipping braces inside
+// strings, or the end of the text when it never closes (a cut-off answer).
+function objectEnd(text, start) {
+  let depth = 0;
+  let inString = false;
+  for (let i = start; i < text.length; i += 1) {
+    const c = text[i];
+    if (inString) {
+      if (c === '\\') i += 1;
+      else if (c === '"') inString = false;
+    } else if (c === '"') inString = true;
+    else if (c === '{') depth += 1;
+    else if (c === '}' && --depth === 0) return i + 1;
+  }
+  return text.length;
+}
+
+// An assistant's answer often has a sentence before or after the file, with
+// the file in a fenced code block or, copied from the rendered chat, without
+// the fences. The file is then the first fenced block, or else the object
+// that starts at the first {.
+function stripWrapping(text) {
+  const trimmed = text.replace(/^\uFEFF/, '').trim();
+  const fenced = /```[\w-]*[^\S\n]*\n([\s\S]*?)\n?```/.exec(trimmed);
+  if (fenced && !trimmed.startsWith('{')) return fenced[1].trim();
+  const start = trimmed.indexOf('{');
+  return start === -1 ? trimmed : trimmed.slice(start, objectEnd(trimmed, start));
+}
+
+function lineAndColumn(text, position) {
+  const before = text.slice(0, position);
+  const line = before.split('\n').length;
+  return { line, column: position - before.lastIndexOf('\n') };
+}
+
+// Each problem names where it is as a list of steps from the top, so the
+// page can say "group 2 (Monday), participant 5 (Ada)".
+function collector() {
+  const errors = [];
+  const warnings = [];
+  return {
+    errors,
+    warnings,
+    error: (where, code, vars = {}) => errors.push({ where, code, vars }),
+    warn: (where, code, vars = {}) => warnings.push({ where, code, vars }),
+  };
+}
+
+function checkKeys(out, value, kind, where) {
+  for (const key of Object.keys(value)) {
+    if (!FILE_KEYS[kind].includes(key)) out.error(where, 'unknown-key', { key });
+  }
+}
+
+// Returns the cleaned text, null for absent or empty, or undefined after
+// reporting a problem. Single-line fields have every run of whitespace made
+// one space, as their form fields can hold no line break.
+function readText(out, value, where, field, { max, required = false, multiline = false, measure = 'units' }) {
+  if (value === undefined || value === null) {
+    if (required) out.error(where, 'required', { field });
+    return required ? undefined : null;
+  }
+  if (typeof value !== 'string') {
+    out.error(where, 'not-text', { field });
+    return undefined;
+  }
+  if (!value.isWellFormed() || CONTROL.test(value)) {
+    out.error(where, 'bad-characters', { field });
+    return undefined;
+  }
+  const clean = multiline ? unixLines(value).trim() : value.replace(/\s+/g, ' ').trim();
+  if (!clean) {
+    if (required) out.error(where, 'required', { field });
+    return required ? undefined : null;
+  }
+  if (size[measure](clean) > max) {
+    out.error(where, 'too-long', { field, max });
+    return undefined;
+  }
+  return clean;
+}
+
+// A tick list as the event form's textarea would hold it, so the import
+// stores it exactly as typing the same list there would.
+function readOptions(out, value, where, field) {
+  if (value === undefined || value === null) return null;
+  if (!Array.isArray(value)) {
+    out.error(where, 'not-list', { field });
+    return undefined;
+  }
+  if (value.length === 0) {
+    out.error(where, 'options-empty', { field });
+    return undefined;
+  }
+  const lines = [];
+  const seen = new Set();
+  let ok = true;
+  value.forEach((item, index) => {
+    const at = [...where, { option: field, n: index + 1 }];
+    // A plain text is read as a line of the event form's list, where a
+    // question mark starts the question: "Boeken? Welke schrijver".
+    let option = item;
+    if (typeof item === 'string') {
+      const mark = item.indexOf('?');
+      option = mark === -1 ? { label: item }
+        : { label: item.slice(0, mark), askDetails: true, question: item.slice(mark + 1).replace(/^[\s?]+/, '') || null };
+    }
+    if (!isObject(option)) {
+      out.error(at, 'option-shape', {});
+      ok = false;
+      return;
+    }
+    checkKeys(out, option, 'option', at);
+    // A question mark starts the question in the line format, so a label
+    // cannot hold one.
+    const raw = readText(out, option.label, at, 'label', { max: OPTIONS_MAX, required: true });
+    const label = typeof raw === 'string' ? raw.replace(/\?/g, '').replace(/\s+/g, ' ').trim() : raw;
+    if (raw && !label) out.error(at, 'required', { field: 'label' });
+    const question = readText(out, option.question, at, 'question', { max: QUESTION_MAX, measure: 'codepoints' });
+    let ask = Boolean(question);
+    if (option.askDetails !== undefined && option.askDetails !== null) {
+      if (typeof option.askDetails !== 'boolean') out.error(at, 'not-boolean', { field: 'askDetails' });
+      else ask = ask || option.askDetails;
+    }
+    if (!label || question === undefined) {
+      ok = false;
+      return;
+    }
+    // The event form allows a repeated choice, so a downloaded template can
+    // hold one; it is pointed out rather than refused.
+    const key = label.toLowerCase();
+    if (seen.has(key)) out.warn(at, 'option-twice', { label });
+    seen.add(key);
+    lines.push(ask ? `${label}?${question ? ` ${question}` : ''}` : label);
+  });
+  if (!ok) return undefined;
+  const text = lines.join('\n');
+  if (text.length > OPTIONS_MAX) {
+    out.error(where, 'options-too-long', { field, max: OPTIONS_MAX });
+    return undefined;
+  }
+  return text;
+}
+
+function readSections(out, value, where) {
+  const sections = Object.fromEntries(SECTION_IDS.map((id) => [id, { show: true, heading: null }]));
+  if (value === undefined || value === null) return sections;
+  if (!isObject(value)) {
+    out.error(where, 'not-object', { field: 'sections' });
+    return undefined;
+  }
+  let ok = true;
+  for (const [id, section] of Object.entries(value)) {
+    const at = [...where, { section: id }];
+    if (!SECTION_IDS.includes(id)) {
+      out.error(where, 'unknown-section', { key: id, known: SECTION_IDS.join(', ') });
+      ok = false;
+      continue;
+    }
+    if (!isObject(section)) {
+      out.error(at, 'not-object', { field: id });
+      ok = false;
+      continue;
+    }
+    checkKeys(out, section, 'section', at);
+    if (section.show !== undefined && section.show !== null && typeof section.show !== 'boolean') {
+      out.error(at, 'not-boolean', { field: 'show' });
+      ok = false;
+    }
+    const heading = readText(out, section.heading, at, 'heading', { max: HEADING_MAX, measure: 'codepoints' });
+    if (heading === undefined) ok = false;
+    // A heading equal to a built-in one stays empty, so it keeps following
+    // each participant's language, as on the event form.
+    const builtIn = ['nl', 'en'].some((l) => t(l, `wish.${id}`) === heading);
+    sections[id] = { show: section.show !== false, heading: heading && !builtIn ? heading : null };
+  }
+  return ok ? sections : undefined;
+}
+
+function readCleanupWeeks(out, value, where) {
+  if (value === undefined || value === null) return CLEANUP_DEFAULT;
+  const weeks = typeof value === 'string' && /^\d+$/.test(value.trim()) ? Number(value.trim()) : value;
+  if (!Number.isInteger(weeks) || weeks < 1 || weeks > 52) {
+    out.error(where, 'cleanup-weeks', {});
+    return undefined;
+  }
+  return weeks;
+}
+
+function readEvent(out, value, existingNames) {
+  const where = [{ part: 'event' }];
+  if (!isObject(value)) {
+    out.error([], value === undefined ? 'required' : 'not-object', { field: 'event' });
+    return null;
+  }
+  checkKeys(out, value, 'event', where);
+  const name = readText(out, value.name, where, 'name', { max: NAME_MAX, required: true });
+  let language = 'nl';
+  if (value.language !== undefined && value.language !== null) {
+    if (isLang(value.language)) language = value.language;
+    else out.error(where, 'language', {});
+  }
+  const cleanupWeeks = readCleanupWeeks(out, value.cleanupWeeks, where);
+  const theme = readText(out, value.theme, where, 'theme', { max: THEME_MAX, multiline: true });
+  const likes = readOptions(out, value.wishOptions, where, 'wishOptions');
+  const pets = readOptions(out, value.petOptions, where, 'petOptions');
+  const sections = readSections(out, value.sections, where);
+  if ([name, cleanupWeeks, theme, likes, pets, sections].includes(undefined)) return null;
+
+  if (existingNames.has(name.toLowerCase())) out.warn(where, 'event-exists', { name });
+  const isDefaultTheme = ['nl', 'en'].some((l) => t(l, 'theme.default') === theme);
+  const store = (text, builtIn, kind) => (text === null ? null : optionsToStore(text, builtIn, language, kind) ?? null);
+  return {
+    name,
+    language,
+    cleanupWeeks,
+    themeText: theme && !isDefaultTheme ? theme : null,
+    wishOptions: store(likes, wishOptions({}), 'likes'),
+    formConfig: formConfigValue({ sections, petOptions: store(pets, petOptions({}), 'pets') }),
+  };
+}
+
+// A time such as 9:30 is written as the time field sends it, 09:30.
+function readTime(out, value, where) {
+  const time = readText(out, value, where, 'exchangeTime', { max: 10 });
+  return typeof time === 'string' && /^\d:\d\d$/.test(time) ? `0${time}` : time;
+}
+
+const DATE_ERRORS = {
+  exchangeTime: ['time', {}],
+  exchangeDate: ['date', { field: 'exchangeDate' }],
+  exchangePast: ['exchange-past', {}],
+  autoOpenAt: ['date', { field: 'autoOpenAt' }],
+  autoOpenPast: ['auto-open-past', {}],
+  autoOpenAfter: ['auto-open-after', {}],
+};
+
+function readParticipant(out, value, where) {
+  const person = typeof value === 'string' ? { name: value } : value;
+  if (!isObject(person)) {
+    out.error(where, 'participant-shape', {});
+    return null;
+  }
+  checkKeys(out, person, 'participant', where);
+  const name = readText(out, person.name, where, 'name', { max: NAME_MAX, required: true });
+  // A bare address is a name missing, as in a pasted list.
+  if (typeof name === 'string' && !person.email && normaliseEmail(name)) {
+    out.error(where, 'name-is-email', {});
+    return null;
+  }
+  let email = null;
+  if (person.email !== undefined && person.email !== null && person.email !== '') {
+    email = typeof person.email === 'string' ? normaliseEmail(person.email) : null;
+    if (!email) out.error(where, 'email', { value: String(person.email) });
+  }
+  if (typeof name !== 'string' || (person.email && !email)) return null;
+  return { name, email };
+}
+
+function readGroup(out, value, where, today) {
+  if (!isObject(value)) {
+    out.error(where, 'not-object', { field: 'groups' });
+    return null;
+  }
+  checkKeys(out, value, 'group', where);
+  const name = readText(out, value.name, where, 'name', { max: NAME_MAX, required: true });
+  const exchangeDate = readText(out, value.exchangeDate, where, 'exchangeDate', { max: 10, required: true });
+  const exchangeTime = readTime(out, value.exchangeTime, where);
+  const exchangePlace = readText(out, value.exchangePlace, where, 'exchangePlace', { max: PLACE_MAX });
+  const autoOpenAt = readText(out, value.autoOpenAt, where, 'autoOpenAt', { max: 10 });
+  let ok = ![name, exchangeDate, exchangeTime, exchangePlace, autoOpenAt].includes(undefined);
+  if (ok) {
+    const dates = groupDatesError({ exchangeDate, exchangeTime, autoOpenAt }, today);
+    if (dates) {
+      out.error(where, ...DATE_ERRORS[dates]);
+      ok = false;
+    }
+  }
+  let people = [];
+  if (value.participants !== undefined && value.participants !== null) {
+    if (!Array.isArray(value.participants)) {
+      out.error(where, 'not-list', { field: 'participants' });
+      ok = false;
+    } else if (value.participants.length > PASTE_ROWS_MAX) {
+      out.error(where, 'too-many-participants', { max: PASTE_ROWS_MAX });
+      ok = false;
+    } else {
+      people = value.participants.map((person, index) => {
+        const at = [...where, { participant: index + 1, name: typeof person?.name === 'string' ? person.name : typeof person === 'string' ? person : null }];
+        return readParticipant(out, person, at);
+      });
+      if (people.includes(null)) ok = false;
+    }
+  }
+  return ok ? { name, exchangeDate, exchangeTime, exchangePlace, autoOpenAt, participants: people } : null;
+}
+
+// Things that are allowed but probably not meant: the organiser sees them
+// before confirming.
+function warnAboutGroups(out, groups) {
+  if (groups.length === 0) out.warn([], 'no-groups', {});
+  const groupNames = new Set();
+  const emails = new Map();
+  groups.forEach((group, index) => {
+    const where = [{ group: index + 1, name: group.name }];
+    if (groupNames.has(group.name.toLowerCase())) out.warn(where, 'group-name-twice', { name: group.name });
+    groupNames.add(group.name.toLowerCase());
+    const count = group.participants.length;
+    if (count < MIN_GROUP) out.warn(where, 'small-group', { count, min: MIN_GROUP });
+    const names = new Set();
+    for (const person of group.participants) {
+      const key = person.name.toLowerCase();
+      if (names.has(key)) out.warn(where, 'name-twice', { name: person.name });
+      names.add(key);
+      if (!person.email) continue;
+      const first = emails.get(person.email);
+      if (first === undefined) emails.set(person.email, group.name);
+      // One address for two people happens, such as a couple sharing one.
+      else if (first === group.name) out.warn(where, 'email-twice', { email: person.email });
+      else out.warn(where, 'email-elsewhere', { email: person.email, group: first });
+    }
+  });
+}
+
+// Returns {errors, warnings, plan}; plan is null unless there are no errors.
+// today is the organiser's date, as for the group form.
+export function readEventFile(text, { today, existingNames = new Set() }) {
+  const out = collector();
+  const result = () => ({ errors: out.errors, warnings: out.warnings, plan: null });
+  if (typeof text !== 'string' || !text.trim()) {
+    out.error([], 'empty', {});
+    return result();
+  }
+  if (text.length > IMPORT_TEXT_MAX) {
+    out.error([], 'too-large', { max: IMPORT_TEXT_MAX });
+    return result();
+  }
+  const source = stripWrapping(unixLines(text));
+  let data;
+  try {
+    data = JSON.parse(source);
+  } catch (err) {
+    const message = String(err?.message ?? '');
+    const position = /at position (\d+)/.exec(message);
+    if (!source.startsWith('{')) out.error([], 'json-start', {});
+    // A cut-off text is reported either way, depending on where it stops.
+    else if (/end of JSON input/.test(message) || Number(position?.[1]) >= source.length) out.error([], 'json-end', {});
+    else if (position) out.error([], 'json', lineAndColumn(source, Number(position[1])));
+    else out.error([], 'json-other', {});
+    return result();
+  }
+  if (!isObject(data)) {
+    out.error([], 'not-file', {});
+    return result();
+  }
+  checkKeys(out, data, 'file', []);
+  if (data.version === undefined) out.error([], 'version-missing', { version: FILE_VERSION });
+  else if (typeof data.version === 'number' && data.version > FILE_VERSION) out.error([], 'version-newer', {});
+  else if (data.version !== FILE_VERSION) out.error([], 'version-unknown', { version: FILE_VERSION });
+
+  const event = readEvent(out, data.event, existingNames);
+  let groups = null;
+  if (!Array.isArray(data.groups)) {
+    out.error([], data.groups === undefined ? 'required' : 'not-list', { field: 'groups' });
+  } else if (data.groups.length > GROUPS_MAX) {
+    out.error([], 'too-many-groups', { max: GROUPS_MAX });
+  } else {
+    groups = data.groups.map((group, index) =>
+      readGroup(out, group, [{ group: index + 1, name: typeof group?.name === 'string' ? group.name : null }], today));
+  }
+  if (out.errors.length || !event || !groups || groups.includes(null)) return result();
+  warnAboutGroups(out, groups);
+  return { errors: out.errors, warnings: out.warnings, plan: { event, groups } };
+}
+
+// One transaction: an import creates the whole event or nothing. Pairs are
+// drawn up as when people are pasted into a new group; nothing is mailed,
+// invitations stay the organiser's step per group.
+export function createEventFromPlan(ctx, plan) {
+  const { repo } = ctx;
+  const now = ctx.nowIso();
+  return repo.tx(() => {
+    const eventId = repo.createEvent(plan.event, now);
+    let participants = 0;
+    for (const { participants: people, ...group } of plan.groups) {
+      const groupId = repo.createGroup(eventId, group, now);
+      if (people.length === 0) continue;
+      const rows = people.map((p) => ({ ...p, language: plan.event.language }));
+      repo.addParticipantsWithAssignment(groupId, rows, (ids) => (ids.length >= MIN_GROUP ? makeCycle(ids) : null), now);
+      participants += people.length;
+    }
+    return { eventId, groups: plan.groups.length, participants };
+  });
+}
+
+// Labels as the event's language shows them. A stored label can hold a
+// question mark only from before the mark started a question; it is left
+// out, as the event form's textarea does.
+function fileOptions(options, lang) {
+  return options.map((o) => {
+    const label = o.label(lang).replace(/\?/g, '').replace(/\s+/g, ' ').trim();
+    if (!o.detail) return label;
+    return o.question ? { label, question: o.question } : { label, askDetails: true };
+  });
+}
+
+// The event as a file to start from next time: settings and groups, no
+// participants. Only what differs from the defaults is written, so a
+// default list or heading keeps following the language after an import.
+export function eventFile(event, groups) {
+  const config = readFormConfig(event.formConfig);
+  const file = {
+    $schema: SCHEMA_URL,
+    version: FILE_VERSION,
+    event: { name: event.name, language: event.language, cleanupWeeks: event.cleanupWeeks },
+  };
+  if (event.themeText) file.event.theme = unixLines(event.themeText);
+  if (event.wishOptions) file.event.wishOptions = fileOptions(wishOptions(event), event.language);
+  const sections = {};
+  for (const id of SECTION_IDS) {
+    const { show, heading } = config.sections[id];
+    if (!show || heading) sections[id] = { ...(show ? {} : { show: false }), ...(heading ? { heading } : {}) };
+  }
+  if (Object.keys(sections).length) file.event.sections = sections;
+  if (config.petOptions) file.event.petOptions = fileOptions(petOptions(event), event.language);
+  file.groups = groups.map((g) => ({
+    name: g.name,
+    exchangeDate: g.exchangeDate,
+    ...(g.exchangeTime ? { exchangeTime: g.exchangeTime } : {}),
+    ...(g.exchangePlace ? { exchangePlace: g.exchangePlace } : {}),
+    ...(g.autoOpenAt ? { autoOpenAt: g.autoOpenAt } : {}),
+    participants: [],
+  }));
+  return file;
+}
+
+// A download name from the event name, in plain ASCII so every browser and
+// file system keeps it.
+export function eventFileName(event) {
+  const slug = event.name.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60).replace(/-+$/, '');
+  return `giftdraw-${slug || 'event'}.json`;
+}

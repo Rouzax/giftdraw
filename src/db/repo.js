@@ -102,11 +102,11 @@ export function createRepo(db) {
 
   // Events
 
-  function createEvent({ name, language, cleanupWeeks = 4, themeText = null, wishOptions = null }, now) {
+  function createEvent({ name, language, cleanupWeeks = 4, themeText = null, wishOptions = null, formConfig = null }, now) {
     const result = db
-      .prepare(`INSERT INTO events (name, language, cleanup_weeks, theme_text, wish_options, created_at)
-                VALUES (?, ?, ?, ?, ?, ?)`)
-      .run(name, language, cleanupWeeks, themeText, toJson(wishOptions), defaultNow(now));
+      .prepare(`INSERT INTO events (name, language, cleanup_weeks, theme_text, wish_options, form_config, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)`)
+      .run(name, language, cleanupWeeks, themeText, toJson(wishOptions), toJson(formConfig), defaultNow(now));
     return Number(result.lastInsertRowid);
   }
 

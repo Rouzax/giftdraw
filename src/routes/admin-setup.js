@@ -5,29 +5,16 @@ import {
   commitAddParticipants, parsePasteList, PASTE_ROWS_MAX, PASTE_TEXT_MAX, PLAN_JSON_MAX, planAddParticipants,
   resendGroupFailed, sendInvitations,
 } from '../people.js';
+import { groupDatesError, HEADING_MAX, NAME_MAX, OPTIONS_MAX, PLACE_MAX, THEME_MAX } from '../limits.js';
 import { unixLines } from '../text.js';
 import { todayIn } from '../time.js';
 import {
-  cleanHeading, formConfigValue, mergeOptionLabels, optionLines, petOptions, readFormConfig, sameOptions, SECTION_IDS,
-  wishOptions,
+  cleanHeading, formConfigValue, optionLines, optionsToStore, petOptions, readFormConfig, SECTION_IDS, wishOptions,
 } from '../wishes.js';
 import { adminLang } from './admin-auth.js';
 import { field, parseJsonField } from './admin-shared.js';
 import { EVENT_DONE, eventsView, eventView, GROUP_DONE, messageView, pasteConfirmView } from '../views/admin.js';
 
-const DATE = /^\d{4}-\d{2}-\d{2}$/;
-const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
-const NAME_MAX = 100;
-const PLACE_MAX = 200;
-const THEME_MAX = 2000;
-const OPTIONS_MAX = 4000;
-const HEADING_MAX = 80;
-
-function isDate(value) {
-  if (!DATE.test(value)) return false;
-  const parsed = new Date(`${value}T00:00:00Z`);
-  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
-}
 
 export function adminSetupRoutes(app, ctx, {
   render, sendError, groupPage, loadEvent, loadGroup, resubmitted, redirectDone, takeFlash,
@@ -46,8 +33,7 @@ export function adminSetupRoutes(app, ctx, {
     }
   }
 
-  // Returns {values} or {error}. Dates already stored may stay as they are,
-  // so renaming a group whose dates have passed still works.
+  // Returns {values} or {error}.
   function readGroupForm(body, current = null) {
     const values = {
       name: field(body, 'name', NAME_MAX).trim(),
@@ -59,20 +45,11 @@ export function adminSetupRoutes(app, ctx, {
       autoOpenAt: field(body, 'autoOpenAt', 10).trim() || null,
     };
     if (!values.name) return { values, error: 'admin.group.error.name' };
-    if (values.exchangeTime !== null && !TIME.test(values.exchangeTime)) return { values, error: 'admin.group.error.exchangeTime' };
     if (values.exchangePlace !== null && values.exchangePlace.length > PLACE_MAX) {
       return { values, error: 'admin.group.error.exchangePlace' };
     }
-    if (!isDate(values.exchangeDate)) return { values, error: 'admin.group.error.exchangeDate' };
-    const sameExchange = current && current.exchangeDate === values.exchangeDate;
-    if (!sameExchange && values.exchangeDate < today()) return { values, error: 'admin.group.error.exchangePast' };
-    if (values.autoOpenAt !== null) {
-      if (!isDate(values.autoOpenAt)) return { values, error: 'admin.group.error.autoOpenAt' };
-      const unchanged = current && current.autoOpenAt === values.autoOpenAt;
-      if (!unchanged && values.autoOpenAt < today()) return { values, error: 'admin.group.error.autoOpenPast' };
-      if (values.autoOpenAt > values.exchangeDate) return { values, error: 'admin.group.error.autoOpenAfter' };
-    }
-    return { values };
+    const dates = groupDatesError(values, today(), current);
+    return dates ? { values, error: `admin.group.error.${dates}` } : { values };
   }
 
   function eventPage(lang, event, extra = {}) {
@@ -97,17 +74,6 @@ export function adminSetupRoutes(app, ctx, {
       mailEnabled: ctx.mailer.enabled,
       ...extra,
     });
-  }
-
-  // The value to store for a tick list typed into a textarea, or undefined
-  // to leave it as it is. A list that reads the same as now is left alone,
-  // so saving the page unchanged never marks printed cards out of date; the
-  // default list is stored as null, so it keeps following the language.
-  function optionsToStore(text, current, lang, kind) {
-    const merged = text.trim() ? mergeOptionLabels(text, current, lang, kind) : [];
-    const builtIn = kind === 'pets' ? petOptions({}) : wishOptions({});
-    if (sameOptions(merged.length ? merged : builtIn, current, kind)) return undefined;
-    return merged.length && !sameOptions(merged, builtIn, kind) ? merged : null;
   }
 
   // The section controls post a marker, because an unticked show box sends

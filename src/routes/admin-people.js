@@ -5,6 +5,7 @@ import {
   commitRemoveParticipant, drawFor, normaliseEmail, planRemoveParticipant, remindNow, resendFailed, resendInvite,
   saveWishes,
 } from '../people.js';
+import { NAME_MAX } from '../limits.js';
 import { reminderKind } from '../reminders.js';
 import { cardOutOfDate } from '../status.js';
 import { newToken } from '../tokens.js';
@@ -14,7 +15,6 @@ import { aboutFormView, cardView, resultView } from '../views/participant.js';
 import { adminLang } from './admin-auth.js';
 import { field, ID, parseJsonField } from './admin-shared.js';
 
-const NAME_MAX = 100;
 const EMAIL_INPUT_MAX = 1000;
 // A [giver, receiver] pair of 15-digit ids is at most 35 characters of JSON,
 // so this holds the plan of a group far larger than any real one.

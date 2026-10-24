@@ -7,6 +7,7 @@ import fastifyStatic from '@fastify/static';
 import { PUBLIC_DIR } from './assets.js';
 import { normalisePath } from './context.js';
 import { adminArrangeRoutes } from './routes/admin-arrange.js';
+import { adminImportRoutes } from './routes/admin-import.js';
 import { registerAdminAuth } from './routes/admin-auth.js';
 import { adminPeopleRoutes } from './routes/admin-people.js';
 import { adminSetupRoutes } from './routes/admin-setup.js';
@@ -123,6 +124,7 @@ export async function buildApp(ctx) {
   registerAdminAuth(app, ctx, { sendPage, isAdminPath: (request) => pathMatches(request, ADMIN_PATH) });
   const shared = adminShared(ctx, { sendPage, sendError });
   adminSetupRoutes(app, ctx, shared);
+  adminImportRoutes(app, ctx, shared);
   adminArrangeRoutes(app, ctx, shared);
   adminPeopleRoutes(app, ctx, shared);
 

@@ -22,6 +22,7 @@ nav = [
   { "Run a gift draw" = [
     "guide/index.md",
     { "Set up an event" = "guide/event.md" },
+    { "Import an event from a file" = "guide/import.md" },
     { "Add groups and participants" = "guide/groups.md" },
     { "Send the invitations" = "guide/invitations.md" },
     { "Check pairs and open the draw" = "guide/open.md" },

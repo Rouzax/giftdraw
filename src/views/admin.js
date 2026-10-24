@@ -1,14 +1,12 @@
 import { html, raw } from '../html.js';
 import { iconText } from '../icons.js';
 import { exchangeWhen, formatDate, LANGS, t } from '../i18n/index.js';
+import { HEADING_MAX, NAME_MAX, OPTIONS_MAX, PLACE_MAX, THEME_MAX } from '../limits.js';
 import { PASTE_TEXT_MAX } from '../people.js';
 import { newFormToken } from '../submit-log.js';
 import { SECTION_IDS } from '../wishes.js';
 
 const LOCALES = { nl: 'nl-NL', en: 'en-GB' };
-const THEME_MAX = 2000;
-const OPTIONS_MAX = 4000;
-const HEADING_MAX = 80;
 const MIN_GROUP = 3;
 
 export function loginView(lang, { error = null } = {}) {
@@ -50,11 +48,11 @@ ${LANGS.map((code) => html`<option value="${code}"${selected(code === value)}>${
 
 // Forms that create or remove something carry a one-time token, so a
 // repeated post of the same form leads to the first one's result.
-function formToken() {
+export function formToken() {
   return html`<input type="hidden" name="formToken" value="${newFormToken()}" autocomplete="off">`;
 }
 
-function backLink(href, label) {
+export function backLink(href, label) {
   return html`<p class="back"><a href="${href}">${label}</a></p>`;
 }
 
@@ -65,13 +63,14 @@ export function eventsView(lang, events, { error = null, values = {} } = {}) {
     : html`<p class="muted">${t(lang, 'admin.events.empty')}</p>`;
   const body = html`<h1>${title}</h1>
 ${list}
+<p><a class="with-icon" href="/admin/events/import">${iconText('file-up', t(lang, 'admin.events.import'))}</a></p>
 <section class="panel">
 <h2>${t(lang, 'admin.events.new')}</h2>
 ${errorNotice(lang, error)}
 <form method="post" action="/admin/events" class="stack">
 ${formToken()}
 <label for="event-name">${t(lang, 'admin.event.name')}</label>
-<input id="event-name" name="name" type="text" maxlength="100" required value="${values.name ?? ''}">
+<input id="event-name" name="name" type="text" maxlength="${NAME_MAX}" required value="${values.name ?? ''}">
 <label for="event-language">${t(lang, 'admin.event.language')}</label>
 ${languageSelect('event-language', values.language ?? 'nl')}
 <button type="submit" class="primary">${t(lang, 'admin.events.create')}</button>
@@ -91,13 +90,13 @@ ${hint ? html`<p class="hint" id="${id}-hint">${hint}</p>` : ''}
 function groupFields(lang, prefix, values, mailEnabled) {
   const hint = (key) => t(lang, mailEnabled ? key : `${key}NoMail`);
   return html`<label for="${prefix}-name">${t(lang, 'admin.group.name')}</label>
-<input id="${prefix}-name" name="name" type="text" maxlength="100" required value="${values.name ?? ''}">
+<input id="${prefix}-name" name="name" type="text" maxlength="${NAME_MAX}" required value="${values.name ?? ''}">
 ${dateInput(`${prefix}-exchange`, 'exchangeDate', t(lang, 'admin.group.exchangeDate'), values.exchangeDate, { required: true })}
 <label for="${prefix}-time">${t(lang, 'admin.group.exchangeTime')}</label>
 <input id="${prefix}-time" name="exchangeTime" type="time" value="${values.exchangeTime ?? ''}">
 <label for="${prefix}-place">${t(lang, 'admin.group.exchangePlace')}</label>
 <p class="hint" id="${prefix}-place-hint">${hint('admin.group.exchangePlaceHint')}</p>
-<input id="${prefix}-place" name="exchangePlace" type="text" maxlength="200" value="${values.exchangePlace ?? ''}" aria-describedby="${prefix}-place-hint">
+<input id="${prefix}-place" name="exchangePlace" type="text" maxlength="${PLACE_MAX}" value="${values.exchangePlace ?? ''}" aria-describedby="${prefix}-place-hint">
 ${dateInput(`${prefix}-auto`, 'autoOpenAt', t(lang, 'admin.group.autoOpenAt'), values.autoOpenAt, { hint: hint('admin.group.autoOpenHint') })}`;
 }
 
@@ -172,7 +171,7 @@ ${groupFields(lang, 'new-group', newGroup, mailEnabled)}
 ${errorNotice(lang, error)}
 <form method="post" action="/admin/events/${event.id}" class="stack">
 <label for="event-name">${t(lang, 'admin.event.name')}</label>
-<input id="event-name" name="name" type="text" maxlength="100" required value="${event.name}">
+<input id="event-name" name="name" type="text" maxlength="${NAME_MAX}" required value="${event.name}">
 <label for="event-language">${t(lang, 'admin.event.language')}</label>
 ${languageSelect('event-language', event.language)}
 <label for="event-cleanup">${t(lang, 'admin.event.cleanupWeeks')}</label>
@@ -187,6 +186,11 @@ ${languageSelect('event-language', event.language)}
 ${formSectionsBlock(lang, sections, petsValue)}
 <button type="submit" class="primary">${t(lang, 'admin.save')}</button>
 </form>
+</section>
+<section class="panel">
+<h2>${t(lang, 'admin.event.export')}</h2>
+<p>${t(lang, 'admin.event.exportHint')}</p>
+<p><a class="button-link with-icon" href="/admin/events/${event.id}/export" download>${iconText('download', t(lang, 'admin.event.export'))}</a></p>
 </section>
 ${deleteForm(lang, `/admin/events/${event.id}/delete`, { label: t(lang, 'admin.event.delete'), warning: t(lang, 'admin.event.deleteWarning') })}`;
   return { title, body };
@@ -389,7 +393,7 @@ export const GROUP_DONE = new Set([
   'failed-requeued', 'all-requeued', 'no-failure', 'mail-off', 'already-queued', 'added', 'removed', 'opened',
   'group-created',
 ]);
-export const EVENT_DONE = new Set(['event-created', 'saved']);
+export const EVENT_DONE = new Set(['event-created', 'saved', 'imported', 'already-imported']);
 
 // Mail still being retried goes out by itself, so only given-up mail counts.
 function resendAllPanel(lang, groupId, count, mailEnabled) {
@@ -614,6 +618,7 @@ const DONE_OK = new Set([
 // Done, but with something left for the organiser to do.
 const DONE_WARN = new Set([
   'nothing-to-remind', 'no-email', 'not-invited', 'mail-off', 'no-failure', 'already-queued', 'added-tell', 'removed-tell',
+  'already-imported',
 ]);
 export const PERSON_DONE = new Set([
   ...DONE_OK, 'nothing-to-remind', 'no-email', 'not-invited', 'mail-off', 'no-failure', 'already-queued',
@@ -714,7 +719,7 @@ ${errorNotice(lang, error)}
 ${duplicate ? html`<p class="notice warn" role="alert">${t(lang, 'admin.paste.duplicate', { email: duplicate.email, group: duplicate.groupName })}</p>` : ''}
 <form method="post" action="/admin/participants/${p.id}" class="stack">
 <label for="person-name">${t(lang, 'admin.person.edit.name')}</label>
-<input id="person-name" name="name" type="text" maxlength="100" required value="${form.name}">
+<input id="person-name" name="name" type="text" maxlength="${NAME_MAX}" required value="${form.name}">
 <label for="person-email">${t(lang, 'admin.person.edit.email')}</label>
 <p class="hint" id="person-email-hint">${t(lang, mailEnabled ? 'admin.person.edit.emailHint' : 'admin.person.edit.emailHintNoMail')}</p>
 <input id="person-email" name="email" type="email" maxlength="254" value="${form.email}" aria-describedby="person-email-hint">

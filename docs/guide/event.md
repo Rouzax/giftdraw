@@ -2,6 +2,10 @@
 
 An event is one gift exchange, such as "Lootjes trekken 2026". Its settings apply to every group in it: the theme text, what the wish form asks, and how long data is kept. You can change them at any time.
 
+!!! tip "Many groups and people? Import them in one go"
+
+    An AI chat assistant can turn your own description of the classes and the people in them into a file that creates the event, every group and every participant at once. See [Import an event from a file](import.md).
+
 ## Create the event
 
 1. Open the organiser pages at `/admin`. The **Events** (*Evenementen*) page lists your events.

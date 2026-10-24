@@ -764,3 +764,58 @@ table.people th a {
 .status .icon-triangle-alert {
   color: var(--accent-dark);
 }
+
+/* Event import: the file picker is a styled label over a hidden input, so
+   the focus ring goes on the label. */
+.import-file:focus-within label {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.import-file {
+  margin: 0;
+}
+
+.import-file label {
+  cursor: pointer;
+}
+
+#import-text {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.875rem;
+}
+
+.import-facts dt {
+  margin-top: 0.75rem;
+  font-weight: 700;
+}
+
+.import-facts dd {
+  margin: 0.25rem 0 0;
+  overflow-wrap: break-word;
+}
+
+.import-facts dd ul,
+.import-facts dd p {
+  margin: 0;
+}
+
+.panel .import-groups {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.import-groups > li + li {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--line);
+}
+
+.import-groups h3 {
+  margin-top: 0;
+}
+
+.pre-line {
+  white-space: pre-line;
+}
