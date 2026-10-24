@@ -431,9 +431,16 @@ export default {
   'admin.person.done.imported': 'Het evenement is geïmporteerd. Kijk elke groep na en verstuur daarna de uitnodigingen.',
   'admin.person.done.already-imported': 'Dit bestand was al geïmporteerd. Dit is het evenement dat het opleverde.',
   'import.title': 'Evenement importeren',
-  'import.intro':
-    'Maak in één keer een heel evenement uit een bestand: de instellingen, de groepen en de deelnemers. De handleiding legt het bestand uit en heeft een kant-en-klaar verzoek voor een AI-chatassistent die het voor je schrijft.',
-  'import.guide': 'Zo maak je het bestand',
+  'import.intro': 'Maak in één keer een heel evenement uit een bestand: de instellingen, de groepen en de deelnemers.',
+  'import.guide': 'Meer over het bestand in de handleiding',
+  'import.assistant.title': 'Laat een AI-assistent het bestand maken',
+  'import.assistant.intro':
+    'Kopieer dit verzoek, plak het in een nieuw gesprek met ChatGPT, Claude of een andere AI-assistent en verstuur het zoals het is. De assistent stelt je een paar vragen en geeft je daarna het bestand. Plak dat hieronder.',
+  'import.assistant.label': 'Het verzoek',
+  'import.assistant.copy': 'Kopieer het verzoek',
+  'import.assistant.copied': 'Gekopieerd. Plak het nu in het gesprek.',
+  'import.assistant.copyFailed': 'Kopiëren lukte niet. Selecteer de tekst en kopieer hem zelf.',
+  'import.paste.title': 'Plak het bestand',
   'import.privacy':
     'Wat je aan een AI-chatassistent geeft, gaat naar het bedrijf erachter. Je kunt het bestand ook alleen met namen laten maken en de e-mailadressen er later in zetten.',
   'import.file': 'Kies een bestand',

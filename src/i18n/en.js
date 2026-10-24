@@ -429,9 +429,16 @@ export default {
   'admin.person.done.imported': 'The event has been imported. Check each group, then send the invitations.',
   'admin.person.done.already-imported': 'This file was already imported. This is the event it made.',
   'import.title': 'Import an event',
-  'import.intro':
-    'Create a whole event at once from a file: the settings, the groups and the participants. The guide explains the file and has a ready-made request for an AI chat assistant that writes it for you.',
-  'import.guide': 'How to make the file',
+  'import.intro': 'Create a whole event at once from a file: the settings, the groups and the participants.',
+  'import.guide': 'More about the file in the guide',
+  'import.assistant.title': 'Let an AI assistant make the file',
+  'import.assistant.intro':
+    'Copy this request, paste it into a new chat with ChatGPT, Claude or another AI assistant, and send it as it is. The assistant asks you a few questions and then gives you the file. Paste that below.',
+  'import.assistant.label': 'The request',
+  'import.assistant.copy': 'Copy the request',
+  'import.assistant.copied': 'Copied. Now paste it into the chat.',
+  'import.assistant.copyFailed': 'Copying did not work. Select the text and copy it yourself.',
+  'import.paste.title': 'Paste the file',
   'import.privacy':
     'Whatever you give an AI chat assistant goes to the company behind it. You can let it make the file with names only and add the email addresses afterwards.',
   'import.file': 'Choose a file',

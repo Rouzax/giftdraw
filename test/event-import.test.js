@@ -4,11 +4,13 @@ import { readFileSync } from 'node:fs';
 import { validateAssignment } from '../src/draw/cycle.js';
 import { eventFile, eventFileName, FILE_KEYS, IMPORT_TEXT_MAX, readEventFile } from '../src/event-file.js';
 import { t as tr } from '../src/i18n/index.js';
+import { assistantPrompt } from '../src/import-prompt.js';
 import { makeTestApp, textOf } from './helpers.js';
 
 const T0 = Date.parse('2026-11-01T10:00:00.000Z');
 const TODAY = '2026-11-01';
 const EXAMPLE = readFileSync(new URL('../docs/import/example.json', import.meta.url), 'utf8');
+const GUIDE = readFileSync(new URL('../docs/guide/import.md', import.meta.url), 'utf8');
 const SCHEMA = JSON.parse(readFileSync(new URL('../docs/import/event.schema.json', import.meta.url), 'utf8'));
 
 const read = (value, options = {}) =>
@@ -258,6 +260,26 @@ test('the import page offers a text field, and a file picker only with script', 
   assert.match(res.body, /<p class="import-file" hidden>/);
   assert.match(res.body, /js\/import-file\.js/);
   assert.match((await t.adminGet('/admin')).body, /href="\/admin\/events\/import"/);
+});
+
+test('the import page offers the assistant request in the organiser\'s language, ready to copy', async () => {
+  const t = await setup();
+  const escape = (text) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  const nl = await t.adminGet('/admin/events/import');
+  assert.ok(nl.body.includes(`data-copy-source>${escape(assistantPrompt('nl'))}</textarea>`));
+  assert.match(nl.body, /<button type="button" class="primary with-icon" data-copy hidden>/);
+  assert.match(nl.body, /js\/copy-link\.js/);
+  const en = await t.adminGet('/admin/events/import', { cookie: `${t.adminCookie()}; giftdraw_lang=en` });
+  assert.ok(en.body.includes(escape(assistantPrompt('en'))));
+  assert.match(assistantPrompt('en'), /"language": "en"/);
+  assert.match(assistantPrompt('nl'), /"language": "nl"/);
+});
+
+test('the assistant request in the app is the one in the guide', () => {
+  for (const lang of ['nl', 'en']) {
+    const indented = assistantPrompt(lang).split('\n').map((line) => (line ? `    ${line}` : '')).join('\n');
+    assert.ok(GUIDE.includes(`    \`\`\`text\n${indented}\n    \`\`\``), lang);
+  }
 });
 
 test('checking shows what will be made and creates nothing yet', async () => {

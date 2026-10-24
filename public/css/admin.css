@@ -683,7 +683,7 @@ h3 {
   font-size: 0.875rem;
 }
 
-.copy-row button[hidden] {
+.copy-link button[hidden] {
   display: none;
 }
 
@@ -780,7 +780,8 @@ table.people th a {
   cursor: pointer;
 }
 
-#import-text {
+#import-text,
+.assistant-prompt {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 0.875rem;
 }

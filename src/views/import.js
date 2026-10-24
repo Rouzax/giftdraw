@@ -2,6 +2,7 @@ import { html } from '../html.js';
 import { iconText } from '../icons.js';
 import { exchangeWhen, formatDate, t } from '../i18n/index.js';
 import { IMPORT_TEXT_MAX } from '../event-file.js';
+import { assistantPrompt } from '../import-prompt.js';
 import { clipText } from '../text.js';
 import { readFormConfig, sectionHeading, SECTION_IDS, wishOptions, petOptions } from '../wishes.js';
 import { backLink, formToken } from './admin.js';
@@ -60,21 +61,33 @@ function textForm(lang, text) {
 </form>`;
 }
 
-function intro(lang) {
-  return html`<p>${t(lang, 'import.intro')}</p>
-<p><a href="${GUIDE_URL}" rel="noopener">${t(lang, 'import.guide')}</a></p>
-<p class="hint">${t(lang, 'import.privacy')}</p>`;
+// The request is in the organiser's language and asks for an event in it.
+// Without script the field can still be selected and copied by hand.
+function assistantPanel(lang) {
+  return html`<section class="panel">
+<h2>${t(lang, 'import.assistant.title')}</h2>
+<div class="copy-link" data-copy-link data-copied="${t(lang, 'import.assistant.copied')}" data-failed="${t(lang, 'import.assistant.copyFailed')}">
+<p id="assistant-prompt-hint">${t(lang, 'import.assistant.intro')}</p>
+<p class="hint">${t(lang, 'import.privacy')}</p>
+<label for="assistant-prompt">${t(lang, 'import.assistant.label')}</label>
+<textarea id="assistant-prompt" class="assistant-prompt" rows="8" readonly spellcheck="false" aria-describedby="assistant-prompt-hint" data-copy-source>${assistantPrompt(lang)}</textarea>
+<p><button type="button" class="primary with-icon" data-copy hidden>${iconText('copy', t(lang, 'import.assistant.copy'))}</button></p>
+<p class="small" aria-live="polite" data-copy-status></p>
+</div>
+</section>`;
 }
 
 export function importView(lang, { text = '' } = {}) {
   const title = t(lang, 'import.title');
   const body = html`${backLink('/admin', t(lang, 'admin.events.back'))}
 <h1>${title}</h1>
-${intro(lang)}
+<p>${t(lang, 'import.intro')} <a href="${GUIDE_URL}" rel="noopener">${t(lang, 'import.guide')}</a></p>
+${assistantPanel(lang)}
 <section class="panel">
+<h2>${t(lang, 'import.paste.title')}</h2>
 ${textForm(lang, text)}
 </section>`;
-  return { title, body, scripts: ['import-file.js'] };
+  return { title, body, scripts: ['import-file.js', 'copy-link.js'] };
 }
 
 function optionItems(lang, options, stored) {
