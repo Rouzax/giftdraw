@@ -287,10 +287,11 @@ export function createRepo(db) {
     return db.prepare(`UPDATE outbox SET status = 'pending' WHERE status = 'sending'`).run().changes;
   }
 
-  function hasQueuedMail(participantId, kind) {
+  function hasQueuedMail(participantId, kind, statuses = ['pending', 'sending']) {
     return db
-      .prepare(`SELECT 1 FROM outbox WHERE participant_id = ? AND kind = ? AND status IN ('pending', 'sending') LIMIT 1`)
-      .get(participantId, kind) !== undefined;
+      .prepare(`SELECT 1 FROM outbox WHERE participant_id = ? AND kind = ?
+                AND status IN (${statuses.map(() => '?').join(', ')}) LIMIT 1`)
+      .get(participantId, kind, ...statuses) !== undefined;
   }
 
   // count is of automatic reminders only, so a manual one never uses up the

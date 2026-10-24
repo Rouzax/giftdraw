@@ -58,11 +58,13 @@ export function openGroup(ctx, groupId) {
       // An address added after the invitations went out was never mailed.
       // Its invitation starts that person's reminders, and an invitation
       // sent once the group is open says they can draw, so it stands in for
-      // the draw-open mail; so does one still waiting in the queue.
+      // the draw-open mail; so does one still waiting in the queue, which is
+      // worded when it goes out. One already being sent was worded before
+      // the group opened, so it does not.
       if (!p.invitedAt) {
         repo.updateParticipant(p.id, { invitedAt: now });
         enqueueMail(ctx, p.id, 'invite', now);
-      } else if (!repo.hasQueuedMail(p.id, 'invite')) {
+      } else if (!repo.hasQueuedMail(p.id, 'invite', ['pending'])) {
         enqueueMail(ctx, p.id, 'draw-open', now);
       }
       queued += 1;

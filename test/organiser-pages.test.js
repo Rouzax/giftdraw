@@ -114,3 +114,15 @@ test('opening a group sends no draw-open to someone whose invitation is still on
   const kinds = t.db.prepare('SELECT kind FROM outbox WHERE participant_id = ? ORDER BY id').all(t.people[0].id).map((r) => r.kind);
   assert.deepEqual(kinds, ['invite']);
 });
+
+// An invitation already being sent was worded before the group opened, so
+// it cannot stand in for the draw-open mail.
+test('opening a group still sends a draw-open to someone whose invitation is mid-send', async () => {
+  const t = await setup({ invited: false });
+  await t.adminPost(`/admin/groups/${t.groupId}/invite`);
+  const ada = t.people[0];
+  t.db.prepare("UPDATE outbox SET status = 'sending' WHERE participant_id = ?").run(ada.id);
+  assert.deepEqual(openGroup(t.ctx, t.groupId), { opened: true });
+  const kinds = t.db.prepare('SELECT kind FROM outbox WHERE participant_id = ? ORDER BY id').all(ada.id).map((r) => r.kind);
+  assert.deepEqual(kinds, ['invite', 'draw-open']);
+});
