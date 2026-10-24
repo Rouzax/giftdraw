@@ -1,3 +1,4 @@
+import { domainToASCII } from 'node:url';
 import { chooseInsertGiver, insertIntoCycle, makeCycle, planRemoval, validateAssignment } from './draw/cycle.js';
 import { kickDrain } from './mail/outbox.js';
 import { reminderKind } from './reminders.js';
@@ -16,9 +17,10 @@ export const PASTE_TEXT_MAX = PASTE_ROWS_MAX * (NAME_MAX + EMAIL_MAX + 4);
 // six characters per UTF-16 unit (\uXXXX), a name is at most NAME_MAX units,
 // and each row adds fixed keys and a giver id.
 export const PLAN_JSON_MAX = 64 + PASTE_ROWS_MAX * ((NAME_MAX + EMAIL_MAX) * 6 + 96);
-// The address an email input accepts (the HTML standard's rule), with a dot
-// in the domain. Anything wider could be pasted but never saved again from
-// the participant's edit form, whose email field the browser checks.
+// The address an email input accepts (the HTML standard's rule, after the
+// domain is turned into punycode), with a dot in the domain. Anything wider
+// could be pasted but never saved again from the participant's edit form,
+// whose email field the browser checks.
 const EMAIL = /^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$/;
 const SEPARATOR = /[\t;,]/;
 
@@ -85,8 +87,16 @@ export function enqueueMail(ctx, participantId, kind, now, options) {
   return true;
 }
 
+// An accented domain is stored as punycode (cafe with an accent becomes
+// xn--caf-dma), as the browser's email field sends it, so a pasted address
+// and one typed on the person's page agree. The part before the @ must be
+// ASCII either way.
 export function normaliseEmail(value) {
-  const email = String(value ?? '').trim().toLowerCase();
+  const raw = String(value ?? '').trim().toLowerCase();
+  const at = raw.lastIndexOf('@');
+  const domain = at === -1 ? '' : domainToASCII(raw.slice(at + 1));
+  if (!domain) return null;
+  const email = `${raw.slice(0, at)}@${domain}`;
   return email.length <= EMAIL_MAX && EMAIL.test(email) ? email : null;
 }
 

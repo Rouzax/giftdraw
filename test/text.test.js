@@ -70,8 +70,23 @@ test('an address the browser email field would refuse is refused when pasted', (
   assert.deepEqual(rows.map((r) => r.email), ['cor@example.com']);
   assert.deepEqual(errors.map((e) => e.reason), ['invalid-email']);
   assert.equal(normaliseEmail(`b${GIFT}n@example.com`), null);
-  assert.equal(normaliseEmail('ada@exämple.com'), null);
+  assert.equal(normaliseEmail('ada@éxample.com'.replace('é', 'e')), 'ada@example.com');
   assert.equal(normaliseEmail("o'brien+gifts@mail.example.co.uk"), "o'brien+gifts@mail.example.co.uk");
+});
+
+// The browser's email field sends an accented domain as punycode; a pasted
+// one is stored the same way, so both forms agree on the address.
+test('an accented domain is stored as punycode, from the paste and from the person form', async () => {
+  assert.equal(normaliseEmail('Ada@Café.nl'), 'ada@xn--caf-dma.nl');
+  assert.equal(normaliseEmail('ada@xn--caf-dma.nl'), 'ada@xn--caf-dma.nl');
+  assert.equal(normaliseEmail('jé@cafe.nl'), null);
+  const { rows } = parsePasteList('Ada, ada@café.nl');
+  assert.equal(rows[0].email, 'ada@xn--caf-dma.nl');
+  const t = await makeTestApp();
+  const { people } = seedGroup(t.ctx, { names: ['Ada', 'Ben', 'Cor'] });
+  const res = await t.adminPost(`/admin/participants/${people[0].id}`, { name: 'Ada', email: 'ada@café.nl', language: 'nl' });
+  assert.equal(res.statusCode, 303);
+  assert.equal(t.ctx.repo.getParticipant(people[0].id).email, 'ada@xn--caf-dma.nl');
 });
 
 test('saving the edit form unchanged keeps an emoji name as it was', async () => {

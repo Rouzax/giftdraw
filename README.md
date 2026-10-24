@@ -63,8 +63,11 @@ typed so far, so nothing has to be typed again.
    away in one big circle, so nobody gets themselves and no two people
    simply swap presents. Names may contain emoji. Before anything is
    added you see the lines that will be skipped, such as an address with
-   an emoji or an accented letter in it, which mail servers and the
-   email field on the participant's page do not accept.
+   an emoji or an accented letter before the @, which mail servers and
+   the email field on the participant's page do not accept. An accented
+   domain (`ada@café.nl`) is fine: it is stored and shown in its
+   punycode form (`ada@xn--caf-dma.nl`), the same as when it is typed on
+   the participant's page.
 4. **Send the invitations.** Everyone with an email address gets a
    welcome mail with their link and is asked to say a little about
    themselves. With email off the button reads "The links have been
