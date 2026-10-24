@@ -195,7 +195,7 @@ test('opening sends one draw-open per participant with email', async () => {
   t.ctx.repo.markInvitationsSent(t.groupId, t.ctx.nowIso());
   const res = await t.adminPost(`/admin/groups/${t.groupId}/open`);
   assert.equal(res.statusCode, 303, res.body);
-  assert.equal(res.headers.location, `/admin/groups/${t.groupId}`);
+  assert.equal(res.headers.location, `/admin/groups/${t.groupId}?done=opened`);
   assert.ok(t.ctx.repo.getGroup(t.groupId).openedAt);
   await settle(t);
   assert.equal(drawOpenRows(t), 4);
@@ -218,7 +218,7 @@ test('opening invites anyone with email who was never invited, before the draw-o
   assert.equal(drawOpenRows(t), FIVE.length);
 });
 
-test('opening twice, including two overlapping posts, sends no more', async () => {
+test('opening twice, including two overlapping posts, sends no more and answers each with the open group', async () => {
   const t = await setup();
   t.ctx.repo.markInvitationsSent(t.groupId, t.ctx.nowIso());
   t.mailer.delayMs = 20;
@@ -226,9 +226,11 @@ test('opening twice, including two overlapping posts, sends no more', async () =
     t.adminPost(`/admin/groups/${t.groupId}/open`),
     t.adminPost(`/admin/groups/${t.groupId}/open`),
   ]);
-  assert.deepEqual([first.statusCode, second.statusCode].sort(), [303, 409]);
   const third = await t.adminPost(`/admin/groups/${t.groupId}/open`);
-  assert.equal(third.statusCode, 409);
+  for (const res of [first, second, third]) {
+    assert.equal(res.statusCode, 303);
+    assert.equal(res.headers.location, `/admin/groups/${t.groupId}?done=opened`);
+  }
   assert.deepEqual(openGroup(t.ctx, t.groupId), { opened: false, reason: 'already-open' });
   await settle(t);
   await new Promise((resolve) => setTimeout(resolve, 150));

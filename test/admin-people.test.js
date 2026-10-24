@@ -83,7 +83,7 @@ test('removing from an open group of 6 changes exactly the previewed giver, who 
   const { preview, res } = await removeVia(t, dropout.id);
   assert.ok(preview.body.includes(tr('nl', 'admin.paste.change', { giver: giver.name, receiver: t.people.find((p) => p.id === before.get(dropout.id)).name })));
   assert.equal(res.statusCode, 303, res.body);
-  assert.equal(res.headers.location, `/admin/groups/${t.groupId}`);
+  assert.equal(res.headers.location, `/admin/groups/${t.groupId}?done=removed`);
 
   const after = t.ctx.repo.getAssignment(t.groupId);
   const remaining = t.ctx.repo.listParticipants(t.groupId).map((p) => p.id);

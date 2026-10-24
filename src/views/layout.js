@@ -58,7 +58,7 @@ ${logout}
 <main class="admin">
 ${body}
 </main>`;
-  return shell({ lang, title, body: content, assetVersion, styles: ['base.css', 'admin.css'], scripts });
+  return shell({ lang, title, body: content, assetVersion, styles: ['base.css', 'admin.css'], scripts: ['submit-once.js', ...scripts] });
 }
 
 // On-behalf screens: the participant's own screen at participant sizes and in

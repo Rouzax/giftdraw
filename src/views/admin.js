@@ -2,6 +2,7 @@ import { html, raw } from '../html.js';
 import { iconText } from '../icons.js';
 import { exchangeWhen, formatDate, LANGS, t } from '../i18n/index.js';
 import { PASTE_TEXT_MAX } from '../people.js';
+import { newFormToken } from '../submit-log.js';
 import { SECTION_IDS } from '../wishes.js';
 
 const LOCALES = { nl: 'nl-NL', en: 'en-GB' };
@@ -47,6 +48,12 @@ ${LANGS.map((code) => html`<option value="${code}"${selected(code === value)}>${
 </select>`;
 }
 
+// Forms that create or remove something carry a one-time token, so a
+// repeated post of the same form leads to the first one's result.
+function formToken() {
+  return html`<input type="hidden" name="formToken" value="${newFormToken()}">`;
+}
+
 function backLink(href, label) {
   return html`<p class="back"><a href="${href}">${label}</a></p>`;
 }
@@ -62,6 +69,7 @@ ${list}
 <h2>${t(lang, 'admin.events.new')}</h2>
 ${errorNotice(lang, error)}
 <form method="post" action="/admin/events" class="stack">
+${formToken()}
 <label for="event-name">${t(lang, 'admin.event.name')}</label>
 <input id="event-name" name="name" type="text" maxlength="100" required value="${values.name ?? ''}">
 <label for="event-language">${t(lang, 'admin.event.language')}</label>
@@ -129,7 +137,7 @@ ${items}
 }
 
 export function eventView(lang, {
-  event, groups, newGroup, themeValue, optionsValue, sections, petsValue, tz, error = null, groupError = null,
+  event, groups, newGroup, themeValue, optionsValue, sections, petsValue, tz, error = null, groupError = null, done = null,
 }) {
   const title = event.name;
   const groupList = groups.length
@@ -141,6 +149,7 @@ export function eventView(lang, {
     : html`<p class="muted">${t(lang, 'admin.groups.empty')}</p>`;
   const body = html`${backLink('/admin', t(lang, 'admin.events.back'))}
 <h1>${title}</h1>
+${doneNotice(lang, done)}
 <section class="panel">
 <h2>${t(lang, 'admin.groups.title')}</h2>
 ${groupList}
@@ -149,6 +158,7 @@ ${groupList}
 <h2>${t(lang, 'admin.groups.new')}</h2>
 ${errorNotice(lang, groupError)}
 <form method="post" action="/admin/events/${event.id}/groups" class="stack">
+${formToken()}
 ${groupFields(lang, 'new-group', newGroup)}
 <button type="submit" class="primary">${t(lang, 'admin.groups.create')}</button>
 </form>
@@ -342,8 +352,13 @@ ${arrange}
 </section>`;
 }
 
-// Outcomes of mail buttons posted with back=group, reported on the dashboard.
-export const GROUP_DONE = new Set(['failed-requeued', 'all-requeued', 'no-failure', 'mail-off', 'already-queued']);
+// Outcomes reported on the dashboard: mail buttons posted with back=group,
+// and the changes that redirect there.
+export const GROUP_DONE = new Set([
+  'failed-requeued', 'all-requeued', 'no-failure', 'mail-off', 'already-queued', 'added', 'removed', 'opened',
+  'group-created',
+]);
+export const EVENT_DONE = new Set(['event-created']);
 
 // Mail still being retried goes out by itself, so only given-up mail counts.
 function resendAllPanel(lang, groupId, count, mailEnabled) {
@@ -402,6 +417,7 @@ ${deleteForm(lang, `/admin/groups/${group.id}/delete`, { label: t(lang, 'admin.g
 
 function pasteForm(lang, groupId, text) {
   return html`<form method="post" action="/admin/groups/${groupId}/participants" class="stack">
+${formToken()}
 <label for="paste-text">${t(lang, 'admin.paste.label')}</label>
 <p class="hint" id="paste-hint">${t(lang, 'admin.paste.hint')}</p>
 <textarea id="paste-text" name="text" rows="8" maxlength="${PASTE_TEXT_MAX}" aria-describedby="paste-hint">${text}</textarea>
@@ -452,6 +468,7 @@ ${changeList(lang, changes)}
 <ul>${plan.rows.map((row) => html`<li>${personLabel(lang, row)}</li>`)}</ul>
 <form method="post" action="/admin/groups/${group.id}/participants">
 <input type="hidden" name="confirm" value="1">
+${formToken()}
 <input type="hidden" name="plan" value="${JSON.stringify({ version: plan.version, rows: plan.rows })}">
 <button type="submit" class="primary">${t(lang, 'admin.paste.confirm', { count: plan.rows.length })}</button>
 </form>
@@ -561,13 +578,12 @@ ${list}`;
 const DONE_OK = new Set([
   'saved', 'wishes-saved', 'link-regenerated', 'invite-queued', 'remind-queued', 'failed-requeued', 'all-requeued',
 ]);
-export const PERSON_DONE = new Set([
-  ...DONE_OK, 'nothing-to-remind', 'no-email', 'not-invited', 'mail-off', 'no-failure', 'already-queued',
-]);
+const DONE_WARN = new Set(['nothing-to-remind', 'no-email', 'not-invited', 'mail-off', 'no-failure', 'already-queued']);
+export const PERSON_DONE = new Set([...DONE_OK, ...DONE_WARN]);
 
 function doneNotice(lang, done) {
   if (!done) return '';
-  return html`<p class="notice ${DONE_OK.has(done) ? 'done' : 'warn'}" role="status">${t(lang, `admin.person.done.${done}`)}</p>`;
+  return html`<p class="notice ${DONE_WARN.has(done) ? 'warn' : 'done'}" role="status">${t(lang, `admin.person.done.${done}`)}</p>`;
 }
 
 function personFacts(lang, { participant: p, group, receiver, tz }) {
@@ -747,6 +763,7 @@ ${changeList(lang, changes)}`;
 ${effect}
 <form method="post" action="/admin/participants/${participant.id}/remove" class="button-row">
 <input type="hidden" name="group" value="${group.id}">
+${formToken()}
 <input type="hidden" name="plan" value="${JSON.stringify({ version: plan.version, map: plan.map })}">
 <button type="submit" class="danger with-icon">${iconText('trash-2', t(lang, 'admin.remove.confirm', { name: participant.name }))}</button>
 <a href="/admin/participants/${participant.id}">${t(lang, 'admin.remove.cancel')}</a>

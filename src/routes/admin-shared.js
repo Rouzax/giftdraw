@@ -1,4 +1,5 @@
 import { cardOutOfDate, groupWarnings } from '../status.js';
+import { createSubmitLog } from '../submit-log.js';
 import { hasWishes, wishForm } from '../wishes.js';
 import { adminLang } from './admin-auth.js';
 import { behalfPage, printPage, renderAdminPage } from '../views/layout.js';
@@ -26,6 +27,20 @@ export function parseJsonField(value, max) {
 // admin route module.
 export function adminShared(ctx, { sendPage, sendError }) {
   const { repo, config } = ctx;
+  const submitLog = createSubmitLog({ now: () => ctx.now().getTime() });
+
+  // Where the first post of this form led, or null. A route calls this
+  // before doing anything and redirectDone after, with no await between.
+  function resubmitted(request) {
+    const location = submitLog.replay(request.body?.formToken);
+    if (location) request.log.info('form_resubmitted');
+    return location;
+  }
+
+  function redirectDone(request, reply, location) {
+    submitLog.record(request.body?.formToken, location);
+    return reply.redirect(location, 303);
+  }
 
   function render(request, reply, view, status = 200) {
     const page = renderAdminPage(adminLang(request), {
@@ -87,6 +102,8 @@ export function adminShared(ctx, { sendPage, sendError }) {
   return {
     sendError,
     render,
+    resubmitted,
+    redirectDone,
     renderBehalf,
     renderPrint,
     groupPage,

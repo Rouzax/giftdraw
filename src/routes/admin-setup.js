@@ -11,7 +11,7 @@ import {
 } from '../wishes.js';
 import { adminLang } from './admin-auth.js';
 import { field, parseJsonField } from './admin-shared.js';
-import { eventsView, eventView, GROUP_DONE, messageView, pasteConfirmView } from '../views/admin.js';
+import { EVENT_DONE, eventsView, eventView, GROUP_DONE, messageView, pasteConfirmView } from '../views/admin.js';
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -27,7 +27,9 @@ function isDate(value) {
   return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
 }
 
-export function adminSetupRoutes(app, ctx, { render, sendError, groupPage, loadEvent, loadGroup }) {
+export function adminSetupRoutes(app, ctx, {
+  render, sendError, groupPage, loadEvent, loadGroup, resubmitted, redirectDone,
+}) {
   const { repo, config } = ctx;
 
   const today = () => todayIn(ctx.now(), config.tz);
@@ -125,6 +127,8 @@ export function adminSetupRoutes(app, ctx, { render, sendError, groupPage, loadE
   }
 
   app.post('/admin/events', async (request, reply) => {
+    const again = resubmitted(request);
+    if (again) return reply.redirect(again, 303);
     const name = field(request.body, 'name', NAME_MAX).trim();
     const language = isLang(request.body?.language) ? request.body.language : 'nl';
     const lang = adminLang(request);
@@ -134,11 +138,13 @@ export function adminSetupRoutes(app, ctx, { render, sendError, groupPage, loadE
     }
     const id = repo.createEvent({ name, language }, ctx.nowIso());
     request.log.info({ event_id: id }, 'event_created');
-    return reply.redirect(`/admin/events/${id}`, 303);
+    return redirectDone(request, reply, `/admin/events/${id}?done=event-created`);
   });
 
-  app.get('/admin/events/:id', loadEvent, async (request, reply) =>
-    render(request, reply, eventPage(adminLang(request), request.record)));
+  app.get('/admin/events/:id', loadEvent, async (request, reply) => {
+    const done = EVENT_DONE.has(request.query?.done) ? request.query.done : null;
+    return render(request, reply, eventPage(adminLang(request), request.record, { done }));
+  });
 
   app.post('/admin/events/:id', loadEvent, async (request, reply) => {
     const event = request.record;
@@ -179,6 +185,8 @@ export function adminSetupRoutes(app, ctx, { render, sendError, groupPage, loadE
   });
 
   app.post('/admin/events/:id/groups', loadEvent, async (request, reply) => {
+    const again = resubmitted(request);
+    if (again) return reply.redirect(again, 303);
     const event = request.record;
     const { values, error } = readGroupForm(request.body);
     if (error) {
@@ -187,7 +195,7 @@ export function adminSetupRoutes(app, ctx, { render, sendError, groupPage, loadE
     }
     const id = repo.createGroup(event.id, values, ctx.nowIso());
     request.log.info({ event_id: event.id, group_id: id }, 'group_created');
-    return reply.redirect(`/admin/groups/${id}`, 303);
+    return redirectDone(request, reply, `/admin/groups/${id}?done=group-created`);
   });
 
   app.get('/admin/groups/:id', loadGroup, async (request, reply) => {
@@ -213,6 +221,8 @@ export function adminSetupRoutes(app, ctx, { render, sendError, groupPage, loadE
   });
 
   app.post('/admin/groups/:id/participants', loadGroup, async (request, reply) => {
+    const again = resubmitted(request);
+    if (again) return reply.redirect(again, 303);
     const group = request.record;
     const lang = adminLang(request);
     const dashboard = `/admin/groups/${group.id}`;
@@ -230,7 +240,7 @@ export function adminSetupRoutes(app, ctx, { render, sendError, groupPage, loadE
         return render(request, reply, view, stale ? 409 : 400);
       }
       request.log.info({ group_id: group.id, added: result.added.length }, 'participants_added');
-      return reply.redirect(dashboard, 303);
+      return redirectDone(request, reply, `${dashboard}?done=added`);
     }
 
     const raw = typeof request.body?.text === 'string' ? request.body.text : '';
@@ -246,7 +256,7 @@ export function adminSetupRoutes(app, ctx, { render, sendError, groupPage, loadE
       const result = commitAddParticipants(ctx, group.id, plan);
       if (result.error) throw new Error(`fresh plan refused: ${result.error}`);
       request.log.info({ group_id: group.id, added: result.added.length }, 'participants_added');
-      return reply.redirect(dashboard, 303);
+      return redirectDone(request, reply, `${dashboard}?done=added`);
     }
     const changes = open ? previewChanges(plan, repo.listParticipants(group.id)) : null;
     return render(request, reply, pasteConfirmView(lang, { group, plan, errors, changes, text: raw }));

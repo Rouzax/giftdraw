@@ -16,7 +16,7 @@ async function setup() {
 
 function idFrom(res, prefix) {
   assert.equal(res.statusCode, 303, res.body);
-  const match = new RegExp(`^${prefix}/(\\d+)$`).exec(res.headers.location);
+  const match = new RegExp(`^${prefix}/(\\d+)(?:\\?done=[a-z-]+)?$`).exec(res.headers.location);
   assert.ok(match, res.headers.location);
   return Number(match[1]);
 }
@@ -88,7 +88,7 @@ test('create an event and a group, then paste four people into a valid assignmen
 
   const res = await t.adminPost(`/admin/groups/${groupId}/participants`, { text: FOUR });
   assert.equal(res.statusCode, 303);
-  assert.equal(res.headers.location, `/admin/groups/${groupId}`);
+  assert.equal(res.headers.location, `/admin/groups/${groupId}?done=added`);
   const people = t.ctx.repo.listParticipants(groupId);
   assert.deepEqual(people.map((p) => p.name), ['Ada', 'Ben', 'Cor', 'Dirk']);
   assert.deepEqual(people.map((p) => p.email), ['ada@example.com', 'ben@example.com', null, 'dirk@example.com']);
@@ -134,7 +134,8 @@ test('an email used in another group of the event needs confirmation, and a seco
   const plan = hiddenPlan(res.body);
   const first = await t.adminPost(`/admin/groups/${tuesday}/participants`, { confirm: '1', plan });
   assert.equal(first.statusCode, 303);
-  assert.equal(first.headers.location, `/admin/groups/${tuesday}`);
+  assert.equal(first.headers.location, `/admin/groups/${tuesday}?done=added`);
+  // Without a form token on record, a repeat can only be told apart as stale.
   const second = await t.adminPost(`/admin/groups/${tuesday}/participants`, { confirm: '1', plan });
   assert.equal(second.statusCode, 409);
   assert.ok(second.body.includes(`href="/admin/groups/${tuesday}"`));

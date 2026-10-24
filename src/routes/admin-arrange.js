@@ -45,10 +45,14 @@ export function adminArrangeRoutes(app, ctx, { render, loadGroup, groupPage }) {
   app.post('/admin/groups/:id/open', loadGroup, async (request, reply) => {
     const group = request.record;
     const result = openGroup(ctx, group.id);
+    const dashboard = `/admin/groups/${group.id}?done=opened`;
+    // A second press, or one racing the auto-open, finds the group open:
+    // that is the outcome the organiser asked for, not an error.
+    if (result.reason === 'already-open') return reply.redirect(dashboard, 303);
     if (!result.opened) {
       request.log.info({ group_id: group.id, reason: result.reason }, 'group_open_refused');
       return render(request, reply, groupPage(adminLang(request), repo.getGroup(group.id), { openError: result.reason }), 409);
     }
-    return reply.redirect(`/admin/groups/${group.id}`, 303);
+    return reply.redirect(dashboard, 303);
   });
 }
