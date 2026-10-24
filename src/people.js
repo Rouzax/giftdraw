@@ -2,6 +2,7 @@ import { chooseInsertGiver, insertIntoCycle, makeCycle, planRemoval, validateAss
 import { kickDrain } from './mail/outbox.js';
 import { reminderKind } from './reminders.js';
 import { assignmentVersion } from './status.js';
+import { clipText } from './text.js';
 import { hasWishes, parseWishesForm, wishForm } from './wishes.js';
 
 const MIN_GROUP = 3;
@@ -12,10 +13,13 @@ export const PASTE_ROWS_MAX = 500;
 // Longest text a full paste can need: every row at the name and email caps.
 export const PASTE_TEXT_MAX = PASTE_ROWS_MAX * (NAME_MAX + EMAIL_MAX + 4);
 // Longest plan JSON a full paste can produce. JSON.stringify writes at most
-// six characters per UTF-16 unit (\uXXXX), a name code point is at most two
-// units, and each row adds fixed keys and a giver id.
-export const PLAN_JSON_MAX = 64 + PASTE_ROWS_MAX * ((NAME_MAX * 2 + EMAIL_MAX) * 6 + 96);
-const EMAIL = /^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/;
+// six characters per UTF-16 unit (\uXXXX), a name is at most NAME_MAX units,
+// and each row adds fixed keys and a giver id.
+export const PLAN_JSON_MAX = 64 + PASTE_ROWS_MAX * ((NAME_MAX + EMAIL_MAX) * 6 + 96);
+// The address an email input accepts (the HTML standard's rule), with a dot
+// in the domain. Anything wider could be pasted but never saved again from
+// the participant's edit form, whose email field the browser checks.
+const EMAIL = /^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$/;
 const SEPARATOR = /[\t;,]/;
 
 // Likes and pets are sets, so their order does not make a change.
@@ -67,8 +71,6 @@ export function drawFor(ctx, participantId) {
   });
 }
 
-const cut = (value, max) => Array.from(value).slice(0, max).join('');
-
 // Every outgoing mail goes through here: with mail off nothing is queued,
 // and callers skip any invitedAt they would set alongside.
 export function mailOn(ctx) {
@@ -93,7 +95,9 @@ export function parsePasteList(text) {
     const line = original.trim();
     if (!line) return;
     const at = line.search(SEPARATOR);
-    const name = cut((at === -1 ? line : line.slice(0, at)).trim(), NAME_MAX);
+    // In UTF-16 units, as the name fields' maxlength counts, so a pasted name
+    // always fits the form that edits it.
+    const name = clipText((at === -1 ? line : line.slice(0, at)).trim(), NAME_MAX).trim();
     const rawEmail = at === -1 ? '' : line.slice(at + 1).trim();
     const error = (reason) => errors.push({ line: index + 1, text: line, reason });
     // A bare address is a name missing, not a person called "a@b.c".
@@ -156,7 +160,7 @@ function cleanPlanRows(plan) {
   for (const row of plan.rows) {
     if (!row || typeof row !== 'object' || typeof row.name !== 'string') return null;
     const name = row.name.trim();
-    if (!name || Array.from(name).length > NAME_MAX) return null;
+    if (!name || name.length > NAME_MAX) return null;
     let email = null;
     if (row.email !== null && row.email !== undefined) {
       email = typeof row.email === 'string' ? normaliseEmail(row.email) : null;

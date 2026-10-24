@@ -60,7 +60,10 @@ admin header.
 3. **Paste the participants**, one per line: `Name, email@example.com`.
    Someone without email is just `Name`. The app pairs everyone straight
    away in one big circle, so nobody gets themselves and no two people
-   simply swap presents.
+   simply swap presents. Names may contain emoji. Before anything is
+   added you see the lines that will be skipped, such as an address with
+   an emoji or an accented letter in it, which mail servers and the
+   email field on the participant's page do not accept.
 4. **Send the invitations.** Everyone with an email address gets a
    welcome mail with their link and is asked to say a little about
    themselves. With email off the button reads "The links have been

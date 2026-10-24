@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { LANGS, t } from './i18n/index.js';
+import { clipText } from './text.js';
 
 export const DEFAULT_LIKE_IDS = ['chocolate', 'tea', 'coffee', 'bath', 'candles', 'books', 'plants', 'wine'];
 export const PET_IDS = ['dog', 'cat', 'other'];
@@ -66,7 +67,7 @@ export const endsInMark = (label) => /[?!.:…]$/.test(label);
 export function cleanHeading(value) {
   if (typeof value !== 'string') return null;
   const line = value.replace(/\s+/g, ' ').trim();
-  return line ? Array.from(line).slice(0, HEADING_MAX).join('').trim() : null;
+  return line ? clipText(line, HEADING_MAX, 'codepoints').trim() : null;
 }
 
 function readOption(o) {
@@ -150,7 +151,7 @@ const trimMarks = (text) => text.replace(/^[\s?]+/, '').replace(/[\s?]+$/, '');
 function parseQuestion(rest) {
   const question = trimMarks(rest);
   if (!question) return null;
-  return `${trimMarks(Array.from(question).slice(0, QUESTION_MAX - 1).join(''))}?`;
+  return `${trimMarks(clipText(question, QUESTION_MAX - 1, 'codepoints'))}?`;
 }
 
 function labelOf(option, lang) {
@@ -228,8 +229,7 @@ function field(body, name) {
 function text(value) {
   const first = Array.isArray(value) ? value[0] : value;
   if (typeof first !== 'string') return '';
-  // Cut by code points so an emoji at the limit is not split into half a pair.
-  return Array.from(first.trim()).slice(0, TEXT_MAX).join('');
+  return clipText(first.trim(), TEXT_MAX, 'codepoints');
 }
 
 function pickIds(value, allowed) {
