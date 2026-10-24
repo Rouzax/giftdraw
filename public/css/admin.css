@@ -750,6 +750,12 @@ table.people th a {
   overflow-wrap: break-word;
 }
 
+/* A mail error code is short; split at its hyphen ("smtp-" / "550") it
+   reads as two things. */
+.status code {
+  white-space: nowrap;
+}
+
 .status .icon-check {
   color: var(--ribbon);
 }
