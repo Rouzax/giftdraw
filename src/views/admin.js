@@ -322,7 +322,7 @@ function summary(lang, rows, mailEnabled) {
   ];
   if (mailEnabled) {
     items.push(t(lang, 'admin.summary.invited', {
-      count: withEmail.filter((r) => r.participant.invitedAt).length, total: withEmail.length,
+      count: withEmail.filter((r) => r.mail.invite === 'sent').length, total: withEmail.length,
     }));
   }
   return html`<ul class="summary">${items.map((item) => html`<li>${item}</li>`)}</ul>`;

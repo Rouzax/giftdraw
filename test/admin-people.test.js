@@ -640,3 +640,18 @@ test('with email off the edit form does not ask to resend the invitation', async
   assert.ok(!off.body.includes(tr('nl', 'admin.person.edit.emailHint')));
   assert.ok(off.body.includes(tr('nl', 'admin.person.edit.emailHintNoMail')));
 });
+
+test('the invited summary counts only invitations that were delivered', async () => {
+  const t = await setup({ names: ['Ada', 'Ben', 'Cor'] });
+  const { repo } = t.ctx;
+  const now = t.ctx.nowIso();
+  const delivered = repo.enqueue(t.people[0].id, 'invite', now);
+  repo.claimDue(now, 10);
+  repo.markSent(delivered, now);
+  const failed = repo.enqueue(t.people[1].id, 'invite', now);
+  repo.claimDue(now, 10);
+  repo.markFailed(failed, 'smtp-550', null, now);
+  repo.enqueue(t.people[2].id, 'invite', now);
+  const page = await t.adminGet(`/admin/groups/${t.groupId}`);
+  assert.ok(page.body.includes(tr('nl', 'admin.summary.invited', { count: 1, total: 3 })));
+});

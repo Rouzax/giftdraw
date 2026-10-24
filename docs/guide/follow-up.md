@@ -6,7 +6,7 @@ The group dashboard shows where everyone is. With email on, the app also sends r
 
 ![The dashboard of an open group: counts at the top, then one row per participant](../images/organiser-dashboard.webp){ .shot }
 
-At the top, the counts: how many have drawn, filled in their wishes and opened their link, and with email on how many people with email were invited. Below them: when the invitations went out, whether and since when drawing is open (or when it opens by itself), and the exchange date, time and place.
+At the top, the counts: how many have drawn, filled in their wishes and opened their link, and with email on how many people with email were invited. Someone counts as invited once their invitation was delivered; a queued, retrying or failed invitation does not count. Below them: when the invitations went out, whether and since when drawing is open (or when it opens by itself), and the exchange date, time and place.
 
 The **Participants** (*Deelnemers*) table has one row per person. Click a name to open their page.
 
