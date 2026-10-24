@@ -240,7 +240,7 @@ export function adminSetupRoutes(app, ctx, {
         return render(request, reply, view, stale ? 409 : 400);
       }
       request.log.info({ group_id: group.id, added: result.added.length }, 'participants_added');
-      return redirectDone(request, reply, `${dashboard}?done=added`);
+      return redirectDone(request, reply, `${dashboard}?done=${result.tellGivers ? 'added-tell' : 'added'}`);
     }
 
     const raw = typeof request.body?.text === 'string' ? request.body.text : '';
@@ -256,10 +256,11 @@ export function adminSetupRoutes(app, ctx, {
       const result = commitAddParticipants(ctx, group.id, plan);
       if (result.error) throw new Error(`fresh plan refused: ${result.error}`);
       request.log.info({ group_id: group.id, added: result.added.length }, 'participants_added');
-      return redirectDone(request, reply, `${dashboard}?done=added`);
+      return redirectDone(request, reply, `${dashboard}?done=${result.tellGivers ? 'added-tell' : 'added'}`);
     }
     const changes = open ? previewChanges(plan, repo.listParticipants(group.id)) : null;
-    return render(request, reply, pasteConfirmView(lang, { group, plan, errors, changes, text: raw }));
+    const view = pasteConfirmView(lang, { group, plan, errors, changes, text: raw, mailEnabled: ctx.mailer.enabled });
+    return render(request, reply, view);
   });
 
   app.post('/admin/groups/:id/invite', loadGroup, async (request, reply) => {

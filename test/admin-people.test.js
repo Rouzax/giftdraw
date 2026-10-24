@@ -565,3 +565,43 @@ test('the participant routes need an organiser session', async () => {
   assert.equal(page.body.includes(ada.token), false);
   assert.deepEqual(t.ctx.repo.getParticipant(ada.id), ada);
 });
+
+// With mail off nothing is queued, so the previews must not promise mail.
+test('with email off the add and remove previews tell the organiser to inform drawn givers herself', async () => {
+  const t = await setup({ names: ['Pia', 'Quin', 'Rob', 'Sam'], opened: true });
+  t.mailer.enabled = false;
+  markDrawn(t, t.people.map((p) => p.id));
+  const pasted = await t.adminPost(`/admin/groups/${t.groupId}/participants`, { text: 'Nieuw' });
+  assert.equal(pasted.statusCode, 200);
+  assert.ok(!pasted.body.includes(tr('nl', 'admin.paste.openIntro')));
+  assert.ok(!pasted.body.includes(tr('nl', 'admin.paste.changeMailed')));
+  assert.ok(pasted.body.includes(tr('nl', 'admin.paste.openIntroNoMail')));
+  const plan = JSON.parse(hidden(pasted.body, 'plan'));
+  const changed = t.people.find((p) => p.id === plan.rows[0].insertGiverId);
+  assert.ok(pasted.body.includes(tr('nl', 'admin.paste.changeTell', { giver: changed.name })));
+
+  const confirmed = await t.adminPost(`/admin/groups/${t.groupId}/participants`, { confirm: '1', plan: JSON.stringify(plan) });
+  assert.equal(confirmed.headers.location, `/admin/groups/${t.groupId}?done=added-tell`);
+  const dashboard = await t.adminGet(confirmed.headers.location);
+  assert.ok(dashboard.body.includes(tr('nl', 'admin.person.done.added-tell')));
+
+  const preview = await t.adminGet(`/admin/participants/${t.people[0].id}/remove`);
+  assert.ok(!preview.body.includes(tr('nl', 'admin.paste.changeMailed')));
+  const [giverId] = planRemoveParticipant(t.ctx, t.people[0].id).changedGivers;
+  const giver = t.ctx.repo.getParticipant(giverId);
+  assert.ok(preview.body.includes(tr('nl', 'admin.paste.changeTell', { giver: giver.name })));
+  const removed = await t.adminPost(`/admin/participants/${t.people[0].id}/remove`, {
+    plan: hidden(preview.body, 'plan'), group: hidden(preview.body, 'group'),
+  });
+  assert.equal(removed.headers.location, `/admin/groups/${t.groupId}?done=removed-tell`);
+});
+
+test('with email on, a drawn giver with an address is told by mail and the dashboard says plainly added', async () => {
+  const t = await setup({ names: ['Pia', 'Quin', 'Rob', 'Sam'], opened: true });
+  markDrawn(t, t.people.map((p) => p.id));
+  const pasted = await t.adminPost(`/admin/groups/${t.groupId}/participants`, { text: 'Nieuw' });
+  assert.ok(pasted.body.includes(tr('nl', 'admin.paste.openIntro')));
+  assert.ok(pasted.body.includes(tr('nl', 'admin.paste.changeMailed')));
+  const confirmed = await t.adminPost(`/admin/groups/${t.groupId}/participants`, { confirm: '1', plan: hidden(pasted.body, 'plan') });
+  assert.equal(confirmed.headers.location, `/admin/groups/${t.groupId}?done=added`);
+});

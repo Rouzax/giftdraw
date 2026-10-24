@@ -331,6 +331,19 @@ button.danger {
   overflow-wrap: anywhere;
 }
 
+/* Opened only on purpose: the receiver stays off screen while the person
+   who drew may be looking along. */
+.facts summary {
+  padding: 0.25rem 0;
+  color: var(--accent-dark);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.facts details p {
+  margin: 0.25rem 0 0;
+}
+
 .state-sent {
   color: var(--ribbon);
 }

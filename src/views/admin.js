@@ -356,7 +356,7 @@ ${arrange}
 // and the changes that redirect there.
 export const GROUP_DONE = new Set([
   'failed-requeued', 'all-requeued', 'no-failure', 'mail-off', 'already-queued', 'added', 'removed', 'opened',
-  'group-created',
+  'group-created', 'added-tell', 'removed-tell',
 ]);
 export const EVENT_DONE = new Set(['event-created']);
 
@@ -430,16 +430,18 @@ function personLabel(lang, row) {
 }
 
 // changes: [{giverName, newReceiverName, drawn, hasEmail}], givers whose
-// receiver changes in an open group.
-function changeList(lang, changes) {
+// receiver changes in an open group. With mail off nobody is mailed, so the
+// organiser is told whom to tell herself.
+function changeList(lang, changes, mailEnabled) {
   const note = (c) => {
     if (!c.drawn) return '';
+    if (!mailEnabled) return t(lang, 'admin.paste.changeTell', { giver: c.giverName });
     return c.hasEmail ? t(lang, 'admin.paste.changeMailed') : t(lang, 'admin.paste.changeReprint');
   };
   return html`<ul>${changes.map((c) => html`<li>${t(lang, 'admin.paste.change', { giver: c.giverName, receiver: c.newReceiverName })} ${note(c)}</li>`)}</ul>`;
 }
 
-export function pasteConfirmView(lang, { group, plan, errors, changes, text }) {
+export function pasteConfirmView(lang, { group, plan, errors, changes, text, mailEnabled }) {
   const title = t(lang, 'admin.paste.confirmTitle');
   const errorList = errors.length
     ? html`<section class="panel">
@@ -458,8 +460,8 @@ export function pasteConfirmView(lang, { group, plan, errors, changes, text }) {
   const openNotice = changes
     ? html`<section class="panel">
 <h2>${t(lang, 'admin.paste.openTitle')}</h2>
-<p>${t(lang, 'admin.paste.openIntro')}</p>
-${changeList(lang, changes)}
+<p>${t(lang, mailEnabled ? 'admin.paste.openIntro' : 'admin.paste.openIntroNoMail')}</p>
+${changeList(lang, changes, mailEnabled)}
 </section>`
     : '';
   const confirm = plan.rows.length
@@ -578,12 +580,27 @@ ${list}`;
 const DONE_OK = new Set([
   'saved', 'wishes-saved', 'link-regenerated', 'invite-queued', 'remind-queued', 'failed-requeued', 'all-requeued',
 ]);
-const DONE_WARN = new Set(['nothing-to-remind', 'no-email', 'not-invited', 'mail-off', 'no-failure', 'already-queued']);
-export const PERSON_DONE = new Set([...DONE_OK, ...DONE_WARN]);
+// Done, but with something left for the organiser to do.
+const DONE_WARN = new Set([
+  'nothing-to-remind', 'no-email', 'not-invited', 'mail-off', 'no-failure', 'already-queued', 'added-tell', 'removed-tell',
+]);
+export const PERSON_DONE = new Set([
+  ...DONE_OK, 'nothing-to-remind', 'no-email', 'not-invited', 'mail-off', 'no-failure', 'already-queued',
+]);
 
 function doneNotice(lang, done) {
   if (!done) return '';
   return html`<p class="notice ${DONE_WARN.has(done) ? 'warn' : 'done'}" role="status">${t(lang, `admin.person.done.${done}`)}</p>`;
+}
+
+// The organiser draws for someone from this page with that person beside
+// her, so the receiver is never on screen before the draw, and after it
+// only when she asks for it.
+function pairingFact(lang, p, receiver) {
+  if (!receiver) return t(lang, 'admin.status.unpaired');
+  if (!p.drawnAt) return t(lang, 'admin.person.paired');
+  return html`<details class="receiver"><summary>${t(lang, 'admin.person.showReceiver', { name: p.name })}</summary>
+<p>${t(lang, 'admin.person.givesTo', { name: receiver.name })}</p></details>`;
 }
 
 function personFacts(lang, { participant: p, group, receiver, tz }) {
@@ -591,7 +608,7 @@ function personFacts(lang, { participant: p, group, receiver, tz }) {
     t(lang, 'admin.person.group', { group: group.name }),
     p.email ? t(lang, 'admin.person.email', { email: p.email }) : t(lang, 'admin.noEmail'),
     p.drawnAt ? t(lang, 'admin.person.drawn', { date: shortDate(lang, p.drawnAt, tz) }) : t(lang, 'admin.person.notDrawn'),
-    receiver ? t(lang, 'admin.person.givesTo', { name: receiver.name }) : t(lang, 'admin.status.unpaired'),
+    pairingFact(lang, p, receiver),
   ];
   return html`<ul class="facts">${lines.map((line) => html`<li>${line}</li>`)}</ul>`;
 }
@@ -738,7 +755,7 @@ ${editPanel(lang, { participant, values, error, duplicate })}
 
 // plan: {version, map: [[giver, receiver]] | null, refused?}; changes as in
 // changeList, only for an open group.
-export function removeView(lang, { participant, group, plan, open, changes }) {
+export function removeView(lang, { participant, group, plan, open, changes, mailEnabled }) {
   const title = t(lang, 'admin.remove.title', { name: participant.name });
   const back = backLink(`/admin/participants/${participant.id}`, participant.name);
   if (plan.refused) {
@@ -752,7 +769,7 @@ export function removeView(lang, { participant, group, plan, open, changes }) {
   if (open) {
     effect = html`<h2>${t(lang, 'admin.remove.openTitle')}</h2>
 <p>${t(lang, 'admin.remove.openIntro')}</p>
-${changeList(lang, changes)}`;
+${changeList(lang, changes, mailEnabled)}`;
   } else {
     effect = html`<p>${t(lang, plan.map ? 'admin.remove.closedPairs' : 'admin.remove.closedNoPairs')}</p>`;
   }

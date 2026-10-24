@@ -235,6 +235,7 @@ export function adminPeopleRoutes(app, ctx, {
       plan: { ...plan, map: plan.map ? [...plan.map] : null },
       open,
       changes,
+      mailEnabled: ctx.mailer.enabled,
     });
     return render(request, reply, view);
   });
@@ -262,6 +263,7 @@ export function adminPeopleRoutes(app, ctx, {
     // No counts: how many givers changed and whether one was mailed say
     // something about the removed person's giver.
     request.log.info({ participant_id: id, group_id: result.removed.groupId }, 'participant_removed');
-    return redirectDone(request, reply, `/admin/groups/${result.removed.groupId}?done=removed`);
+    const done = result.tellGivers ? 'removed-tell' : 'removed';
+    return redirectDone(request, reply, `/admin/groups/${result.removed.groupId}?done=${done}`);
   });
 }

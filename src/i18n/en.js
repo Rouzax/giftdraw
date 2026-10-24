@@ -232,6 +232,9 @@ export default {
   'admin.paste.change': '{giver} now gives a present to {receiver}.',
   'admin.paste.changeMailed': 'They had already drawn and get an email.',
   'admin.paste.changeReprint': 'They had already drawn and have no email: print their card again.',
+  'admin.paste.openIntroNoMail':
+    'Email is off, so nobody gets a message. New participants can draw at once through their own link: share it with them yourself. This is what changes:',
+  'admin.paste.changeTell': 'They had already drawn. Email is off, so tell {giver} yourself or print their card again.',
   'admin.paste.toAdd': 'To add ({count})',
   'admin.paste.confirm': 'Yes, add these {count}',
   'admin.paste.nothing': 'Nobody on the list can be added.',
@@ -285,6 +288,10 @@ export default {
   'admin.failure.resendAll': 'Send all failed mail again',
   'admin.person.done.all-requeued': 'The failed mails are being sent again.',
   'admin.person.done.added': 'Added.',
+  'admin.person.done.added-tell':
+    'Added. Someone who had already drawn now gives to someone else and gets no email about it: tell them yourself or print their card again.',
+  'admin.person.done.removed-tell':
+    'Removed from the group. Someone who had already drawn now gives to someone else and gets no email about it: tell them yourself or print their card again.',
   'admin.person.done.removed': 'Removed from the group.',
   'admin.person.done.opened': 'Drawing is open.',
   'admin.person.done.event-created': 'The event has been created. Add a group below.',
@@ -294,6 +301,8 @@ export default {
   'admin.person.drawn': 'Drew on {date}',
   'admin.person.notDrawn': 'Has not drawn yet',
   'admin.person.givesTo': 'Gives to {name}',
+  'admin.person.paired': 'Paired',
+  'admin.person.showReceiver': 'Show who {name} drew',
   'admin.person.link.title': 'Personal link',
   'admin.person.link.label': 'Link',
   'admin.person.link.hint': 'This link opens the page of {name}. Share it only with {name}.',

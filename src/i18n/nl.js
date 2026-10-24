@@ -234,6 +234,9 @@ export default {
   'admin.paste.change': '{giver} geeft voortaan een cadeautje aan {receiver}.',
   'admin.paste.changeMailed': 'Die had al getrokken en krijgt een e-mail.',
   'admin.paste.changeReprint': 'Die had al getrokken en heeft geen e-mail: print de kaart opnieuw.',
+  'admin.paste.openIntroNoMail':
+    'E-mail staat uit, dus niemand krijgt bericht. Nieuwe deelnemers kunnen meteen trekken via hun eigen link: deel die zelf met ze. Dit verandert er:',
+  'admin.paste.changeTell': 'Die had al getrokken. E-mail staat uit, dus vertel het {giver} zelf of print de kaart opnieuw.',
   'admin.paste.toAdd': 'Toevoegen ({count})',
   'admin.paste.confirm': 'Ja, voeg deze {count} toe',
   'admin.paste.nothing': 'Er staat niemand op de lijst die toegevoegd kan worden.',
@@ -287,6 +290,10 @@ export default {
   'admin.failure.resendAll': 'Alle mislukte mail opnieuw sturen',
   'admin.person.done.all-requeued': 'De mislukte mails worden opnieuw verstuurd.',
   'admin.person.done.added': 'Toegevoegd.',
+  'admin.person.done.added-tell':
+    'Toegevoegd. Iemand die al getrokken had, geeft nu aan iemand anders en krijgt daar geen e-mail over: vertel het zelf of print de kaart opnieuw.',
+  'admin.person.done.removed-tell':
+    'Uit de groep gehaald. Iemand die al getrokken had, geeft nu aan iemand anders en krijgt daar geen e-mail over: vertel het zelf of print de kaart opnieuw.',
   'admin.person.done.removed': 'Uit de groep gehaald.',
   'admin.person.done.opened': 'Het trekken is open.',
   'admin.person.done.event-created': 'Het evenement is aangemaakt. Voeg hieronder een groep toe.',
@@ -296,6 +303,8 @@ export default {
   'admin.person.drawn': 'Getrokken op {date}',
   'admin.person.notDrawn': 'Nog niet getrokken',
   'admin.person.givesTo': 'Geeft aan {name}',
+  'admin.person.paired': 'Ingedeeld',
+  'admin.person.showReceiver': 'Toon wie {name} trekt',
   'admin.person.link.title': 'Persoonlijke link',
   'admin.person.link.label': 'Link',
   'admin.person.link.hint': 'Met deze link kom je op de pagina van {name}. Deel hem alleen met {name}.',

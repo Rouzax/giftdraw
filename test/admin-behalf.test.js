@@ -195,3 +195,23 @@ test('on-behalf routes answer 404 for unknown participants', async () => {
   assert.equal((await t.adminPost('/admin/participants/999999/draw')).statusCode, 404);
   assert.equal((await t.adminPost('/admin/participants/999999/about')).statusCode, 404);
 });
+
+// The organiser draws for Ada with Ada beside her, so the page she starts
+// from must not name the receiver before the reveal.
+test('the participant page keeps the receiver hidden until drawn, then behind a disclosure', async () => {
+  const t = await withNoEmailAda({ names: ['Ada', 'Ben', 'Cor', 'Dirk'], opened: true });
+  const receiver = receiverOf(t, t.ada.id);
+  const before = await t.adminGet(`/admin/participants/${t.ada.id}`);
+  assert.equal(before.statusCode, 200);
+  assert.ok(!before.body.includes(receiver.name), 'no receiver name before the draw');
+  assert.ok(before.body.includes(tr('nl', 'admin.person.paired')));
+  assert.ok(!before.body.includes('<details'));
+
+  await t.adminPost(`/admin/participants/${t.ada.id}/draw`);
+  const after = await t.adminGet(`/admin/participants/${t.ada.id}`);
+  const disclosure = /<details[^>]*>\s*<summary>([^<]*)<\/summary>([\s\S]*?)<\/details>/.exec(after.body);
+  assert.ok(disclosure, 'a disclosure holds the receiver');
+  assert.equal(disclosure[1], tr('nl', 'admin.person.showReceiver', { name: 'Ada' }));
+  assert.ok(disclosure[2].includes(tr('nl', 'admin.person.givesTo', { name: receiver.name })));
+  assert.equal(after.body.split(receiver.name).length - 1, 1, 'the name appears only inside the disclosure');
+});

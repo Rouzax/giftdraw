@@ -77,12 +77,16 @@ admin header.
    their wishes, draw for them on your screen (ideally with them next to
    you), and print an A5 card with their person, the theme and that
    person's wishes. This is the way to include someone without email or
-   a phone.
+   a phone. The participant page does not name their person before they
+   have drawn, so you can sit together; afterwards the name is behind
+   "Show who ... drew".
 
 Someone can still drop out or join after drawing has opened. The
 participant page shows exactly which pair changes before you confirm.
 Only one person gets a new receiver, and their mail says only that their
-person has changed and who the new one is, never who dropped out.
+person has changed and who the new one is, never who dropped out. With
+email off, or when that giver has no email, the preview names them so
+you can tell them yourself or print their card again.
 
 ### For a participant
 

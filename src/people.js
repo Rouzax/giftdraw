@@ -220,14 +220,15 @@ export function commitAddParticipants(ctx, groupId, plan) {
         if (state.open && enqueueMail(ctx, p.id, 'draw-open', now)) queued += 1;
       }
     }
+    let tellGivers = false;
     if (state.open) {
       for (const giver of state.people) {
-        if (giver.drawnAt && giver.email && state.map.get(giver.id) !== after.get(giver.id)) {
-          if (enqueueMail(ctx, giver.id, 'reassigned', now)) queued += 1;
-        }
+        if (!giver.drawnAt || state.map.get(giver.id) === after.get(giver.id)) continue;
+        if (giver.email && enqueueMail(ctx, giver.id, 'reassigned', now)) queued += 1;
+        else tellGivers = true;
       }
     }
-    return { added, queued };
+    return { added, queued, tellGivers };
   });
   if (result.queued) kickDrain(ctx);
   return result;
@@ -283,7 +284,7 @@ function cleanRemovalMap(value) {
 }
 
 // plan: {version, map} with map as [giver, receiver] pairs or null. Returns
-// {removed, changed} or {error: 'stale' | 'too-small' | 'invalid'}. A
+// {removed, changed, tellGivers} or {error: 'stale' | 'too-small' | 'invalid'}. A
 // participant already gone counts as stale, so a repeated confirm reads as
 // "something changed" rather than as a missing page.
 export function commitRemoveParticipant(ctx, id, plan) {
@@ -305,10 +306,12 @@ export function commitRemoveParticipant(ctx, id, plan) {
     repo.removeParticipantWithAssignment(id, map, now);
     const changed = state.people.filter((p) => p.id !== id && state.map.get(p.id) !== map?.get(p.id));
     let queued = 0;
-    for (const giver of changed) {
-      if (giver.drawnAt && giver.email && enqueueMail(ctx, giver.id, 'reassigned', now)) queued += 1;
+    let tellGivers = false;
+    for (const giver of changed.filter((p) => p.drawnAt)) {
+      if (giver.email && enqueueMail(ctx, giver.id, 'reassigned', now)) queued += 1;
+      else tellGivers = true;
     }
-    return { removed: participant, changed: changed.map((p) => p.id), queued };
+    return { removed: participant, changed: changed.map((p) => p.id), queued, tellGivers };
   });
   if (result.queued) kickDrain(ctx);
   return result;
