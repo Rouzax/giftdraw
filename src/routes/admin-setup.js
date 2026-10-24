@@ -93,6 +93,7 @@ export function adminSetupRoutes(app, ctx, {
       sections: readFormConfig(event.formConfig).sections,
       petsValue: optionLines(petOptions(event), event.language),
       tz: config.tz,
+      mailEnabled: ctx.mailer.enabled,
       ...extra,
     });
   }

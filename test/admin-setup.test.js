@@ -507,6 +507,38 @@ test('with email off the dashboard explains the invitation button and drops mail
   assert.ok(on.body.includes('met e-mail uitgenodigd'));
 });
 
+// Sentences that speak of an invitation mail or of sending mail.
+const MAIL_TALK = [
+  'Komt in de uitnodiging', 'Uitnodigingen verstuurd op', 'mail te sturen', 'stuur de uitnodiging opnieuw',
+  'Alleen als de uitnodigingen dan al verstuurd zijn',
+];
+
+test('with email off no organiser page speaks of an invitation mail', async () => {
+  const t = await setup();
+  const groupId = await groupOfFour(t);
+  const eventId = t.ctx.repo.getGroup(groupId).eventId;
+  const person = t.ctx.repo.listParticipants(groupId)[0];
+  const pages = async () => [
+    await t.adminGet(`/admin/events/${eventId}`),
+    await t.adminGet(`/admin/groups/${groupId}`),
+    await t.adminGet(`/admin/participants/${person.id}`),
+  ].map((res) => res.body).join('\n');
+
+  t.mailer.enabled = false;
+  const before = await pages();
+  assert.equal(before.includes('De uitnodigingen zijn nog niet verstuurd.'), false);
+  assert.ok(before.includes('De links zijn nog niet gedeeld.'));
+  await t.adminPost(`/admin/groups/${groupId}/invite`);
+  const off = await pages();
+  for (const phrase of MAIL_TALK) assert.equal(off.includes(phrase), false, phrase);
+  assert.ok(off.includes('Links gedeeld op '));
+  assert.ok(off.includes('Komt op het scherm van iedere deelnemer'));
+
+  t.mailer.enabled = true;
+  const on = await pages();
+  for (const phrase of MAIL_TALK) assert.ok(on.includes(phrase), phrase);
+});
+
 test('a group keeps an exchange time and a one-line place, and empty values are null', async () => {
   const t = await setup();
   const eventId = await createEvent(t);

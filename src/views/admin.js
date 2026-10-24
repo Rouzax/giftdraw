@@ -86,16 +86,19 @@ ${hint ? html`<p class="hint" id="${id}-hint">${hint}</p>` : ''}
 <input id="${id}" name="${name}" type="date" value="${value ?? ''}"${required ? raw(' required') : ''}${hint ? raw(` aria-describedby="${id}-hint"`) : ''}>`;
 }
 
-function groupFields(lang, prefix, values) {
+// With email off there is no invitation mail, so the hints name what the
+// organiser does instead.
+function groupFields(lang, prefix, values, mailEnabled) {
+  const hint = (key) => t(lang, mailEnabled ? key : `${key}NoMail`);
   return html`<label for="${prefix}-name">${t(lang, 'admin.group.name')}</label>
 <input id="${prefix}-name" name="name" type="text" maxlength="100" required value="${values.name ?? ''}">
 ${dateInput(`${prefix}-exchange`, 'exchangeDate', t(lang, 'admin.group.exchangeDate'), values.exchangeDate, { required: true })}
 <label for="${prefix}-time">${t(lang, 'admin.group.exchangeTime')}</label>
 <input id="${prefix}-time" name="exchangeTime" type="time" value="${values.exchangeTime ?? ''}">
 <label for="${prefix}-place">${t(lang, 'admin.group.exchangePlace')}</label>
-<p class="hint" id="${prefix}-place-hint">${t(lang, 'admin.group.exchangePlaceHint')}</p>
+<p class="hint" id="${prefix}-place-hint">${hint('admin.group.exchangePlaceHint')}</p>
 <input id="${prefix}-place" name="exchangePlace" type="text" maxlength="200" value="${values.exchangePlace ?? ''}" aria-describedby="${prefix}-place-hint">
-${dateInput(`${prefix}-auto`, 'autoOpenAt', t(lang, 'admin.group.autoOpenAt'), values.autoOpenAt, { hint: t(lang, 'admin.group.autoOpenHint') })}`;
+${dateInput(`${prefix}-auto`, 'autoOpenAt', t(lang, 'admin.group.autoOpenAt'), values.autoOpenAt, { hint: hint('admin.group.autoOpenHint') })}`;
 }
 
 function deleteForm(lang, action, { label, warning }) {
@@ -137,7 +140,8 @@ ${items}
 }
 
 export function eventView(lang, {
-  event, groups, newGroup, themeValue, optionsValue, sections, petsValue, tz, error = null, groupError = null, done = null,
+  event, groups, newGroup, themeValue, optionsValue, sections, petsValue, tz, mailEnabled, error = null, groupError = null,
+  done = null,
 }) {
   const title = event.name;
   const groupList = groups.length
@@ -159,7 +163,7 @@ ${groupList}
 ${errorNotice(lang, groupError)}
 <form method="post" action="/admin/events/${event.id}/groups" class="stack">
 ${formToken()}
-${groupFields(lang, 'new-group', newGroup)}
+${groupFields(lang, 'new-group', newGroup, mailEnabled)}
 <button type="submit" class="primary">${t(lang, 'admin.groups.create')}</button>
 </form>
 </section>
@@ -270,7 +274,7 @@ ${cell('card', cardCell(lang, row))}
 function participantTable(lang, rows, tz, mailEnabled) {
   if (rows.length === 0) return html`<p class="muted">${t(lang, 'admin.participants.empty')}</p>`;
   const heading = (key) => html`<th scope="col">${t(lang, `admin.col.${key}`)}</th>`;
-  return html`<p class="hint">${t(lang, 'admin.participants.hint')}</p>
+  return html`<p class="hint">${t(lang, mailEnabled ? 'admin.participants.hint' : 'admin.participants.hintNoMail')}</p>
 <div class="table-wrap">
 <table class="people">
 <thead><tr>
@@ -302,11 +306,11 @@ function summary(lang, rows, mailEnabled) {
   return html`<ul class="summary">${items.map((item) => html`<li>${item}</li>`)}</ul>`;
 }
 
-function groupStatus(lang, group, tz) {
+function groupStatus(lang, group, tz, mailEnabled) {
   const lines = [];
   lines.push(group.invitationsSentAt
-    ? t(lang, 'admin.group.invitationsSent', { date: shortDate(lang, group.invitationsSentAt, tz) })
-    : t(lang, 'admin.group.invitationsNotSent'));
+    ? t(lang, mailEnabled ? 'admin.group.invitationsSent' : 'admin.group.linksShared', { date: shortDate(lang, group.invitationsSentAt, tz) })
+    : t(lang, mailEnabled ? 'admin.group.invitationsNotSent' : 'admin.group.linksNotShared'));
   if (group.openedAt) lines.push(t(lang, 'admin.group.openSince', { date: shortDate(lang, group.openedAt, tz) }));
   else if (group.autoOpenAt) lines.push(t(lang, 'admin.group.opensOn', { date: formatDate(lang, group.autoOpenAt, tz) }));
   else lines.push(t(lang, 'admin.group.notOpenYet'));
@@ -387,7 +391,7 @@ export function groupView(lang, {
 ${doneNotice(lang, done)}
 ${banners}
 ${summary(lang, rows, mailEnabled)}
-${groupStatus(lang, group, tz)}
+${groupStatus(lang, group, tz, mailEnabled)}
 <section class="panel">
 <h2>${t(lang, 'admin.invite.title')}</h2>
 ${invitePanelBody(lang, { group, mailEnabled, uninvited })}
@@ -407,7 +411,7 @@ ${pasteForm(lang, group.id, pasteText)}
 <h2>${t(lang, 'admin.group.settings')}</h2>
 ${errorNotice(lang, error)}
 <form method="post" action="/admin/groups/${group.id}" class="stack">
-${groupFields(lang, 'group', form)}
+${groupFields(lang, 'group', form, mailEnabled)}
 <button type="submit" class="primary">${t(lang, 'admin.save')}</button>
 </form>
 </section>
@@ -615,7 +619,7 @@ function personFacts(lang, { participant: p, group, receiver, tz }) {
 
 // Without script the field is still there to select and copy by hand;
 // copy-link.js reveals the button.
-function linkPanel(lang, { participant: p, link }) {
+function linkPanel(lang, { participant: p, link, mailEnabled }) {
   return html`<section class="panel">
 <h2>${t(lang, 'admin.person.link.title')}</h2>
 <div class="copy-link" data-copy-link data-copied="${t(lang, 'admin.person.link.copied')}" data-failed="${t(lang, 'admin.person.link.copyFailed')}">
@@ -633,7 +637,7 @@ function linkPanel(lang, { participant: p, link }) {
 </div>
 <form method="post" action="/admin/participants/${p.id}/regenerate-link" class="stack">
 <h3>${t(lang, 'admin.person.regenerate.title')}</h3>
-<p class="hint">${t(lang, 'admin.person.regenerate.warning')}</p>
+<p class="hint">${t(lang, mailEnabled ? 'admin.person.regenerate.warning' : 'admin.person.regenerate.warningNoMail')}</p>
 <label class="check"><input type="checkbox" name="confirm" value="1" required> <span>${t(lang, 'admin.person.regenerate.confirm')}</span></label>
 <button type="submit" class="with-icon">${iconText('refresh-cw', t(lang, 'admin.person.regenerate.button'))}</button>
 </form>
@@ -741,7 +745,7 @@ export function participantView(lang, {
 ${doneNotice(lang, done)}
 ${personFacts(lang, { participant, group, receiver, tz })}
 ${first}
-${linkPanel(lang, { participant, link })}
+${linkPanel(lang, { participant, link, mailEnabled })}
 ${mailPanel(lang, { participant, mail, remindKind, mailEnabled, tz })}
 ${later}
 ${editPanel(lang, { participant, values, error, duplicate, mailEnabled })}
