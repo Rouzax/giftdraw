@@ -1,0 +1,89 @@
+/* Colours from public/css/base.css, so the docs look like the app:
+   paper #fffaf3, ink #2b211b, accent #b23a1e (dark #8a2a14),
+   ribbon green #2f6b4f, line #d9c7b4. */
+
+[data-md-color-primary="custom"] {
+  --md-primary-fg-color: #b23a1e;
+  --md-primary-fg-color--light: #d0603f;
+  --md-primary-fg-color--dark: #8a2a14;
+  /* White on the accent is 6:1, the app's own button colours. */
+  --md-primary-bg-color: #ffffff;
+  --md-primary-bg-color--light: rgba(255, 255, 255, 0.7);
+}
+
+[data-md-color-accent="custom"] {
+  --md-accent-fg-color: #2f6b4f;
+  --md-accent-fg-color--transparent: rgba(47, 107, 79, 0.1);
+  --md-accent-bg-color: #ffffff;
+  --md-accent-bg-color--light: rgba(255, 255, 255, 0.7);
+}
+
+[data-md-color-scheme="default"] {
+  --md-default-bg-color: #fffaf3;
+  --md-default-fg-color: #2b211b;
+  /* Links use the darker accent: 8:1 on paper, where the plain accent is
+     only 5.7:1 and reads as a button colour. */
+  --md-typeset-a-color: #8a2a14;
+  --gd-line: #d9c7b4;
+  --gd-card: #ffffff;
+}
+
+/* A warm dark scheme rather than the default blue-grey. The light tints keep
+   links and hover colour above 7:1 on this background. */
+[data-md-color-scheme="slate"] {
+  --md-hue: 22;
+  --md-typeset-a-color: #f2a184;
+  --md-accent-fg-color: #7fc4a2;
+  --md-accent-fg-color--transparent: rgba(127, 196, 162, 0.1);
+  --gd-line: #5a4a3f;
+  --gd-card: #312923;
+}
+
+/* Screenshots: a thin border in the app's line colour so a light page
+   does not melt into the light docs background. */
+.md-typeset img.shot {
+  border: 1px solid var(--gd-line);
+  border-radius: 8px;
+}
+
+/* Phone screenshots side by side, wrapping on narrow screens. */
+.md-typeset .phones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.md-typeset .phones > p,
+.md-typeset .phones > figure {
+  margin: 0;
+}
+
+/* Home page hero: participant phone beside the organiser dashboard. */
+.md-typeset .hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2.6fr);
+  gap: 1rem;
+  align-items: start;
+  margin: 1.5rem 0;
+}
+
+@media screen and (max-width: 44.9375em) {
+  .md-typeset .hero {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* Full width, the phone shot would be taller than the screen. */
+  .md-typeset .hero p:first-child img {
+    max-width: 12rem;
+  }
+}
+
+.md-typeset .hero p {
+  margin: 0;
+}
+
+.md-typeset .hero img {
+  width: 100%;
+  height: auto;
+}

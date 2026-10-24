@@ -5,6 +5,9 @@ data
 coverage
 test
 docs
+site
+.venv
+zensical.toml
 .claude
 .superpowers
 CLAUDE.md

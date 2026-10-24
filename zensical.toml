@@ -1,0 +1,145 @@
+# Documentation site, built with Zensical (version pinned in
+# docs/requirements.txt). Build locally with:
+#   pip install --require-hashes -r docs/requirements.txt
+#   zensical serve
+# The extension and feature lists come from `zensical new`. Zensical uses a
+# declared markdown_extensions list as is, without merging its defaults, so
+# trimming it silently turns features off.
+
+[project]
+site_name = "Gift Draw"
+site_url = "https://rouzax.github.io/giftdraw/"
+site_description = "A small self-hosted web app for drawing names for a gift exchange in a group, made for people who rarely use a computer."
+site_author = "Rouzax"
+copyright = "Gift Draw (Lootjes trekken) is MIT licensed. Icons from Lucide, ISC license."
+repo_url = "https://github.com/Rouzax/giftdraw"
+repo_name = "Rouzax/giftdraw"
+edit_uri = "edit/main/docs/"
+docs_dir = "docs"
+
+nav = [
+  { "Home" = "index.md" },
+  { "Run a gift draw" = [
+    "guide/index.md",
+    { "Set up an event" = "guide/event.md" },
+    { "Add groups and participants" = "guide/groups.md" },
+    { "Send the invitations" = "guide/invitations.md" },
+    { "Check pairs and open the draw" = "guide/open.md" },
+    { "Help someone in person" = "guide/in-person.md" },
+    { "Changes after opening" = "guide/changes.md" },
+    { "Follow up" = "guide/follow-up.md" },
+  ] },
+  { "What participants see" = "participants.md" },
+  { "Host it yourself" = [
+    "self-host/index.md",
+    { "Install with Docker" = "self-host/install.md" },
+    { "Configuration reference" = "self-host/configuration.md" },
+    { "Organiser login" = "self-host/admin-login.md" },
+    { "Email" = "self-host/email.md" },
+    { "Privacy and cleanup" = "self-host/privacy.md" },
+    { "Updating" = "self-host/updating.md" },
+  ] },
+  { "Troubleshooting" = "troubleshooting.md" },
+]
+
+extra_css = ["stylesheets/extra.css"]
+
+[project.theme]
+language = "en"
+logo = "assets/logo.svg"
+favicon = "assets/logo.svg"
+features = [
+  "announce.dismiss",
+  "content.action.edit",
+  "content.code.annotate",
+  "content.code.copy",
+  "content.code.select",
+  "content.footnote.tooltips",
+  "content.tabs.link",
+  "content.tooltips",
+  "navigation.footer",
+  "navigation.indexes",
+  "navigation.instant",
+  "navigation.instant.prefetch",
+  "navigation.path",
+  "navigation.sections",
+  "navigation.tabs",
+  "navigation.top",
+  "navigation.tracking",
+  "search.highlight",
+]
+
+[project.theme.icon]
+repo = "fontawesome/brands/github"
+
+# Colours come from public/css/base.css; stylesheets/extra.css maps them
+# onto the theme for both schemes.
+[[project.theme.palette]]
+media = "(prefers-color-scheme)"
+primary = "custom"
+accent = "custom"
+toggle.icon = "lucide/sun-moon"
+toggle.name = "Switch to light mode"
+
+[[project.theme.palette]]
+media = "(prefers-color-scheme: light)"
+scheme = "default"
+primary = "custom"
+accent = "custom"
+toggle.icon = "lucide/sun"
+toggle.name = "Switch to dark mode"
+
+[[project.theme.palette]]
+media = "(prefers-color-scheme: dark)"
+scheme = "slate"
+primary = "custom"
+accent = "custom"
+toggle.icon = "lucide/moon"
+toggle.name = "Switch to system preference"
+
+[[project.extra.social]]
+icon = "fontawesome/brands/github"
+link = "https://github.com/Rouzax/giftdraw"
+name = "Source code"
+
+[[project.extra.social]]
+icon = "fontawesome/brands/docker"
+link = "https://github.com/Rouzax/giftdraw/pkgs/container/giftdraw"
+name = "Container image"
+
+[project.markdown_extensions]
+abbr = {}
+admonition = {}
+attr_list = {}
+def_list = {}
+footnotes = {}
+md_in_html = {}
+toc.permalink = true
+pymdownx.arithmatex.generic = true
+pymdownx.betterem = {}
+pymdownx.caret = {}
+pymdownx.details = {}
+pymdownx.emoji.emoji_generator = "zensical.extensions.emoji.to_svg"
+pymdownx.emoji.emoji_index = "zensical.extensions.emoji.twemoji"
+pymdownx.highlight.anchor_linenums = true
+pymdownx.highlight.line_spans = "__span"
+pymdownx.highlight.pygments_lang_class = true
+pymdownx.inlinehilite = {}
+pymdownx.keys = {}
+pymdownx.magiclink = {}
+pymdownx.mark = {}
+pymdownx.smartsymbols = {}
+# The glossary: every page gets these abbreviation definitions appended, so
+# a term shows its explanation on hover wherever it appears in prose.
+pymdownx.snippets.base_path = ["docs/.snippets"]
+pymdownx.snippets.auto_append = ["abbreviations.md"]
+pymdownx.snippets.check_paths = true
+pymdownx.superfences.custom_fences = [
+  { name = "mermaid", class = "mermaid", format = "pymdownx.superfences.fence_code_format" },
+]
+pymdownx.tabbed.alternate_style = true
+pymdownx.tabbed.combine_header_slug = true
+pymdownx.tasklist.custom_checkbox = true
+pymdownx.tilde = {}
+# Click-to-zoom for every screenshot.
+"zensical.extensions.glightbox" = {}
