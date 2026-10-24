@@ -49,7 +49,7 @@ test('loading the reveal sets drawnAt and shows the receiver with the reveal', a
   assert.ok(res.body.includes('data-reveal'));
   assert.match(res.body, /<script src="\/static\/js\/reveal\.js\?v=[^"]+" defer><\/script>/);
   assert.ok(res.body.includes('Knitting'));
-  assert.ok(res.body.includes('thee'));
+  assert.ok(res.body.includes('Thee'));
   assert.ok(res.body.includes('Dit jaar doen we een regift'));
   assert.ok(res.body.includes('vrijdag 18 december'));
   assert.ok(res.body.includes(`href="/p/${ada.token}/about"`));

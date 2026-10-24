@@ -56,13 +56,17 @@ function wishesBlock(lang, receiver, event) {
 }
 
 export function renderEmail(kind, { lang, participant, receiver, event, group, link, tz }) {
-  const key = KEYS[kind];
-  if (!key) throw new Error(`unknown email kind: ${kind}`);
+  if (!KEYS[kind]) throw new Error(`unknown email kind: ${kind}`);
+  // Someone invited into a group that is already open gets no separate
+  // draw-open mail, so their invitation says they can draw.
+  const key = kind === 'invite' && group.openedAt ? 'inviteOpen' : KEYS[kind];
   const vars = { name: RECEIVER_KINDS.has(kind) ? receiver.name : participant.name };
   const appName = t(lang, 'app.name');
   const subject = `${appName}: ${t(lang, `email.${key}.subject`, vars)}`;
   const greeting = t(lang, 'email.greeting', { name: participant.name });
   const body = t(lang, `email.${key}.body`, vars);
+  // The text part has no button, so its wording points at the link.
+  const bodyText = t(lang, `email.${key}.bodyText`, vars);
   const button = t(lang, `email.${key}.button`);
   const theme = themeText(event, lang);
   const date = exchangeLine(lang, group, tz);
@@ -108,10 +112,10 @@ export function renderEmail(kind, { lang, participant, receiver, event, group, l
   const text = [
     greeting,
     '',
-    body,
+    bodyText,
     '',
     ...(wishes ? [...wishes.text, ''] : []),
-    `${button}:`,
+    t(lang, 'email.textLink'),
     link,
     '',
     date,

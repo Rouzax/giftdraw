@@ -135,8 +135,8 @@ test('wishLines renders labelled lines in English', () => {
     { hobbies: 'gardening', likes: ['tea', 'chocolate'], detail_chocolate: 'dark', pets: 'cat' }, form);
   assert.deepEqual(wishLines(wishes, form, 'en'), [
     { label: 'Hobbies', value: 'gardening' },
-    { label: 'Likes', value: 'tea, chocolate (dark)' },
-    { label: 'Pets', value: 'cat' },
+    { label: 'Likes', value: 'Tea, Chocolate (dark)' },
+    { label: 'Pets', value: 'Cat' },
   ]);
 });
 
@@ -144,7 +144,7 @@ test('wishLines keeps section order and uses the other-pet text', () => {
   const wishes = parseWishesForm(
     { other: 'Graag iets kleins', avoid: 'noten', pets: ['dog', 'other'], pets_other: 'konijn' }, form);
   assert.deepEqual(wishLines(wishes, form, 'nl'), [
-    { label: 'Huisdieren', value: 'hond, konijn' },
+    { label: 'Huisdieren', value: 'Hond, konijn' },
     { label: 'Liever niet', value: 'noten' },
     { label: 'Verder', value: 'Graag iets kleins' },
   ]);
@@ -158,7 +158,7 @@ test('wishLines returns nothing for empty or missing wishes', () => {
 test('wishLines skips a stored like whose option was removed', () => {
   const wishes = parseWishesForm({ likes: ['tea', 'wine'] }, form);
   const withoutWine = defaults.filter((o) => o.id !== 'wine');
-  assert.deepEqual(wishLines(wishes, withLikes(withoutWine), 'en'), [{ label: 'Likes', value: 'tea' }]);
+  assert.deepEqual(wishLines(wishes, withLikes(withoutWine), 'en'), [{ label: 'Likes', value: 'Tea' }]);
   const onlyWine = parseWishesForm({ likes: 'wine' }, form);
   assert.deepEqual(wishLines(onlyWine, withLikes(withoutWine), 'en'), []);
 });

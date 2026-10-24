@@ -55,14 +55,16 @@ export function openGroup(ctx, groupId) {
     let queued = 0;
     for (const p of people) {
       if (!p.email || !mailOn(ctx)) continue;
-      // An address added after the invitations went out was never mailed:
-      // the invitation goes first, and it starts that person's reminders.
+      // An address added after the invitations went out was never mailed.
+      // Its invitation starts that person's reminders, and an invitation
+      // sent once the group is open says they can draw, so it stands in for
+      // the draw-open mail; so does one still waiting in the queue.
       if (!p.invitedAt) {
         repo.updateParticipant(p.id, { invitedAt: now });
         enqueueMail(ctx, p.id, 'invite', now);
-        queued += 1;
+      } else if (!repo.hasQueuedMail(p.id, 'invite')) {
+        enqueueMail(ctx, p.id, 'draw-open', now);
       }
-      enqueueMail(ctx, p.id, 'draw-open', now);
       queued += 1;
     }
     return { opened: true, queued };

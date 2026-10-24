@@ -135,8 +135,8 @@ test('the giver sees no hidden section on the result page, the card or the email
   for (const [where, body] of [['result', result.body], ['card', card.body], ['mail html', mail.html], ['mail text', mail.text]]) {
     assert.equal(body.includes('tuinieren'), false, where);
     assert.ok(body.includes('Lekker en leuk'), where);
-    assert.ok(body.includes('thee'), where);
-    assert.ok(body.includes('hond'), where);
+    assert.ok(body.includes('Thee'), where);
+    assert.ok(body.includes('Hond'), where);
   }
 });
 

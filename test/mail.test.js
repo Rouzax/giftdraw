@@ -97,7 +97,7 @@ test('wishes-updated lists the receiver\'s current wishes', () => {
   assert.equal(mail.subject, 'Gift Draw: Ben has changed their wishes');
   for (const body of [mail.html, mail.text]) {
     assert.ok(body.includes('gardening'));
-    assert.ok(body.includes('tea'));
+    assert.ok(body.includes('Tea'));
   }
 });
 
@@ -111,6 +111,30 @@ test('every text cell of a mail may break a long word', () => {
       assert.match(style, /overflow-wrap:anywhere/, `${kind}: ${style.slice(0, 60)}`);
     }
   }
+});
+
+// Mail clients show the text part to people who cannot see the button.
+test('the plain text of every mail points at the link, never at a button', () => {
+  const opened = { ...group, openedAt: '2026-11-01T10:00:00.000Z' };
+  for (const lang of ['nl', 'en']) {
+    for (const [kind, g] of [...KINDS.map((k) => [k, group]), ['invite', opened]]) {
+      const { text } = render(kind, lang, { group: g });
+      assert.doesNotMatch(text, /knop|button/i, `${lang} ${kind}`);
+      assert.ok(text.includes(`${lang === 'nl' ? 'Open deze link' : 'Open this link'}:\n${LINK}`), `${lang} ${kind}`);
+    }
+  }
+});
+
+// A newcomer to an open group gets one mail, so it has to say both things.
+test('an invitation into an open group says the draw is open', () => {
+  const closed = render('invite', 'nl');
+  const open = render('invite', 'nl', { group: { ...group, openedAt: '2026-11-01T10:00:00.000Z' } });
+  assert.equal(closed.subject, 'Lootjes trekken: Vertel iets over jezelf');
+  assert.equal(open.subject, 'Lootjes trekken: Je kunt meteen een naam trekken');
+  assert.ok(open.html.includes('Trek een naam'));
+  assert.ok(open.text.includes('al begonnen'));
+  const en = render('invite', 'en', { group: { ...group, openedAt: '2026-11-01T10:00:00.000Z' } });
+  assert.equal(en.subject, 'Gift Draw: You can draw a name straight away');
 });
 
 test('an unknown kind throws', () => {

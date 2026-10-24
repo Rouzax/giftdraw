@@ -149,7 +149,7 @@ test('the card shows the receiver, their wishes, the theme and the date, and nee
   assert.equal(card.statusCode, 200);
   assert.ok(card.body.includes(receiver.name));
   assert.ok(card.body.includes('knitting'));
-  assert.ok(card.body.includes('chocolade (dark)'));
+  assert.ok(card.body.includes('Chocolade (dark)'));
   assert.ok(card.body.includes(themeText(t.event, 'nl')));
   assert.ok(card.body.includes('vrijdag 18 december'));
   assert.ok(card.body.includes('/static/css/print.css'));

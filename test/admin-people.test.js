@@ -238,7 +238,8 @@ test('a late joiner in an open group where everyone drew changes the previewed g
   assert.deepEqual(changedGivers(before, after, gijs.id), [giver.id]);
   assert.equal(after.get(giver.id), gijs.id);
   assert.deepEqual(kindsFor(t, giver.id), ['reassigned']);
-  assert.deepEqual(kindsFor(t, gijs.id).sort(), ['draw-open', 'invite']);
+  // One mail: the invitation itself says the draw is open.
+  assert.deepEqual(kindsFor(t, gijs.id), ['invite']);
 });
 
 test('regenerating a link makes the old one 404 and the new one work', async () => {

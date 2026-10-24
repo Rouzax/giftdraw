@@ -100,8 +100,8 @@ test('pet ids stay stable across reorder and a changed question', () => {
 
 test('old stored pets and other-pet text read and render as before', () => {
   const stored = { hobbies: '', likes: [], likeDetails: {}, pets: ['dog', 'other'], petsOther: 'konijn', avoid: '', other: '' };
-  assert.deepEqual(wishLines(stored, plain, 'nl'), [{ label: 'Huisdieren', value: 'hond, konijn' }]);
-  assert.deepEqual(wishLines({ ...stored, petsOther: '' }, plain, 'en'), [{ label: 'Pets', value: 'dog, other' }]);
+  assert.deepEqual(wishLines(stored, plain, 'nl'), [{ label: 'Huisdieren', value: 'Hond, konijn' }]);
+  assert.deepEqual(wishLines({ ...stored, petsOther: '' }, plain, 'en'), [{ label: 'Pets', value: 'Dog, Other' }]);
 });
 
 test('the other-pet field still stores as petsOther, a custom pet detail in petDetails', () => {
@@ -120,7 +120,7 @@ test('a hidden section is left out of the lines and its heading override is used
   const wishes = parseWishesForm({ hobbies: 'tuinieren', likes: 'tea', avoid: 'noten' }, plain);
   const form = withConfig({ sections: { hobbies: { show: false }, likes: { show: true, heading: 'Lekker' } } });
   assert.deepEqual(wishLines(wishes, form, 'en'), [
-    { label: 'Lekker', value: 'tea' },
+    { label: 'Lekker', value: 'Tea' },
     { label: 'Rather not', value: 'noten' },
   ]);
   const none = withConfig({ sections: Object.fromEntries(SECTION_IDS.map((id) => [id, { show: false }])) });
@@ -158,8 +158,8 @@ test('a heading that ends in a question mark or other mark gets no extra colon',
     link: 'https://gifts.example.com/p/x',
     tz: 'Europe/Amsterdam',
   });
-  assert.ok(mail.text.includes('- Waar word je blij van? thee'));
-  assert.ok(mail.html.includes('<strong>Waar word je blij van?</strong> thee'));
+  assert.ok(mail.text.includes('- Waar word je blij van? Thee'));
+  assert.ok(mail.html.includes('<strong>Waar word je blij van?</strong> Thee'));
   const { cardView, resultView } = await import('../src/views/participant.js');
   const data = {
     participant: { name: 'Ada', wishes: null }, receiver: { name: 'Ben', wishes: { likes: ['tea'] } },

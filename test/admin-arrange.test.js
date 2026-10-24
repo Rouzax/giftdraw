@@ -203,7 +203,7 @@ test('opening sends one draw-open per participant with email', async () => {
   assert.ok(t.logs.some((line) => line.includes('"msg":"group_opened"')));
 });
 
-test('opening invites anyone with email who was never invited, before the draw-open mail', async () => {
+test('opening invites anyone with email who was never invited, in one mail that says the draw is open', async () => {
   const t = await setup();
   // An address added after the invitations went out is not mailed by itself.
   const late = t.people[4];
@@ -213,9 +213,9 @@ test('opening invites anyone with email who was never invited, before the draw-o
   assert.deepEqual(openGroup(t.ctx, t.groupId), { opened: true });
   assert.equal(t.ctx.repo.getParticipant(late.id).invitedAt, t.ctx.nowIso());
   const rows = t.db.prepare('SELECT participant_id, kind FROM outbox ORDER BY id').all();
-  assert.deepEqual(rows.filter((r) => r.participant_id === late.id).map((r) => r.kind), ['invite', 'draw-open']);
+  assert.deepEqual(rows.filter((r) => r.participant_id === late.id).map((r) => r.kind), ['invite']);
   assert.equal(rows.filter((r) => r.kind === 'invite').length, 1);
-  assert.equal(drawOpenRows(t), FIVE.length);
+  assert.equal(drawOpenRows(t), FIVE.length - 1);
 });
 
 test('opening twice, including two overlapping posts, sends no more and answers each with the open group', async () => {

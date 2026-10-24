@@ -322,28 +322,28 @@ export function hasWishes(wishes, form = null) {
 
 // `own` gives the text that stands in for an option, if any: the other-pet
 // text names the animal, so it replaces "other" itself.
-function listLine(ids, options, list, details, own, lang) {
+function listLine(ids, options, details, own, lang) {
   const byId = new Map(options.map((o) => [o.id, o]));
   return (ids ?? [])
     .filter((id) => byId.has(id))
     .map((id) => {
       if (own(id)) return own(id);
+      // Every label as written, built-in or typed, so a line never mixes
+      // "thee" with "Boeken".
       const label = labelOf(byId.get(id), lang);
-      const shown = isDefault(list, id) ? label.toLowerCase() : label;
       const detail = details?.[id];
-      return detail ? `${shown} (${detail})` : shown;
+      return detail ? `${label} (${detail})` : label;
     })
     .join(', ');
 }
 
-// Shipped labels are capitalised for tick boxes but read mid-sentence here.
 export function wishLines(wishes, form, lang) {
   if (!wishes) return [];
   const none = () => null;
   const values = {
     hobbies: wishes.hobbies,
-    likes: listLine(wishes.likes, form.likes, LISTS.likes, wishes.likeDetails, none, lang),
-    pets: listLine(wishes.pets, form.pets, LISTS.pets, wishes.petDetails,
+    likes: listLine(wishes.likes, form.likes, wishes.likeDetails, none, lang),
+    pets: listLine(wishes.pets, form.pets, wishes.petDetails,
       (id) => (id === 'other' ? wishes.petsOther || null : null), lang),
     avoid: wishes.avoid,
     other: wishes.other,

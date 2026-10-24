@@ -212,7 +212,8 @@ export function commitAddParticipants(ctx, groupId, plan) {
       throw new Error('commitAddParticipants: assignment is not a single valid pairing');
     }
     // Once a group's invitations are out, a newcomer is invited straight
-    // away; in an open group they can draw at once as well.
+    // away. In an open group that one invitation also says they can draw,
+    // so no draw-open mail follows it.
     const invite = state.open || Boolean(state.group.invitationsSentAt);
     let queued = 0;
     if (invite && mailOn(ctx)) {
@@ -221,7 +222,6 @@ export function commitAddParticipants(ctx, groupId, plan) {
         repo.updateParticipant(p.id, { invitedAt: now });
         enqueueMail(ctx, p.id, 'invite', now);
         queued += 1;
-        if (state.open && enqueueMail(ctx, p.id, 'draw-open', now)) queued += 1;
       }
     }
     let tellGivers = false;

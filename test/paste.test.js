@@ -79,8 +79,8 @@ test('commitAddParticipants in an open group invites the newcomer and tells a dr
   const map = ctx.repo.getAssignment(group.id);
   assert.equal(map.get(giver), eva.id);
   assert.ok(validateAssignment(map, [...people.map((p) => p.id), eva.id]));
-  const kinds = ctx.repo.mailStatus(eva.id).pendingCount;
-  assert.equal(kinds, 2);
+  // One mail: the invitation, which says the draw is open.
+  assert.equal(ctx.repo.mailStatus(eva.id).pendingCount, 1);
   const outbox = ctx.repo.mailStatus(giver).pendingCount;
   assert.equal(outbox, 1);
 });
