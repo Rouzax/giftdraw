@@ -202,9 +202,9 @@ function status(kind, content, className = '') {
 
 const INVITE_STATES = { queued: 'waiting', sent: 'done', retrying: 'warn', failed: 'failed' };
 
-// With email off nobody is ever invited by mail, so "not yet" would never change.
-function inviteCell(lang, row, mailEnabled) {
-  if (!row.participant.email || !mailEnabled) return status('none', t(lang, 'admin.status.notApplicable'), 'muted');
+// Only shown with email on; without an address there is nothing to send.
+function inviteCell(lang, row) {
+  if (!row.participant.email) return status('none', t(lang, 'admin.status.notApplicable'), 'muted');
   const state = row.mail.invite;
   if (state) return status(INVITE_STATES[state], t(lang, `admin.invite.${state}`), `state-${state}`);
   if (row.participant.invitedAt) return status('done', t(lang, 'admin.status.yes'));
@@ -252,9 +252,10 @@ ${back ? html`<input type="hidden" name="back" value="${back}">` : ''}
 </form>`;
 }
 
-function failureCell(lang, failure, tz, participantId, mailEnabled) {
+// Only shown with email on, so a given-up mail can always be sent again.
+function failureCell(lang, failure, tz, participantId) {
   if (!failure) return status('none', t(lang, 'admin.status.none'), 'muted');
-  const resend = !failure.retrying && mailEnabled ? resendFailedForm(lang, participantId, { back: 'group' }) : '';
+  const resend = failure.retrying ? '' : resendFailedForm(lang, participantId, { back: 'group' });
   return html`${failureText(lang, failure, tz)}${resend}`;
 }
 
@@ -281,13 +282,13 @@ function participantRow(lang, row, tz, mailEnabled) {
   return html`<tr>
 <th scope="row"><a href="/admin/participants/${p.id}">${p.name}</a></th>
 ${cell('email', p.email ? emailText(p.email) : status('none', t(lang, 'admin.noEmail'), 'muted'))}
-${mailEnabled ? cell('invited', inviteCell(lang, row, mailEnabled)) : ''}
+${mailEnabled ? cell('invited', inviteCell(lang, row)) : ''}
 ${cell('visited', dateOrNo(lang, p.visitedAt, tz), mailEnabled ? `${label('visited')} ${label('visitedNote')}` : label('visited'))}
 ${cell('wishes', row.hasWishes ? status('done', t(lang, 'admin.status.yes')) : status('waiting', t(lang, 'admin.status.no'), 'muted'))}
 ${cell('drawn', dateOrNo(lang, p.drawnAt, tz))}
 ${cell('givesTo', receiver ? receiver.name : html`<span class="muted">${t(lang, 'admin.status.unpaired')}</span>`)}
-${cell('reminder', dateOrNo(lang, row.mail.lastReminderAt, tz, { noKey: 'admin.status.none', noKind: 'none' }))}
-${mailEnabled ? cell('failure', failureCell(lang, row.mail.lastFailure, tz, p.id, mailEnabled)) : ''}
+${mailEnabled ? cell('reminder', dateOrNo(lang, row.mail.lastReminderAt, tz, { noKey: 'admin.status.none', noKind: 'none' })) : ''}
+${mailEnabled ? cell('failure', failureCell(lang, row.mail.lastFailure, tz, p.id)) : ''}
 ${cell('card', cardCell(lang, row))}
 </tr>`;
 }
@@ -301,7 +302,7 @@ function participantTable(lang, rows, tz, mailEnabled) {
 <thead><tr>
 ${heading('name')}${heading('email')}${mailEnabled ? heading('invited') : ''}
 <th scope="col">${t(lang, 'admin.col.visited')}${mailEnabled ? html` <span class="small">${t(lang, 'admin.col.visitedNote')}</span>` : ''}</th>
-${heading('wishes')}${heading('drawn')}${heading('givesTo')}${heading('reminder')}${mailEnabled ? heading('failure') : ''}${heading('card')}
+${heading('wishes')}${heading('drawn')}${heading('givesTo')}${mailEnabled ? html`${heading('reminder')}${heading('failure')}` : ''}${heading('card')}
 </tr></thead>
 <tbody>
 ${rows.map((row) => participantRow(lang, row, tz, mailEnabled))}
@@ -344,11 +345,13 @@ function groupStatus(lang, group, tz, mailEnabled) {
 
 // With email off the button only records that the organiser shared the
 // links; once pressed there is nothing left to do here.
-function invitePanelBody(lang, { group, mailEnabled, uninvited }) {
+function invitePanelBody(lang, { group, mailEnabled, uninvited, withEmail }) {
   if (!mailEnabled && group.invitationsSentAt) return html`<p>${t(lang, 'admin.invite.sharedNoMail')}</p>`;
   // The button stays until it was pressed once, even with nobody to mail:
   // the draw opens only after that.
-  if (mailEnabled && group.invitationsSentAt && uninvited === 0) return html`<p>${t(lang, 'admin.invite.allInvited')}</p>`;
+  if (mailEnabled && group.invitationsSentAt && uninvited === 0) {
+    return html`<p>${t(lang, withEmail ? 'admin.invite.allInvited' : 'admin.invite.nobodyEmail')}</p>`;
+  }
   return html`<p>${mailEnabled ? t(lang, 'admin.invite.pending', { count: uninvited }) : t(lang, 'admin.invite.mailOff')}</p>
 <form method="post" action="/admin/groups/${group.id}/invite">
 <button type="submit" class="primary with-icon">${iconText('send', t(lang, mailEnabled ? 'admin.invite.button' : 'admin.invite.buttonNoMail'))}</button>
@@ -418,7 +421,7 @@ ${summary(lang, rows, mailEnabled)}
 ${groupStatus(lang, group, tz, mailEnabled)}
 <section class="panel">
 <h2>${t(lang, 'admin.invite.title')}</h2>
-${invitePanelBody(lang, { group, mailEnabled, uninvited })}
+${invitePanelBody(lang, { group, mailEnabled, uninvited, withEmail: rows.some((r) => r.participant.email) })}
 </section>
 ${drawPanel(lang, { group, rows, openError, mailEnabled })}
 <section class="panel wide">

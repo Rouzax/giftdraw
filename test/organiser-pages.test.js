@@ -33,8 +33,12 @@ test('once everyone with email is invited the dashboard says so instead of offer
 
 test('a group of people without email still gets the button that lets the draw open', async () => {
   const t = await setup({ invited: false, withEmail: false });
-  const page = await t.adminGet(`/admin/groups/${t.groupId}`);
+  let page = await t.adminGet(`/admin/groups/${t.groupId}`);
   assert.ok(page.body.includes(`action="/admin/groups/${t.groupId}/invite"`));
+  await t.adminPost(`/admin/groups/${t.groupId}/invite`);
+  page = await t.adminGet(`/admin/groups/${t.groupId}`);
+  assert.ok(page.body.includes('Niemand in deze groep heeft e-mail; deel de links zelf.'));
+  assert.equal(page.body.includes('Iedereen met e-mail is uitgenodigd.'), false);
 });
 
 test('saving the event settings says it was saved', async () => {
@@ -108,7 +112,7 @@ test('with email off the dashboard drops the mail columns and the remove page th
   const t = await setup();
   t.mailer.enabled = false;
   const page = await t.adminGet(`/admin/groups/${t.groupId}`);
-  for (const gone of ['Uitgenodigd', 'Mailfout', 'mailscanners']) assert.equal(page.body.includes(gone), false, gone);
+  for (const gone of ['Uitgenodigd', 'Mailfout', 'mailscanners', 'Laatste herinnering']) assert.equal(page.body.includes(gone), false, gone);
   assert.ok(page.body.includes('Link geopend'));
   const remove = await t.adminGet(`/admin/participants/${t.people[0].id}/remove`);
   assert.equal(remove.body.includes('mails die nog niet weg zijn'), false);

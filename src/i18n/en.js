@@ -193,6 +193,7 @@ export default {
   'admin.invite.title': 'Invitations',
   'admin.invite.pending': 'Participants with email who have no invitation yet: {count}.',
   'admin.invite.allInvited': 'Everyone with email has been invited.',
+  'admin.invite.nobodyEmail': 'Nobody in this group has email; share the links yourself.',
   'admin.invite.button': 'Send invitations',
   'admin.invite.mailOff': 'Email is off, so no mail goes out. Share the links yourself, then press the button. After that the draw can open.',
   'admin.invite.buttonNoMail': 'The links have been shared',

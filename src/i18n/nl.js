@@ -194,6 +194,7 @@ export default {
   'admin.invite.title': 'Uitnodigingen',
   'admin.invite.pending': 'Deelnemers met e-mail die nog geen uitnodiging hebben: {count}.',
   'admin.invite.allInvited': 'Iedereen met e-mail is uitgenodigd.',
+  'admin.invite.nobodyEmail': 'Niemand in deze groep heeft e-mail; deel de links zelf.',
   'admin.invite.button': 'Uitnodigingen versturen',
   'admin.invite.mailOff': 'E-mail staat uit, dus er gaat geen mail weg. Deel de links zelf en druk dan op de knop. Daarna kan het trekken open.',
   'admin.invite.buttonNoMail': 'De links zijn gedeeld',
