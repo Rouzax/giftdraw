@@ -153,6 +153,35 @@ test('the language switch stores a known language and goes back', async () => {
   assert.equal(elsewhere.headers.location, `/p/${ada.token}`);
 });
 
+// The switch sits under the form, close to Save; answers typed but not yet
+// saved must survive the reload into the other language.
+test('switching language on the about form keeps what was typed', async () => {
+  const { app, ctx, post, ada } = await setup();
+  const form = await app.inject(`/p/${ada.token}/about`);
+  assert.match(form.body, /<form class="about" id="about-form" method="post"/);
+  assert.match(form.body, new RegExp(`<button type="submit" name="lang" value="en" lang="en" form="about-form" formaction="/p/${ada.token}/lang">`));
+
+  const res = await post(`/p/${ada.token}/lang`, {
+    lang: 'en', from: 'about', sections: 'hobbies likes pets avoid other', hobbies: 'Yoga en wandelen', likes: 'tea',
+  });
+  assert.equal(res.statusCode, 303);
+  assert.equal(res.headers.location, `/p/${ada.token}/about`);
+  const stored = ctx.repo.getParticipant(ada.id);
+  assert.equal(stored.language, 'en');
+  assert.equal(stored.wishes.hobbies, 'Yoga en wandelen');
+  assert.deepEqual(stored.wishes.likes, ['tea']);
+  const again = await app.inject(`/p/${ada.token}/about`);
+  assert.ok(again.body.includes('Yoga en wandelen'));
+});
+
+test('switching language away from the form leaves the wishes alone', async () => {
+  const { ctx, post, ada } = await setup();
+  await post(`/p/${ada.token}/about`, { hobbies: 'Breien' });
+  await post(`/p/${ada.token}/lang`, { lang: 'en', hobbies: 'Nooit' });
+  await post(`/p/${ada.token}/lang`, { lang: 'nl', from: 'about' });
+  assert.equal(ctx.repo.getParticipant(ada.id).wishes.hobbies, 'Breien');
+});
+
 test('a junk language is refused and the stored language is unchanged', async () => {
   const { ctx, post, ada } = await setup();
   const res = await post(`/p/${ada.token}/lang`, { lang: '!!' });

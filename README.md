@@ -17,7 +17,8 @@ of their page and on their printed card.
 
 The interface is in Dutch (default) and English. Each participant can
 switch language on their own page, and the organiser can switch in the
-admin header.
+admin header. Switching while filling in the wish form saves what was
+typed so far, so nothing has to be typed again.
 
 ## How it works
 

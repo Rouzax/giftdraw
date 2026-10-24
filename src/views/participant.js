@@ -24,11 +24,14 @@ function themeBlock({ event, group, lang, tz }) {
 </section>`;
 }
 
+// Under the about form the buttons submit that form to the switch, so the
+// answers typed so far are saved rather than lost on the way to the other
+// language.
 function langSwitch({ lang, langAction, from }) {
   const others = LANGS.filter((l) => l !== lang);
+  const owner = from === 'about' ? raw(` form="about-form" formaction="${langAction}"`) : '';
   return html`<form class="lang-switch" method="post" action="${langAction}" aria-label="${t(lang, 'lang.switch')}">
-${from ? html`<input type="hidden" name="from" value="${from}">` : ''}
-${others.map((l) => html`<button type="submit" name="lang" value="${l}" lang="${l}">${t(l, `lang.${l}`)}</button>`)}
+${others.map((l) => html`<button type="submit" name="lang" value="${l}" lang="${l}"${owner}>${t(l, `lang.${l}`)}</button>`)}
 </form>`;
 }
 
@@ -124,7 +127,8 @@ ${tickList(form.pets, 'pets', 'pet', new Set(w.pets ?? []), lang,
   const body = html`<h1>${t(lang, 'about.title')}</h1>
 <p class="lead">${t(lang, 'about.intro')}</p>
 ${themeBlock({ event, group, lang, tz })}
-<form class="about" method="post" action="${formAction}">
+<form class="about" id="about-form" method="post" action="${formAction}">
+<input type="hidden" name="from" value="about">
 <input type="hidden" name="sections" value="${shown.map((section) => section.id).join(' ')}">
 ${sections}
 <button type="submit" class="button">${t(lang, 'about.save')}</button>

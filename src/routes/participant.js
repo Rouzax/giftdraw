@@ -117,10 +117,18 @@ export function participantRoutes(app, ctx, { sendPage, sendError, isParticipant
     const participant = request.participant;
     const lang = request.body?.lang;
     if (!isLang(lang)) return sendError(reply, 400, participant.language);
+    const fromAbout = request.body?.from === 'about';
+    // The about form posted itself here: its answers are saved first. Only
+    // that form sends the list of its sections.
+    const withWishes = fromAbout && typeof request.body?.sections === 'string';
+    if (withWishes) saveWishes(ctx, participant.id, request.body);
     repo.updateParticipant(participant.id, { language: lang });
-    request.log.info({ participant_id: participant.id, lang }, 'language_changed');
+    // No participant id next to a wish save, as for wishes_saved: it would
+    // tie this receiver to the giver the wish-update lines describe.
+    if (withWishes) request.log.info({ group_id: participant.groupId, lang }, 'language_changed_wishes_saved');
+    else request.log.info({ participant_id: participant.id, lang }, 'language_changed');
     // Only known targets, so the form cannot be used as an open redirect.
-    const back = request.body?.from === 'about' ? '/about' : '';
+    const back = fromAbout ? '/about' : '';
     return reply.redirect(`/p/${participant.token}${back}`, 303);
   });
 }
