@@ -7,6 +7,10 @@ body {
   max-width: 36rem;
   margin: 0 auto;
   padding: 1.25rem 1rem 3rem;
+  /* Names, headings, labels and answers come from people; a word longer
+     than the screen (a link, a name without spaces) wraps instead of
+     widening the page. */
+  overflow-wrap: anywhere;
 }
 
 .app-name {
@@ -93,7 +97,6 @@ h1 {
   display: block;
   margin: 1.5rem 0 0.5rem;
   font-weight: 700;
-  overflow-wrap: anywhere;
 }
 
 .about legend {
@@ -139,7 +142,6 @@ h1 {
   min-height: 3rem;
   padding: 0.25rem 0;
   cursor: pointer;
-  overflow-wrap: anywhere;
 }
 
 .check input {
@@ -305,7 +307,6 @@ h1 {
 .wishes dt {
   display: inline;
   font-weight: 700;
-  overflow-wrap: anywhere;
 }
 
 .wishes dt::after {
