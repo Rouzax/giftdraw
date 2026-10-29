@@ -11,6 +11,9 @@ export const OPTIONS_MAX = 4000;
 // Code points.
 export const HEADING_MAX = 80;
 export const QUESTION_MAX = 80;
+// Per form, and per tick list.
+export const QUESTIONS_MAX = 15;
+export const CHOICES_MAX = 30;
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 export const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;

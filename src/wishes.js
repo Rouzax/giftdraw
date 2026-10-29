@@ -1,18 +1,12 @@
-import { randomBytes } from 'node:crypto';
 import { LANGS, t } from './i18n/index.js';
-import { HEADING_MAX, QUESTION_MAX } from './limits.js';
+import { QUESTION_MAX } from './limits.js';
+import { BUILTIN_CHOICES as LISTS, newChoiceId, readFormConfig, SECTION_IDS } from './questions.js';
 import { clipText, unixLines } from './text.js';
 
-export const DEFAULT_LIKE_IDS = ['chocolate', 'tea', 'coffee', 'bath', 'candles', 'books', 'plants', 'wine'];
-export const PET_IDS = ['dog', 'cat', 'other'];
-export const SECTION_IDS = ['hobbies', 'likes', 'pets', 'avoid', 'other'];
+export {
+  cleanHeading, DEFAULT_LIKE_IDS, detailPrompt, PET_IDS, readFormConfig, SECTION_IDS,
+} from './questions.js';
 
-// The two tick lists share one line format and id scheme; each has its own
-// built-in ids, translations and built-in detail questions.
-const LISTS = {
-  likes: { ids: DEFAULT_LIKE_IDS, key: 'wish.like', prompts: { chocolate: 'wish.detail.chocolate' } },
-  pets: { ids: PET_IDS, key: 'wish.pet', prompts: { other: 'wish.petsOther' } },
-};
 // Fields of the stored wishes each section owns, so a hidden section can keep
 // its answer when the rest of the form is saved.
 const SECTION_FIELDS = {
@@ -23,7 +17,6 @@ const SECTION_FIELDS = {
   other: ['other'],
 };
 const TEXT_MAX = 1000;
-const SLUG_MAX = 32;
 
 const isDefault = (list, id) => list.ids.includes(id);
 const defaultLabel = (list, id) => (lang) => t(lang, `${list.key}.${id}`);
@@ -51,45 +44,9 @@ export function petOptions(event) {
   return listOptions(readFormConfig(event.formConfig).petOptions, LISTS.pets);
 }
 
-// The organiser's own question is shown as typed in every language, like a
-// typed label. Like and pet built-in ids never coincide, so one lookup serves both.
-export function detailPrompt(option, lang) {
-  if (option.question) return option.question;
-  const key = LISTS.likes.prompts[option.id] ?? LISTS.pets.prompts[option.id] ?? 'wish.detail';
-  return t(lang, key);
-}
-
 // A typed heading may already end in a question mark or an ellipsis; the
 // lines then join their value without the usual colon.
 export const endsInMark = (label) => /[?!.:…]$/.test(label);
-
-export function cleanHeading(value) {
-  if (typeof value !== 'string') return null;
-  const line = value.replace(/\s+/g, ' ').trim();
-  return line ? clipText(line, HEADING_MAX, 'codepoints').trim() : null;
-}
-
-function readOption(o) {
-  if (!o || typeof o.id !== 'string' || !o.id || typeof o.label !== 'string') return null;
-  const option = { id: o.id, label: o.label, detail: Boolean(o.detail) };
-  if (typeof o.question === 'string' && o.question) option.question = o.question;
-  return option;
-}
-
-// The stored form_config is read defensively: unknown keys are dropped and
-// anything malformed falls back to the default, so a bad row cannot break
-// every participant page of the event.
-export function readFormConfig(raw) {
-  const config = raw && typeof raw === 'object' ? raw : {};
-  const stored = config.sections && typeof config.sections === 'object' ? config.sections : {};
-  const sections = {};
-  for (const id of SECTION_IDS) {
-    const s = stored[id] && typeof stored[id] === 'object' ? stored[id] : {};
-    sections[id] = { show: s.show !== false, heading: cleanHeading(s.heading) };
-  }
-  const options = Array.isArray(config.petOptions) ? config.petOptions.map(readOption).filter(Boolean) : [];
-  return { sections, petOptions: options.length ? options : null };
-}
 
 // Only what differs from the defaults is stored, and nothing at all when
 // everything is default, so the column stays NULL for untouched events.
@@ -169,25 +126,6 @@ export function sameOptions(a, b, kind = 'likes') {
   return a.length === b.length && a.every((o, i) => key(o) === key(b[i]));
 }
 
-function slugify(label) {
-  const slug = label
-    .normalize('NFD')
-    .replace(/\p{M}/gu, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .slice(0, SLUG_MAX)
-    .replace(/^-+|-+$/g, '');
-  return slug || 'option';
-}
-
-function newId(label, taken) {
-  const slug = slugify(label);
-  let id;
-  do id = `${slug}-${randomBytes(2).toString('hex')}`;
-  while (taken.has(id));
-  return id;
-}
-
 // A default id matches its label in every language, so the result does not
 // depend on whether options arrive raw or via wishOptions(), and a typed
 // "Thee" in an English event keeps stored `tea` likes. Matching the shipped
@@ -213,7 +151,7 @@ export function mergeOptionLabels(text, currentOptions, lang, kind = 'likes') {
     if (!label) continue;
     const question = detail ? parseQuestion(line.slice(mark + 1)) : null;
     const match = candidates.find((c) => !used.has(c.id) && c.labels.some((l) => sameLabel(l, label)));
-    const id = match ? match.id : newId(label, taken);
+    const id = match ? match.id : newChoiceId(label, taken);
     used.add(id);
     taken.add(id);
     out.push(question ? { id, label, detail, question } : { id, label, detail });
