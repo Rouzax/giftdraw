@@ -92,3 +92,17 @@ test('a card with about a thousand characters of wishes uses the smallest type',
   const body = cardView({ participant: ada, receiver: { ...ben, wishes }, event, group, lang: 'nl', tz: TZ }).body.toString();
   assert.ok(body.includes('<article class="card card-smallest">'));
 });
+
+test('one-word answers count as the rows they fill, so many of them step the card type down', () => {
+  const size = (count) => {
+    const questions = Array.from({ length: count }, (_, i) => ({ id: `q-${i}`, type: 'text', text: `Vraag ${i + 1}` }));
+    const answers = Object.fromEntries(questions.map((q) => [q.id, 'Rood']));
+    const body = cardView({
+      participant: ada, receiver: { ...ben, wishes: { answers } }, event: { ...event, formConfig: { questions } }, group, lang: 'nl', tz: TZ,
+    }).body.toString();
+    return /<article class="([^"]*)"/.exec(body)[1];
+  };
+  assert.equal(size(5), 'card');
+  assert.equal(size(8), 'card card-smaller');
+  assert.equal(size(15), 'card card-smallest');
+});

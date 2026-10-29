@@ -11,12 +11,12 @@ export const BUILTIN_QUESTIONS = [
   { id: 'other', type: 'text' },
 ];
 export const SECTION_IDS = BUILTIN_QUESTIONS.map((q) => q.id);
-export const DEFAULT_LIKE_IDS = ['chocolate', 'tea', 'coffee', 'bath', 'candles', 'books', 'plants', 'wine'];
-export const PET_IDS = ['dog', 'cat', 'other'];
+const DEFAULT_LIKE_IDS = ['chocolate', 'tea', 'coffee', 'bath', 'candles', 'books', 'plants', 'wine'];
+const PET_IDS = ['dog', 'cat', 'other'];
 
 // The two built-in tick lists: their choice ids, translations and built-in
 // detail questions.
-export const BUILTIN_CHOICES = {
+const BUILTIN_CHOICES = {
   likes: { ids: DEFAULT_LIKE_IDS, key: 'wish.like', prompts: { chocolate: 'wish.detail.chocolate' } },
   pets: { ids: PET_IDS, key: 'wish.pet', prompts: { other: 'wish.petsOther' } },
 };
@@ -46,7 +46,7 @@ function readOption(o) {
 // The stored form_config is read defensively: unknown keys are dropped and
 // anything malformed falls back to the default, so a bad row cannot break
 // every participant page of the event.
-export function readFormConfig(raw) {
+function readFormConfig(raw) {
   const config = raw && typeof raw === 'object' ? raw : {};
   const stored = config.sections && typeof config.sections === 'object' ? config.sections : {};
   const sections = {};
@@ -102,6 +102,24 @@ export const isBuiltinText = (questionId, text) => LANGS.some((lang) => t(lang, 
 export const isBuiltinLabel = (questionId, choiceId, label) =>
   LANGS.some((lang) => builtinChoiceLabel(questionId, choiceId, lang) === label);
 
+// The own text of a wording, a label and a follow-up, cleaned as the edit
+// page saves it. The stored form is read through the same rules, so saving
+// a page unchanged gives the form it was read as and marks nothing changed.
+export function ownText(questionId, value) {
+  const text = cleanHeading(value);
+  return text && isBuiltinQuestion(questionId) && isBuiltinText(questionId, text) ? null : text;
+}
+
+export function ownLabel(questionId, choiceId, value) {
+  const label = cleanHeading(value);
+  return label && isBuiltinLabel(questionId, choiceId, label) ? null : label;
+}
+
+export function ownQuestion(choiceId, value) {
+  const question = cleanQuestion(value);
+  return question && isOwnPrompt(choiceId, question) ? question : null;
+}
+
 // The built-in choice a label names in any language and letter case, or
 // null. A built-in choice is matched once, so a repeated label becomes a
 // choice of its own.
@@ -127,14 +145,18 @@ function builtinChoices(questionId) {
 
 // Before forms were lists of questions a built-in id showed its translation
 // whatever label was stored with it, so the stored label is not own text.
+// An added choice whose label cleans to nothing could not be saved again.
 function oldChoices(questionId, stored) {
   if (!stored) return builtinChoices(questionId);
-  return stored.map((o) => makeChoice(questionId, {
-    id: o.id,
-    own: isBuiltinChoice(questionId, o.id) ? null : o.label,
-    detail: o.detail,
-    question: o.question ?? null,
-  }));
+  const out = [];
+  for (const o of stored) {
+    const builtIn = isBuiltinChoice(questionId, o.id);
+    const own = builtIn ? null : ownLabel(questionId, o.id, o.label);
+    if (own === null && !builtIn) continue;
+    const question = o.detail ? ownQuestion(o.id, o.question) : null;
+    out.push(makeChoice(questionId, { id: o.id, own, detail: o.detail, question }));
+  }
+  return out;
 }
 
 function oldForm(event) {
@@ -144,7 +166,7 @@ function oldForm(event) {
   return BUILTIN_QUESTIONS.map(({ id, type }) => ({
     id,
     type,
-    text: sections[id].heading,
+    text: ownText(id, sections[id].heading),
     show: sections[id].show,
     choices: type === 'choices' ? oldChoices(id, stored[id]) : [],
   }));
@@ -152,10 +174,10 @@ function oldForm(event) {
 
 function readChoice(questionId, c) {
   if (!c || typeof c !== 'object' || typeof c.id !== 'string' || !c.id) return null;
-  const own = typeof c.label === 'string' && c.label.trim() ? c.label : null;
+  const own = ownLabel(questionId, c.id, c.label);
   if (own === null && !isBuiltinChoice(questionId, c.id)) return null;
-  const question = typeof c.question === 'string' && c.question ? c.question : null;
-  return makeChoice(questionId, { id: c.id, own, detail: Boolean(c.detail), question });
+  const detail = Boolean(c.detail);
+  return makeChoice(questionId, { id: c.id, own, detail, question: detail ? ownQuestion(c.id, c.question) : null });
 }
 
 function readChoices(questionId, stored) {
@@ -178,7 +200,7 @@ function readQuestion(q) {
   if (q.type !== 'text' && q.type !== 'choices') return null;
   const builtIn = builtinType(q.id);
   if (builtIn && builtIn !== q.type) return null;
-  const text = cleanHeading(q.text);
+  const text = ownText(q.id, q.text);
   if (!builtIn && !text) return null;
   return {
     id: q.id,

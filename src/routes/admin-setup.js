@@ -16,7 +16,7 @@ import { formPanel } from '../views/questions.js';
 
 
 export function adminSetupRoutes(app, ctx, {
-  render, sendError, groupPage, loadEvent, loadGroup, resubmitted, redirectDone, takeFlash,
+  render, sendError, groupPage, loadEvent, loadGroup, deleteEvent, deleteGroup, resubmitted, redirectDone, takeFlash,
 }) {
   const { repo, config } = ctx;
 
@@ -122,12 +122,12 @@ export function adminSetupRoutes(app, ctx, {
     return reply.redirect(`/admin/events/${event.id}?done=saved`, 303);
   });
 
-  app.post('/admin/events/:id/delete', loadEvent, async (request, reply) => {
+  app.post('/admin/events/:id/delete', deleteEvent, async (request, reply) => {
     if (request.body?.confirm !== '1') return sendError(reply, 400, adminLang(request));
     repo.deleteEvent(request.record.id);
     request.log.info({ event_id: request.record.id }, 'event_deleted');
     truncateLog(request);
-    return reply.redirect('/admin', 303);
+    return redirectDone(request, reply, '/admin');
   });
 
   app.post('/admin/events/:id/groups', loadEvent, async (request, reply) => {
@@ -160,12 +160,12 @@ export function adminSetupRoutes(app, ctx, {
     return reply.redirect(`/admin/groups/${group.id}`, 303);
   });
 
-  app.post('/admin/groups/:id/delete', loadGroup, async (request, reply) => {
+  app.post('/admin/groups/:id/delete', deleteGroup, async (request, reply) => {
     if (request.body?.confirm !== '1') return sendError(reply, 400, adminLang(request));
     repo.deleteGroup(request.record.id);
     request.log.info({ group_id: request.record.id }, 'group_deleted');
     truncateLog(request);
-    return reply.redirect(`/admin/events/${request.record.eventId}`, 303);
+    return redirectDone(request, reply, `/admin/events/${request.record.eventId}`);
   });
 
   app.post('/admin/groups/:id/participants', loadGroup, async (request, reply) => {

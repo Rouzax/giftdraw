@@ -175,6 +175,17 @@ test('a filled-in follow-up ticks its box, unless it was unticked with the detai
   assert.deepEqual(changed.answers.likes, { ticked: ['books'], details: { books: 'Pratchett' } });
 });
 
+test('a follow-up switched on after the page was loaded keeps its earlier text', () => {
+  const asks = wishForm({ formConfig: { questions: [{ id: 'likes', type: 'choices', choices: [{ id: 'tea', detail: true }] }] } });
+  const before = { answers: { likes: { ticked: ['tea'], details: { tea: 'groene' } } } };
+  const stale = parseWishesForm({ questions: 'likes', q_likes: 'tea' }, asks, before);
+  assert.deepEqual(stale.answers.likes, { ticked: ['tea'], details: { tea: 'groene' } });
+  const unticked = parseWishesForm({ questions: 'likes' }, asks, before);
+  assert.equal(unticked.answers.likes, undefined);
+  const emptied = parseWishesForm({ questions: 'likes', q_likes: 'tea', d_likes_tea: '' }, asks, before);
+  assert.deepEqual(emptied.answers.likes, { ticked: ['tea'], details: {} });
+});
+
 test('parseWishesForm keeps the answer of a hidden question', () => {
   const { answers } = parseWishesForm(body({ q_avoid: '', q_hobbies: '' }), form, v031Wishes);
   assert.equal(answers.avoid, 'noten');

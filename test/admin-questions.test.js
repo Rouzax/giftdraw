@@ -347,6 +347,14 @@ test('removing a ticked choice asks first, then drops the ticks without telling 
   assert.ok(text.includes('Wijn'), 'names the choice');
   assert.ok(text.includes(tr('nl', 'admin.question.dropBodyOne', { choices: 'Wijn' })));
   assert.ok(res.body.includes('name="confirmDrop"'));
+  // The page opens at the top, so the confirmation with its own save button
+  // comes before the fields, and nothing there says the answers stay.
+  const block = /<div class="notice warn drop-confirm"[\s\S]*?<\/div>/.exec(res.body);
+  assert.ok(block, 'confirmation block');
+  assert.ok(res.body.indexOf(block[0]) < res.body.indexOf('id="question-show"'), 'confirmation above the fields');
+  assert.ok(textOf(block[0]).includes(tr('nl', 'admin.question.dropNotSaved')));
+  assert.match(block[0], /name="confirmDrop"[\s\S]*<button type="submit" name="action" value="save"/);
+  assert.ok(!text.includes(tr('nl', 'admin.question.answeredOne')));
   assert.equal(event(t).formConfig, null, 'nothing stored yet');
   assert.deepEqual(answers(t, t.ada).likes.ticked, ['tea', 'wine']);
 
@@ -461,6 +469,11 @@ function storeV031(t) {
   const likes = [
     { id: 'tea', label: 'Thee', detail: false },
     { id: 'books-1a2b', label: 'Boeken', detail: true, question: 'Welke schrijver?' },
+    // The built-in follow-up stored as typed, a label past HEADING_MAX and
+    // doubled spaces: the edit page saves each of them cleaned.
+    { id: 'chocolate', label: 'Chocolade', detail: true, question: 'Welke smaak?' },
+    { id: 'long-3c4d', label: 'L'.repeat(120), detail: false },
+    { id: 'puzzles-5e6f', label: 'Boeken  of  puzzels', detail: false },
   ];
   const config = {
     sections: { hobbies: { heading: 'Favoriete auto' }, pets: { show: false } },

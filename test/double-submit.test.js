@@ -97,6 +97,38 @@ test('a double-clicked create event or create group makes one of each', async ()
   assert.equal(t.ctx.repo.listGroups(eventId).length, 1);
 });
 
+test('a double-clicked group delete deletes once and leads to the event both times', async () => {
+  const t = await setup();
+  const eventId = t.group.eventId;
+  const page = await t.adminGet(`/admin/groups/${t.groupId}`);
+  const action = `/admin/groups/${t.groupId}/delete`;
+  const form = { confirm: '1', formToken: formField(page.body, action, 'formToken') };
+  const first = await t.adminPost(action, form);
+  const second = await t.adminPost(action, form);
+  assert.equal(first.statusCode, 303);
+  assert.equal(second.statusCode, 303, second.body);
+  assert.equal(first.headers.location, `/admin/events/${eventId}`);
+  assert.equal(second.headers.location, first.headers.location);
+  assert.deepEqual(t.ctx.repo.listGroups(eventId), []);
+  assert.equal(t.logs.map((l) => JSON.parse(l)).filter((l) => l.msg === 'group_deleted').length, 1);
+});
+
+test('a double-clicked event delete deletes once and leads to the events both times', async () => {
+  const t = await setup();
+  const eventId = t.group.eventId;
+  const page = await t.adminGet(`/admin/events/${eventId}`);
+  const action = `/admin/events/${eventId}/delete`;
+  const form = { confirm: '1', formToken: formField(page.body, action, 'formToken') };
+  const first = await t.adminPost(action, form);
+  const second = await t.adminPost(action, form);
+  assert.equal(first.statusCode, 303);
+  assert.equal(second.statusCode, 303, second.body);
+  assert.equal(second.headers.location, '/admin');
+  assert.equal(second.headers.location, first.headers.location);
+  assert.equal(t.ctx.repo.getEvent(eventId), null);
+  assert.equal(t.logs.map((l) => JSON.parse(l)).filter((l) => l.msg === 'event_deleted').length, 1);
+});
+
 test('a refused post does not use up its form token', async () => {
   const t = await setup();
   const events = await t.adminGet('/admin');

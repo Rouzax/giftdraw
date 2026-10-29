@@ -1,8 +1,8 @@
 import { countAnswers } from '../answers.js';
 import { CHOICES_MAX, HEADING_MAX, QUESTION_MAX, QUESTIONS_MAX } from '../limits.js';
 import {
-  cleanHeading, cleanQuestion, FOLLOW_UPS, formValue, isBuiltinChoice, isBuiltinLabel, isBuiltinQuestion, isBuiltinText,
-  isOwnPrompt, newChoiceId, newQuestionId, sameForm, wishForm,
+  cleanQuestion, FOLLOW_UPS, formValue, isBuiltinChoice, isBuiltinQuestion, newChoiceId, newQuestionId, ownLabel,
+  ownQuestion, ownText, sameForm, wishForm,
 } from '../questions.js';
 import { questionView } from '../views/questions.js';
 import { adminLang } from './admin-auth.js';
@@ -81,8 +81,7 @@ function applyRowAction(draft, action) {
 function buildQuestion(draft, current) {
   const errors = {};
   const builtIn = isBuiltinQuestion(current.id);
-  let text = cleanHeading(draft.text);
-  if (text && builtIn && isBuiltinText(current.id, text)) text = null;
+  const text = ownText(current.id, draft.text);
   if (!text && !builtIn) errors.text = { key: 'admin.question.error.text' };
   const choices = [];
   if (current.type === 'choices') {
@@ -93,8 +92,7 @@ function buildQuestion(draft, current) {
     const taken = new Set([...current.choices.map((c) => c.id), ...draft.choices.map((r) => r.id).filter(Boolean)]);
     draft.choices.forEach((row, i) => {
       const hasBuiltin = isBuiltinChoice(current.id, row.id);
-      let own = cleanHeading(row.label);
-      if (own && hasBuiltin && isBuiltinLabel(current.id, row.id, own)) own = null;
+      const own = ownLabel(current.id, row.id, row.label);
       const typed = row.follow === 'own' ? cleanQuestion(row.question) : null;
       const rowErrors = {};
       if (!own && !hasBuiltin) rowErrors.label = { key: 'admin.question.error.label' };
@@ -105,7 +103,7 @@ function buildQuestion(draft, current) {
       }
       const id = row.id || newChoiceId(own, taken);
       taken.add(id);
-      choices.push({ id, own, detail: row.follow !== 'none', question: typed && isOwnPrompt(id, typed) ? typed : null });
+      choices.push({ id, own, detail: row.follow !== 'none', question: ownQuestion(id, typed) });
     });
   }
   if (Object.keys(errors).length) return { errors };

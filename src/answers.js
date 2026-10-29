@@ -76,15 +76,17 @@ function parseChoices(b, question, before) {
   const ticked = pickIds(field(b, `q_${question.id}`), new Set(question.choices.map((c) => c.id)));
   const details = {};
   for (const choice of question.choices) {
-    if (!choice.detail) {
-      // A follow-up the organiser switched off is not on the page; it is
-      // kept, like an answer to a hidden question, so switching it on again
-      // brings it back.
+    // A follow-up the organiser switched off is not on the page, nor on a
+    // page loaded while it was off. Its text is kept with a box still
+    // ticked, like an answer to a hidden question, so switching the
+    // follow-up on again brings it back.
+    const posted = choice.detail ? field(b, `d_${question.id}_${choice.id}`) : undefined;
+    if (posted === undefined) {
       const kept = before?.details[choice.id];
       if (kept && ticked.includes(choice.id)) details[choice.id] = kept;
       continue;
     }
-    const detail = text(field(b, `d_${question.id}_${choice.id}`));
+    const detail = text(posted);
     if (!detail) continue;
     if (!ticked.includes(choice.id)) {
       if (before?.ticked.includes(choice.id) && before.details[choice.id] === detail) continue;

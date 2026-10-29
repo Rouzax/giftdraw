@@ -211,12 +211,19 @@ ${footer({ lang, langAction, showLangSwitch })}
 
 // Long wishes would push an A5 page onto a second sheet, so the card steps
 // its type down by the amount of text rather than letting the browser split it.
-// The limits were measured by printing cards with long wishes and a long
-// exchange place to A5 PDF in Chrome.
+// Every wish line and paragraph starts a printed row of its own, so each
+// counts in whole rows of CARD_ROW characters: fifteen one-word answers
+// fill as much paper as a few long ones. The limits were measured by
+// printing cards with long wishes, many short answers, a long theme and a
+// long exchange place to A5 PDF in Chrome.
 const CARD_TEXT_STEPS = [[950, 'card-smallest'], [700, 'card-smaller']];
+const CARD_ROW = 50;
+const inRows = (length) => Math.ceil(length / CARD_ROW) * CARD_ROW;
 
 function cardSize(lines, ...texts) {
-  const length = lines.reduce((sum, line) => sum + line.label.length + line.value.length, texts.join('').length);
+  const paragraphs = texts.flatMap((text) => text.split('\n'));
+  const length = lines.reduce((sum, line) => sum + inRows(line.label.length + line.value.length + 2), 0)
+    + paragraphs.reduce((sum, text) => sum + inRows(text.length), 0);
   return CARD_TEXT_STEPS.find(([limit]) => length > limit)?.[1] ?? '';
 }
 

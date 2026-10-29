@@ -30,7 +30,7 @@ After the draw, click **Open the card to print** (*Het kaartje openen om te prin
 
 ![The printable card for Gerda, with the Print button above it](../images/organiser-card.webp){ .shot width="420" }
 
-Press **Print** (*Printen*) and choose A5, portrait, in the print window. The buttons above the card are left off the paper. Long wishes make the type a little smaller so the card stays on one sheet.
+Press **Print** (*Printen*) and choose A5, portrait, in the print window. The buttons above the card are left off the paper. Long wishes, or many answered questions, make the type smaller so the card stays on one sheet. A form with many questions that have long wording can still need a second sheet, so check the preview in the print window.
 
 Pressing Print records the card as printed, even if you then cancel the print window. The person's page shows **Printed on ...** and the dashboard's **Printed card** (*Geprinte kaart*) column says **Up to date** (*Klopt nog*).
 

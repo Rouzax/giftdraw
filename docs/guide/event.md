@@ -97,7 +97,7 @@ Participants see the changed form the next time they open their page. Nobody get
 
 - **Changing wording keeps the answers.** That goes for a question's wording, a choice's text and a follow-up question: ticks and typed answers stay with the question or choice.
 - **Switching a follow-up question to None** (*Geen*) hides what participants typed in it from their giver. It is kept, and shows again when you switch the follow-up question back on.
-- **Removing a choice that has been ticked** asks for confirmation when you press **Save**: **Remove ticked choices?** (*Aangevinkte keuzes weghalen?*) names the choices and how many participants lose that tick. Tick **Yes, I am sure** (*Ja, ik weet het zeker*) and press **Save** again. Those ticks are erased, with whatever was typed under them. A choice nobody ticked is removed without asking.
+- **Removing a choice that has been ticked** asks for confirmation when you press **Save**. Nothing is saved yet: the page comes back with **Not saved yet. Remove ticked choices?** (*Nog niet opgeslagen. Aangevinkte keuzes weghalen?*) at the top, naming the choices and how many participants lose that tick. Tick **Yes, I am sure** (*Ja, ik weet het zeker*) and press **Save and remove choices** (*Opslaan en keuzes weghalen*). Those ticks are erased, with whatever was typed under them. If you leave the page instead, the question stays as it was. A choice nobody ticked is removed without asking.
 
 ### Hide or remove a question
 

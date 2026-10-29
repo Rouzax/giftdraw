@@ -114,13 +114,17 @@ ${fieldError(lang, 'choices', errors.choices)}
 }
 
 // Removing ticked choices loses answers, so the save is held back until
-// the organiser has read which choices and ticked the box.
+// the organiser has read which choices and ticked the box. The page comes
+// back scrolled to the top, where a confirmation at the foot of the form
+// is missed and the page looks saved, so the block opens the form and
+// carries its own save button.
 function dropBlock(lang, drop) {
   if (!drop) return '';
   return html`<div class="notice warn drop-confirm" role="alert">
-<p><strong>${t(lang, 'admin.question.dropTitle')}</strong></p>
+<p><strong>${t(lang, 'admin.question.dropNotSaved')}</strong> ${t(lang, 'admin.question.dropTitle')}</p>
 <p>${counted(lang, 'admin.question.dropBody', drop.count, { choices: drop.names.join(', ') })}</p>
 <label class="check"><input type="checkbox" name="confirmDrop" value="1" required> <span>${t(lang, 'admin.delete.confirm')}</span></label>
+<button type="submit" name="action" value="save" class="primary">${t(lang, 'admin.question.dropSave')}</button>
 </div>`;
 }
 
@@ -149,12 +153,13 @@ export function questionView(lang, {
   const body = html`${backLink(`/admin/events/${event.id}#form`, event.name)}
 <h1>${title}</h1>
 <p class="muted">${t(lang, 'admin.question.kind', { kind: kindText(lang, { type: question.type, choices: draft.choices }) })}</p>
-${!isNew && answered > 0 ? html`<p class="notice">${counted(lang, 'admin.question.answered', answered)}</p>` : ''}
+${!isNew && answered > 0 && !drop ? html`<p class="notice">${counted(lang, 'admin.question.answered', answered)}</p>` : ''}
 ${hasErrors ? html`<p class="notice error" role="alert">${t(lang, 'admin.question.notSaved')}</p>` : ''}
 <form method="post" action="${action}" class="stack question-form">
 <button type="submit" name="action" value="save" class="visually-hidden" tabindex="-1" aria-hidden="true">${t(lang, 'admin.save')}</button>
 ${formToken()}
 ${isNew ? html`<input type="hidden" name="type" value="${question.type}">` : ''}
+${dropBlock(lang, drop)}
 <label class="check"><input type="checkbox" id="question-show" name="show" value="1"${draft.show ? raw(' checked') : ''} aria-describedby="question-show-hint"> <span>${t(lang, 'admin.question.show')}</span></label>
 <p class="hint" id="question-show-hint">${t(lang, 'admin.question.showHint')}</p>
 <label for="question-text">${t(lang, 'admin.question.text')}</label>
@@ -162,7 +167,6 @@ ${builtIn ? html`<p class="hint" id="question-text-hint">${t(lang, 'admin.questi
 ${fieldError(lang, 'question-text', errors.text)}
 <input id="question-text" name="text" type="text" maxlength="${HEADING_MAX}" value="${draft.text}"${builtIn ? html` placeholder="${t(lang, `wish.${question.id}`)}"` : raw(' required')}${described('question-text', { hint: builtIn, error: errors.text })}>
 ${question.type === 'choices' ? choicesBlock(lang, question.id, draft, errors) : ''}
-${dropBlock(lang, drop)}
 <button type="submit" name="action" value="save" class="primary">${t(lang, 'admin.save')}</button>
 </form>
 ${isNew ? '' : deletePanel(lang, event, question, { answered, canDelete })}`;

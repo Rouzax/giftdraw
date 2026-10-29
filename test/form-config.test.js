@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { hasWishes, parseWishesForm, wishLines } from '../src/answers.js';
 import {
-  cleanHeading, detailPrompt, endsInMark, questionText, readFormConfig, SECTION_IDS, wishForm,
+  cleanHeading, detailPrompt, endsInMark, questionText, sameForm, SECTION_IDS, wishForm,
 } from '../src/questions.js';
 
 const plain = wishForm({});
@@ -22,19 +22,20 @@ test('a heading override is shown as typed in every language', () => {
   assert.equal(questionText(pets, 'en'), 'Dieren thuis');
 });
 
-test('readFormConfig ignores unknown keys and bad values', () => {
-  const config = readFormConfig({
+test('an old form config is read past unknown keys and bad values', () => {
+  const form = withConfig({
     sections: { hobbies: { show: false, heading: 'x'.repeat(200) }, colour: { show: false }, likes: { show: 'no', heading: 7 } },
     petOptions: [{ id: 'bird-ab12', label: 'Vogel', detail: true, question: 'Welke?' }, { id: 3 }, 'junk'],
     extra: 1,
   });
-  assert.deepEqual(Object.keys(config.sections), SECTION_IDS);
-  assert.equal(config.sections.hobbies.show, false);
-  assert.equal(Array.from(config.sections.hobbies.heading).length, 80);
-  assert.deepEqual(config.sections.likes, { show: true, heading: null });
-  assert.deepEqual(config.petOptions, [{ id: 'bird-ab12', label: 'Vogel', detail: true, question: 'Welke?' }]);
-  assert.deepEqual(readFormConfig(null), readFormConfig({}));
-  assert.deepEqual(readFormConfig('junk'), readFormConfig({}));
+  assert.deepEqual(form.questions.map((q) => q.id), SECTION_IDS);
+  const [hobbies, likes, pets] = form.questions;
+  assert.equal(hobbies.show, false);
+  assert.equal(Array.from(hobbies.text).length, 80);
+  assert.deepEqual([likes.show, likes.text], [true, null]);
+  assert.deepEqual(pets.choices.map((c) => [c.id, c.own, c.detail, c.question]), [['bird-ab12', 'Vogel', true, 'Welke?']]);
+  assert.ok(sameForm(withConfig(null), plain));
+  assert.ok(sameForm(withConfig('junk'), plain));
 });
 
 test('cleanHeading makes one line of at most 80 characters, empty is null', () => {

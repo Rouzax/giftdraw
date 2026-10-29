@@ -52,6 +52,13 @@ export function adminShared(ctx, { sendPage, sendError }) {
     return redirectWith(reply, result);
   }
 
+  // For a post whose first answer removes the record it loads: the repeat
+  // is answered before the load, which would find nothing.
+  async function replayFirst(request, reply) {
+    const again = resubmitted(request, reply);
+    if (again) return again;
+  }
+
   // flash is a note for the next page that must stay out of the URL, which
   // the reverse proxy logs: "tell" says a giver who had drawn got no mail,
   // a hint about the pairing.
@@ -137,6 +144,8 @@ export function adminShared(ctx, { sendPage, sendError }) {
     groupPage,
     loadEvent: { preHandler: load(repo.getEvent) },
     loadGroup: { preHandler: load(repo.getGroup) },
+    deleteEvent: { preHandler: [replayFirst, load(repo.getEvent)] },
+    deleteGroup: { preHandler: [replayFirst, load(repo.getGroup)] },
     loadParticipant: { preHandler: load(repo.getParticipant) },
   };
 }

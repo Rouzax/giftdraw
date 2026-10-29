@@ -178,7 +178,7 @@ test('sameForm sees wording, order, show, choices and follow-ups, not the langua
   assert.ok(!sameForm(same, read((q) => { q[0].text = 'Auto'; return q; })));
   assert.ok(!sameForm(same, read((q) => { q[0].show = false; return q; })));
   assert.ok(!sameForm(same, read((q) => { q[1].choices.reverse(); return q; })));
-  assert.ok(!sameForm(same, read((q) => { q[1].choices[0].label = 'Thee'; return q; })));
+  assert.ok(!sameForm(same, read((q) => { q[1].choices[0].label = 'Groene thee'; return q; })));
   assert.ok(!sameForm(same, read((q) => { q[1].choices[0].detail = true; return q; })));
   assert.ok(!sameForm(same, read((q) => { Object.assign(q[1].choices[0], { detail: true, question: 'Welke?' }); return q; })));
   assert.ok(!sameForm(same, read((q) => q.slice(1))));
@@ -266,4 +266,23 @@ test('builtinChoiceFor finds a built-in choice by label in any language and case
   assert.equal(builtinChoiceFor('pets', 'Thee', new Set()), null);
   assert.equal(builtinChoiceFor('pets', 'Other', new Set()), 'other');
   assert.equal(builtinChoiceFor('q-1a2b', 'Thee', new Set()), null);
+});
+
+test('a stored form is read cleaned as the edit page would save it', () => {
+  const form = wishForm({ formConfig: { questions: [
+    { id: 'hobbies', type: 'text', text: 'Hobbies and interests' },
+    { id: 'likes', type: 'choices', choices: [
+      { id: 'tea', label: 'Thee' },
+      { id: 'chocolate', detail: true, question: 'Which flavour' },
+      { id: 'mix-1a2b', label: '  Boeken  of\npuzzels ', detail: false, question: 'Welke?' },
+      { id: 'blank-3c4d', label: '   ' },
+    ] },
+  ] } });
+  const [hobbies, likes] = form.questions;
+  assert.equal(hobbies.text, null);
+  assert.deepEqual(likes.choices.map((c) => [c.id, c.own, c.detail, c.question]), [
+    ['tea', null, false, null],
+    ['chocolate', null, true, null],
+    ['mix-1a2b', 'Boeken of puzzels', false, null],
+  ]);
 });
