@@ -142,6 +142,11 @@ body {
   font-size: 0.875rem;
 }
 
+.card.card-tiny {
+  font-size: 0.8125rem;
+  line-height: 1.3;
+}
+
 @media (max-width: 30rem) {
   .card {
     border-width: 1px 0;
@@ -195,5 +200,25 @@ body {
 
   .card.card-smallest {
     font-size: 10pt;
+  }
+
+  .card.card-tiny {
+    font-size: 9pt;
+    line-height: 1.25;
+  }
+
+  /* The last step also shrinks the headings and the gaps between wishes,
+     which take most of the room once the text itself is small. */
+  .card.card-tiny h1,
+  .card.card-tiny .wishes h2 {
+    font-size: 12pt;
+  }
+
+  .card.card-tiny .card-name {
+    font-size: 22pt;
+  }
+
+  .card.card-tiny .wishes dl div {
+    margin-bottom: 0.15rem;
   }
 }

@@ -106,3 +106,9 @@ test('one-word answers count as the rows they fill, so many of them step the car
   assert.equal(size(8), 'card card-smaller');
   assert.equal(size(15), 'card card-smallest');
 });
+
+test('a card with far more text than fits at the smallest type uses the tiny type', () => {
+  const wishes = { hobbies: 'x'.repeat(1300), likes: [], likeDetails: {}, pets: [], petsOther: '', avoid: '', other: '' };
+  const body = cardView({ participant: ada, receiver: { ...ben, wishes }, event, group, lang: 'nl', tz: TZ }).body.toString();
+  assert.ok(body.includes('<article class="card card-tiny">'));
+});

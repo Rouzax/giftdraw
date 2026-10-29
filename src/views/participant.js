@@ -216,7 +216,7 @@ ${footer({ lang, langAction, showLangSwitch })}
 // fill as much paper as a few long ones. The limits were measured by
 // printing cards with long wishes, many short answers, a long theme and a
 // long exchange place to A5 PDF in Chrome.
-const CARD_TEXT_STEPS = [[950, 'card-smallest'], [700, 'card-smaller']];
+const CARD_TEXT_STEPS = [[1300, 'card-tiny'], [950, 'card-smallest'], [700, 'card-smaller']];
 const CARD_ROW = 50;
 const inRows = (length) => Math.ceil(length / CARD_ROW) * CARD_ROW;
 
