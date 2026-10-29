@@ -1,35 +1,26 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { hasWishes, parseWishesForm, wishLines } from '../src/answers.js';
 import {
-  cleanHeading,
-  detailPrompt,
-  formConfigValue,
-  mergeOptionLabels,
-  optionLines,
-  parseWishesForm,
-  petOptions,
-  readFormConfig,
-  SECTION_IDS,
-  sectionHeading,
-  wishForm,
-  wishLines,
-} from '../src/wishes.js';
+  cleanHeading, detailPrompt, endsInMark, questionText, readFormConfig, SECTION_IDS, wishForm,
+} from '../src/questions.js';
+import { formConfigValue, mergeOptionLabels, optionLines, petOptions } from '../src/wishes.js';
 
 const plain = wishForm({});
 const withConfig = (formConfig) => wishForm({ formConfig });
 
 test('sections come in their fixed order, all shown with the built-in heading by default', () => {
   assert.deepEqual(SECTION_IDS, ['hobbies', 'likes', 'pets', 'avoid', 'other']);
-  assert.deepEqual(plain.sections, SECTION_IDS.map((id) => ({ id, show: true, heading: null })));
-  assert.equal(sectionHeading(plain.sections[0], 'nl'), "Hobby's en interesses");
-  assert.equal(sectionHeading(plain.sections[0], 'en'), 'Hobbies and interests');
+  assert.deepEqual(plain.questions.map((q) => [q.id, q.show, q.text]), SECTION_IDS.map((id) => [id, true, null]));
+  assert.equal(questionText(plain.questions[0], 'nl'), "Hobby's en interesses");
+  assert.equal(questionText(plain.questions[0], 'en'), 'Hobbies and interests');
 });
 
 test('a heading override is shown as typed in every language', () => {
   const form = withConfig({ sections: { pets: { show: true, heading: 'Dieren thuis' } } });
-  const pets = form.sections.find((s) => s.id === 'pets');
-  assert.equal(sectionHeading(pets, 'nl'), 'Dieren thuis');
-  assert.equal(sectionHeading(pets, 'en'), 'Dieren thuis');
+  const pets = form.questions.find((q) => q.id === 'pets');
+  assert.equal(questionText(pets, 'nl'), 'Dieren thuis');
+  assert.equal(questionText(pets, 'en'), 'Dieren thuis');
 });
 
 test('readFormConfig ignores unknown keys and bad values', () => {
@@ -104,20 +95,17 @@ test('old stored pets and other-pet text read and render as before', () => {
   assert.deepEqual(wishLines({ ...stored, petsOther: '' }, plain, 'en'), [{ label: 'Pets', value: 'Dog, Other' }]);
 });
 
-test('the other-pet field still stores as petsOther, a custom pet detail in petDetails', () => {
+test('the other-pet field names the animal, a custom pet detail follows its label', () => {
   const pets = mergeOptionLabels('Hond\nVogel? Welke soort?\nAnder dier?', petOptions({}), 'nl', 'pets');
   const form = withConfig({ petOptions: pets });
   const bird = pets[1].id;
-  const wishes = parseWishesForm({ pets_other: 'konijn', [`pet_detail_${bird}`]: 'parkiet' }, form);
-  assert.deepEqual(wishes.pets, [bird, 'other']);
-  assert.equal(wishes.petsOther, 'konijn');
-  assert.deepEqual(wishes.petDetails, { [bird]: 'parkiet' });
+  const wishes = parseWishesForm({ questions: 'pets', d_pets_other: 'konijn', [`d_pets_${bird}`]: 'parkiet' }, form);
+  assert.deepEqual(wishes.answers.pets, { ticked: [bird, 'other'], details: { [bird]: 'parkiet', other: 'konijn' } });
   assert.deepEqual(wishLines(wishes, form, 'nl'), [{ label: 'Huisdieren', value: 'Vogel (parkiet), konijn' }]);
-  assert.ok(!Object.hasOwn(parseWishesForm({ pets: 'dog' }, form), 'petDetails'), 'no empty map, so old rows compare equal');
 });
 
 test('a hidden section is left out of the lines and its heading override is used', () => {
-  const wishes = parseWishesForm({ hobbies: 'tuinieren', likes: 'tea', avoid: 'noten' }, plain);
+  const wishes = { answers: { hobbies: 'tuinieren', likes: { ticked: ['tea'], details: {} }, avoid: 'noten' } };
   const form = withConfig({ sections: { hobbies: { show: false }, likes: { show: true, heading: 'Lekker' } } });
   assert.deepEqual(wishLines(wishes, form, 'en'), [
     { label: 'Lekker', value: 'Tea' },
@@ -127,24 +115,7 @@ test('a hidden section is left out of the lines and its heading override is used
   assert.deepEqual(wishLines(wishes, none, 'nl'), []);
 });
 
-test('saving with a hidden section keeps its stored answer', () => {
-  const previous = parseWishesForm(
-    { hobbies: 'tuinieren', likes: 'chocolate', detail_chocolate: 'puur', pets: 'other', pets_other: 'konijn', avoid: 'noten' },
-    plain,
-  );
-  const form = withConfig({ sections: { hobbies: { show: false }, likes: { show: false }, pets: { show: false } } });
-  const saved = parseWishesForm({ avoid: 'pinda', hobbies: 'sneaky', likes: 'tea' }, form, previous);
-  assert.equal(saved.hobbies, 'tuinieren');
-  assert.deepEqual(saved.likes, ['chocolate']);
-  assert.deepEqual(saved.likeDetails, { chocolate: 'puur' });
-  assert.deepEqual(saved.pets, ['other']);
-  assert.equal(saved.petsOther, 'konijn');
-  assert.equal(saved.avoid, 'pinda');
-  assert.deepEqual(wishLines(saved, plain, 'nl').map((l) => l.label), ["Hobby's", 'Houdt van', 'Huisdieren', 'Liever niet']);
-});
-
 test('a heading that ends in a question mark or other mark gets no extra colon', async () => {
-  const { endsInMark } = await import('../src/wishes.js');
   assert.equal(endsInMark('Waar word je blij van?'), true);
   assert.equal(endsInMark('Lekker...'), true);
   assert.equal(endsInMark('Houdt van'), false);
@@ -171,29 +142,8 @@ test('a heading that ends in a question mark or other mark gets no extra colon',
   }
 });
 
-test('a section the posted form did not show keeps its stored answer, even if it is shown now', () => {
-  const previous = parseWishesForm({ hobbies: 'tuinieren', likes: 'tea', avoid: 'noten' }, plain);
-  // Loaded while hobbies was hidden, saved after the organiser showed it again.
-  const saved = parseWishesForm({ sections: 'likes pets avoid other', likes: 'wine' }, plain, previous);
-  assert.equal(saved.hobbies, 'tuinieren');
-  assert.deepEqual(saved.likes, ['wine']);
-  assert.equal(saved.avoid, '', 'a listed section takes its posted value, empty included');
-  // Loaded with everything, saved after the organiser hid hobbies.
-  const hidden = withConfig({ sections: { hobbies: { show: false } } });
-  const kept = parseWishesForm({ sections: SECTION_IDS.join(' '), hobbies: '' }, hidden, previous);
-  assert.equal(kept.hobbies, 'tuinieren');
-  // A form that showed nothing changes nothing.
-  assert.deepEqual(parseWishesForm({ sections: '' }, plain, previous), previous);
-});
-
-test('a post without the section list takes every section shown now', () => {
-  const previous = parseWishesForm({ hobbies: 'tuinieren' }, plain);
-  assert.equal(parseWishesForm({ likes: 'tea' }, plain, previous).hobbies, '');
-});
-
-test('hasWishes counts only answers in shown sections', async () => {
-  const { hasWishes } = await import('../src/wishes.js');
-  const wishes = parseWishesForm({ hobbies: 'tuinieren', pets: 'dog' }, plain);
+test('hasWishes counts only answers in shown sections', () => {
+  const wishes = { hobbies: 'tuinieren', pets: ['dog'] };
   assert.equal(hasWishes(wishes), true);
   assert.equal(hasWishes(wishes, plain), true);
   assert.equal(hasWishes(wishes, withConfig({ sections: { hobbies: { show: false }, pets: { show: false } } })), false);
@@ -202,7 +152,7 @@ test('hasWishes counts only answers in shown sections', async () => {
 
 test('no wish reminder when no section is shown, and one when only hidden sections are filled in', async () => {
   const { reminderKind } = await import('../src/reminders.js');
-  const person = { wishes: parseWishesForm({ hobbies: 'tuinieren' }, plain), drawnAt: null };
+  const person = { wishes: parseWishesForm({ questions: 'hobbies', q_hobbies: 'tuinieren' }, plain), drawnAt: null };
   const closed = { openedAt: null };
   const allHidden = withConfig({ sections: Object.fromEntries(SECTION_IDS.map((id) => [id, { show: false }])) });
   assert.equal(reminderKind({ ...person, wishes: null }, closed, allHidden), null);

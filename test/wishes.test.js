@@ -1,21 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  DEFAULT_LIKE_IDS,
-  detailPrompt,
-  optionLines,
-  PET_IDS,
-  hasWishes,
-  mergeOptionLabels,
-  parseWishesForm,
-  wishLines,
-  wishForm,
-  wishOptions,
-} from '../src/wishes.js';
+import { DEFAULT_LIKE_IDS, detailPrompt, PET_IDS } from '../src/questions.js';
+import { mergeOptionLabels, optionLines, wishOptions } from '../src/wishes.js';
 
 const defaults = wishOptions({ wishOptions: null });
-const form = wishForm({});
-const withLikes = (likes) => ({ ...form, likes });
 
 test('default options are the spec list with detail only on chocolate', () => {
   assert.deepEqual(DEFAULT_LIKE_IDS, ['chocolate', 'tea', 'coffee', 'bath', 'candles', 'books', 'plants', 'wine']);
@@ -60,113 +48,6 @@ test('stored custom options keep their typed label in both languages', () => {
   assert.equal(options[0].label('en'), 'Tea');
   assert.equal(options[1].label('en'), 'Breiwol');
   assert.equal(options[1].detail, true);
-});
-
-test('parseWishesForm keeps known ids, drops unknown ones and trims', () => {
-  const wishes = parseWishesForm(
-    {
-      hobbies: '  tuinieren ',
-      likes: ['tea', 'caviar', 'chocolate', 'tea'],
-      detail_chocolate: ' puur ',
-      detail_tea: 'groen',
-      pets: ['cat', 'snake'],
-      pets_other: '',
-      avoid: 'noten',
-      other: '',
-    }, form);
-  assert.deepEqual(wishes, {
-    hobbies: 'tuinieren',
-    likes: ['tea', 'chocolate'],
-    likeDetails: { chocolate: 'puur' },
-    pets: ['cat'],
-    petsOther: '',
-    avoid: 'noten',
-    other: '',
-  });
-});
-
-test('parseWishesForm accepts a single checkbox value as a string', () => {
-  const wishes = parseWishesForm({ likes: 'wine', pets: 'dog' }, form);
-  assert.deepEqual(wishes.likes, ['wine']);
-  assert.deepEqual(wishes.pets, ['dog']);
-  assert.equal(wishes.hobbies, '');
-});
-
-test('a filled-in detail or other pet counts as ticked', () => {
-  const wishes = parseWishesForm({ detail_chocolate: 'melk', pets_other: 'konijn' }, form);
-  assert.deepEqual(wishes.likes, ['chocolate']);
-  assert.deepEqual(wishes.likeDetails, { chocolate: 'melk' });
-  assert.deepEqual(wishes.pets, ['other']);
-  assert.equal(wishes.petsOther, 'konijn');
-});
-
-test('parseWishesForm caps text at 1000 characters', () => {
-  const wishes = parseWishesForm({ hobbies: 'a'.repeat(5000), likes: 'chocolate', detail_chocolate: 'b'.repeat(5000) }, form);
-  assert.equal(wishes.hobbies.length, 1000);
-  assert.equal(wishes.likeDetails.chocolate.length, 1000);
-});
-
-test('parseWishesForm does not split an emoji at the limit', () => {
-  const hobbies = parseWishesForm({ hobbies: `${'a'.repeat(999)}\u{1F600}b` }, form).hobbies;
-  assert.equal(hobbies, `${'a'.repeat(999)}\u{1F600}`);
-  assert.equal(Array.from(hobbies).length, 1000);
-});
-
-test('parseWishesForm keeps markup verbatim for the view to escape', () => {
-  assert.equal(parseWishesForm({ other: '<script>' }, form).other, '<script>');
-});
-
-test('parseWishesForm ignores non-string text values', () => {
-  const wishes = parseWishesForm({ hobbies: ['a', 'b'], avoid: { x: 1 }, likes: [{}] }, form);
-  assert.equal(wishes.hobbies, 'a');
-  assert.equal(wishes.avoid, '');
-  assert.deepEqual(wishes.likes, []);
-});
-
-test('hasWishes', () => {
-  assert.equal(hasWishes(null), false);
-  assert.equal(hasWishes(parseWishesForm({}, form)), false);
-  assert.equal(hasWishes(parseWishesForm({ likes: 'tea' }, form)), true);
-  assert.equal(hasWishes(parseWishesForm({ other: 'x' }, form)), true);
-});
-
-test('wishLines renders labelled lines in English', () => {
-  const wishes = parseWishesForm(
-    { hobbies: 'gardening', likes: ['tea', 'chocolate'], detail_chocolate: 'dark', pets: 'cat' }, form);
-  assert.deepEqual(wishLines(wishes, form, 'en'), [
-    { label: 'Hobbies', value: 'gardening' },
-    { label: 'Likes', value: 'Tea, Chocolate (dark)' },
-    { label: 'Pets', value: 'Cat' },
-  ]);
-});
-
-test('wishLines keeps section order and uses the other-pet text', () => {
-  const wishes = parseWishesForm(
-    { other: 'Graag iets kleins', avoid: 'noten', pets: ['dog', 'other'], pets_other: 'konijn' }, form);
-  assert.deepEqual(wishLines(wishes, form, 'nl'), [
-    { label: 'Huisdieren', value: 'Hond, konijn' },
-    { label: 'Liever niet', value: 'noten' },
-    { label: 'Verder', value: 'Graag iets kleins' },
-  ]);
-});
-
-test('wishLines returns nothing for empty or missing wishes', () => {
-  assert.deepEqual(wishLines(null, form, 'en'), []);
-  assert.deepEqual(wishLines(parseWishesForm({}, form), form, 'en'), []);
-});
-
-test('wishLines skips a stored like whose option was removed', () => {
-  const wishes = parseWishesForm({ likes: ['tea', 'wine'] }, form);
-  const withoutWine = defaults.filter((o) => o.id !== 'wine');
-  assert.deepEqual(wishLines(wishes, withLikes(withoutWine), 'en'), [{ label: 'Likes', value: 'Tea' }]);
-  const onlyWine = parseWishesForm({ likes: 'wine' }, form);
-  assert.deepEqual(wishLines(onlyWine, withLikes(withoutWine), 'en'), []);
-});
-
-test('wishLines shows custom option labels as typed', () => {
-  const options = wishOptions({ wishOptions: [{ id: 'lego-ab12', label: 'Lego', detail: false }] });
-  const wishes = parseWishesForm({ likes: 'lego-ab12' }, withLikes(options));
-  assert.deepEqual(wishLines(wishes, withLikes(options), 'en'), [{ label: 'Likes', value: 'Lego' }]);
 });
 
 test('mergeOptionLabels keeps ids when lines are reordered', () => {

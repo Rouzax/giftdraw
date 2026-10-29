@@ -2,9 +2,9 @@ import { performance } from 'node:perf_hooks';
 import { openGroup } from './drawing.js';
 import { drainOutbox, errorCode } from './mail/outbox.js';
 import { enqueueMail, mailOn } from './people.js';
+import { wishForm } from './questions.js';
 import { dueReminder, reminderKind } from './reminders.js';
 import { instantAt, todayIn } from './time.js';
-import { wishForm } from './wishes.js';
 
 const AUTO_OPEN_AT = '09:00';
 const STALE_SENDING_MS = 10 * 60_000;

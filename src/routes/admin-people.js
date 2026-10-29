@@ -6,10 +6,10 @@ import {
   saveWishes,
 } from '../people.js';
 import { NAME_MAX } from '../limits.js';
+import { wishForm } from '../questions.js';
 import { reminderKind } from '../reminders.js';
 import { cardOutOfDate } from '../status.js';
 import { newToken } from '../tokens.js';
-import { wishForm } from '../wishes.js';
 import { cardTools, messageView, PERSON_DONE, participantView, removeView } from '../views/admin.js';
 import { aboutFormView, cardView, resultView } from '../views/participant.js';
 import { adminLang } from './admin-auth.js';
@@ -170,11 +170,18 @@ export function adminPeopleRoutes(app, ctx, {
   });
 
   app.post('/admin/participants/:id/about', loadParticipant, async (request, reply) => {
-    saveWishes(ctx, request.record.id, request.body);
+    const participant = request.record;
+    // A page loaded before an update posts fields this version cannot read;
+    // the form comes back with the stored answers, as for the participant.
+    if (!saveWishes(ctx, participant.id, request.body)) {
+      request.log.info({ group_id: participant.groupId }, 'wishes_form_outdated');
+      const view = aboutFormView({ ...screenData(participant), wishes: participant.wishes, outdated: true });
+      return renderBehalf(request, reply, participant, view, behalfFrame(request, participant));
+    }
     // No participant id, like wishes_saved: it would tie this receiver to
     // the giver described by the wish-update lines that follow.
-    request.log.info({ group_id: request.record.groupId }, 'wishes_saved_on_behalf');
-    return reply.redirect(personUrl(request.record.id, 'wishes-saved'), 303);
+    request.log.info({ group_id: participant.groupId }, 'wishes_saved_on_behalf');
+    return reply.redirect(personUrl(participant.id, 'wishes-saved'), 303);
   });
 
   // Rendered straight from the POST, because the organiser draws with the

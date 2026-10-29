@@ -1,7 +1,8 @@
+import { hasWishes } from '../answers.js';
+import { wishForm } from '../questions.js';
 import { cardOutOfDate, groupWarnings } from '../status.js';
 import { createSubmitLog, formFingerprint } from '../submit-log.js';
 import { clipText, unixLines } from '../text.js';
-import { hasWishes, wishForm } from '../wishes.js';
 import { adminLang } from './admin-auth.js';
 import { behalfPage, printPage, renderAdminPage } from '../views/layout.js';
 import { groupView } from '../views/admin.js';

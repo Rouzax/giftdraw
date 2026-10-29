@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
-import { makeTestApp, seedGroup } from './helpers.js';
+import { aboutBody, makeTestApp, seedGroup } from './helpers.js';
 
 async function setup() {
   const t = await makeTestApp();
@@ -18,15 +18,15 @@ async function setup() {
 }
 
 // Every detail field names the box it belongs to, and that box is on the page.
-function assertLinked(body) {
+function assertLinked(body, expected = ['d_likes_books', 'd_likes_chocolate', 'd_pets_other']) {
   const links = [...body.matchAll(/<input type="text" id="([^"]+)" name="\1"[^>]*data-tick="([^"]+)"/g)];
   const linked = new Map(links.map(([, name, box]) => [name, box]));
-  assert.deepEqual([...linked.keys()].sort(), ['detail_books', 'detail_chocolate', 'pets_other']);
+  assert.deepEqual([...linked.keys()].sort(), expected);
   for (const box of linked.values()) {
     assert.match(body, new RegExp(`<input type="checkbox" id="${box}" `), box);
   }
-  assert.equal(linked.get('detail_chocolate'), 'like-chocolate');
-  assert.equal(linked.get('pets_other'), 'pet-other');
+  assert.equal(linked.get('d_likes_chocolate'), 'c_likes_chocolate');
+  assert.equal(linked.get('d_pets_other'), 'c_pets_other');
   assert.ok(body.includes('/static/js/wish-form.js'));
 }
 
@@ -44,16 +44,40 @@ test('the on-behalf about form links each detail field to its box and loads the 
   assertLinked(res.body);
 });
 
+test('an added tick list shows its choices with linked detail fields and saves by question', async () => {
+  const t = await setup();
+  t.ctx.repo.updateEvent(t.group.eventId, { formConfig: { questions: [
+    { id: 'likes', type: 'choices' },
+    { id: 'pets', type: 'choices' },
+    { id: 'q-ab12', type: 'choices', text: 'Welke sport?', choices: [
+      { id: 'tennis', label: 'Tennis' },
+      { id: 'anders-cd34', label: 'Anders', detail: true, question: 'Welke dan?' },
+    ] },
+  ] } });
+  const page = await t.app.inject(`/p/${t.ada.token}/about`);
+  assert.ok(page.body.includes('<legend>Welke sport?</legend>'));
+  assert.match(page.body, /<input type="checkbox" id="c_q-ab12_tennis" name="q_q-ab12" value="tennis"> <span>Tennis<\/span>/);
+  assert.ok(page.body.includes('Welke dan?'));
+  assert.match(page.body, /name="questions" value="likes pets q-ab12"/);
+  assertLinked(page.body, ['d_likes_chocolate', 'd_pets_other', 'd_q-ab12_anders-cd34']);
+  await t.post(`/p/${t.ada.token}/about`, aboutBody({ 'q_q-ab12': 'tennis', 'd_q-ab12_anders-cd34': 'Zwemmen' }, ['likes', 'pets', 'q-ab12']));
+  assert.deepEqual(t.ctx.repo.getParticipant(t.ada.id).wishes, {
+    answers: { 'q-ab12': { ticked: ['tennis', 'anders-cd34'], details: { 'anders-cd34': 'Zwemmen' } } },
+  });
+  const again = await t.app.inject(`/p/${t.ada.token}/about`);
+  assert.match(again.body, /id="c_q-ab12_anders-cd34" name="q_q-ab12" value="anders-cd34" checked>/);
+  assert.match(again.body, /value="Zwemmen" data-tick="c_q-ab12_anders-cd34"/);
+});
+
 test('a detail filled in without a tick is saved as a like and comes back ticked', async () => {
   const t = await setup();
-  const res = await t.post(`/p/${t.ada.token}/about`, { detail_books: 'Annie M.G. Schmidt' });
+  const res = await t.post(`/p/${t.ada.token}/about`, aboutBody({ d_likes_books: 'Annie M.G. Schmidt' }));
   assert.equal(res.statusCode, 303);
   const stored = t.ctx.repo.getParticipant(t.ada.id).wishes;
-  assert.deepEqual(stored.likes, ['books']);
-  assert.deepEqual(stored.likeDetails, { books: 'Annie M.G. Schmidt' });
+  assert.deepEqual(stored.answers.likes, { ticked: ['books'], details: { books: 'Annie M.G. Schmidt' } });
   const form = await t.app.inject(`/p/${t.ada.token}/about`);
-  assert.match(form.body, /<input type="checkbox" id="like-books" name="likes" value="books" checked>/);
-  assert.match(form.body, /value="Annie M\.G\. Schmidt" data-tick="like-books"/);
+  assert.match(form.body, /<input type="checkbox" id="c_likes_books" name="q_likes" value="books" checked>/);
+  assert.match(form.body, /value="Annie M\.G\. Schmidt" data-tick="c_likes_books"/);
   assert.doesNotMatch(form.body, /value="chocolate" checked/);
 });
 
@@ -61,23 +85,21 @@ test('a detail filled in without a tick is saved as a like and comes back ticked
 // untick alone has to count.
 test('without script, unticking a box whose detail is unchanged drops the like and its detail', async () => {
   const t = await setup();
-  await t.post(`/p/${t.ada.token}/about`, { likes: ['books', 'tea'], detail_books: 'Annie M.G. Schmidt', pets: 'other', pets_other: 'konijn' });
+  await t.post(`/p/${t.ada.token}/about`, aboutBody({
+    q_likes: ['books', 'tea'], d_likes_books: 'Annie M.G. Schmidt', q_pets: 'other', d_pets_other: 'konijn',
+  }));
   // The same detail texts come back with the boxes unticked.
-  await t.post(`/p/${t.ada.token}/about`, { likes: 'tea', detail_books: 'Annie M.G. Schmidt', pets_other: 'konijn' });
+  await t.post(`/p/${t.ada.token}/about`, aboutBody({ q_likes: 'tea', d_likes_books: 'Annie M.G. Schmidt', d_pets_other: 'konijn' }));
   const stored = t.ctx.repo.getParticipant(t.ada.id).wishes;
-  assert.deepEqual(stored.likes, ['tea']);
-  assert.deepEqual(stored.likeDetails, {});
-  assert.deepEqual(stored.pets, []);
-  assert.equal(stored.petsOther, '');
+  assert.deepEqual(stored.answers, { likes: { ticked: ['tea'], details: {} } });
 });
 
 test('a changed detail next to an unticked box still ticks it', async () => {
   const t = await setup();
-  await t.post(`/p/${t.ada.token}/about`, { likes: 'books', detail_books: 'Annie M.G. Schmidt' });
-  await t.post(`/p/${t.ada.token}/about`, { detail_books: 'Paul Biegel' });
+  await t.post(`/p/${t.ada.token}/about`, aboutBody({ q_likes: 'books', d_likes_books: 'Annie M.G. Schmidt' }));
+  await t.post(`/p/${t.ada.token}/about`, aboutBody({ d_likes_books: 'Paul Biegel' }));
   const stored = t.ctx.repo.getParticipant(t.ada.id).wishes;
-  assert.deepEqual(stored.likes, ['books']);
-  assert.deepEqual(stored.likeDetails, { books: 'Paul Biegel' });
+  assert.deepEqual(stored.answers.likes, { ticked: ['books'], details: { books: 'Paul Biegel' } });
 });
 
 function element(props = {}) {

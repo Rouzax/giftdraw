@@ -1,5 +1,6 @@
+import { hasWishes } from './answers.js';
+import { wishForm } from './questions.js';
 import { addDays, instantAt, localParts } from './time.js';
-import { hasWishes, wishForm } from './wishes.js';
 
 // Reminders become due at 09:00 and go out only in the daytime: one that
 // becomes due later (spacing, a cleared answer, an app that was down in the
@@ -11,11 +12,11 @@ const MAX_PER_KIND = 2;
 const WISHES_SPACING_DAYS = 4;
 const DRAW_SPACING_DAYS = 3;
 
-// form is the event's wishForm. With no section shown there is nothing to
-// ask for, and answers in hidden sections do not count as given.
+// form is the event's wishForm. With no question shown there is nothing to
+// ask for, and answers to hidden questions do not count as given.
 export function reminderKind(participant, group, form = wishForm({})) {
   if (group.openedAt) return participant.drawnAt ? null : 'remind-draw';
-  if (!form.sections.some((section) => section.show)) return null;
+  if (!form.questions.some((question) => question.show)) return null;
   return hasWishes(participant.wishes, form) ? null : 'remind-wishes';
 }
 

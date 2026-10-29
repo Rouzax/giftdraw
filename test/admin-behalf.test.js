@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { t as tr, themeText } from '../src/i18n/index.js';
 import { commitRemoveParticipant, planRemoveParticipant, saveWishes } from '../src/people.js';
-import { makeTestApp, seedGroup } from './helpers.js';
+import { aboutBody, makeTestApp, seedGroup } from './helpers.js';
 
 const T0 = Date.parse('2026-11-01T10:00:00.000Z');
 const MINUTE = 60_000;
@@ -42,18 +42,17 @@ test('the organiser fills in wishes on behalf and the dashboard shows them fille
   const form = await t.adminGet(`/admin/participants/${t.ada.id}/about`);
   assert.equal(form.statusCode, 200);
   assert.ok(form.body.includes(`action="/admin/participants/${t.ada.id}/about"`));
-  assert.ok(form.body.includes('name="hobbies"'));
+  assert.ok(form.body.includes('name="q_hobbies"'));
   assert.ok(form.body.includes('/static/css/participant.css'));
   assert.equal(form.body.includes(`/p/${t.ada.token}`), false);
   assert.equal(form.body.includes('name="lang"'), false);
 
   const before = await t.adminGet(`/admin/groups/${t.groupId}`);
-  const res = await t.adminPost(`/admin/participants/${t.ada.id}/about`, { hobbies: 'gardening', likes: ['tea'] });
+  const res = await t.adminPost(`/admin/participants/${t.ada.id}/about`, aboutBody({ q_hobbies: 'gardening', q_likes: ['tea'] }));
   assert.equal(res.statusCode, 303);
   assert.equal(res.headers.location, `/admin/participants/${t.ada.id}?done=wishes-saved`);
   const saved = t.ctx.repo.getParticipant(t.ada.id);
-  assert.equal(saved.wishes.hobbies, 'gardening');
-  assert.deepEqual(saved.wishes.likes, ['tea']);
+  assert.deepEqual(saved.wishes, { answers: { hobbies: 'gardening', likes: { ticked: ['tea'], details: {} } } });
 
   const yes = tr('nl', 'admin.status.yes');
   const count = (body) => body.split(`>${yes}<`).length - 1;
@@ -66,7 +65,7 @@ test('the organiser fills in wishes on behalf and the dashboard shows them fille
 
 test('a wish save on behalf logs the group, not the participant', async () => {
   const t = await withNoEmailAda({ names: ['Ada', 'Ben', 'Cor'] });
-  await t.adminPost(`/admin/participants/${t.ada.id}/about`, { hobbies: 'gardening' });
+  await t.adminPost(`/admin/participants/${t.ada.id}/about`, aboutBody({ q_hobbies: 'gardening' }));
   const line = t.logs.map((l) => JSON.parse(l)).find((l) => l.msg === 'wishes_saved_on_behalf');
   assert.equal(line.group_id, t.groupId);
   assert.ok(!Object.hasOwn(line, 'participant_id'));
@@ -101,14 +100,14 @@ test('drawing on behalf sets drawnAt and reveals the receiver with the participa
 
 test('prefilled textareas get enough rows for their text, within bounds', async () => {
   const t = await withNoEmailAda({ names: ['Ada', 'Ben', 'Cor'] });
-  saveWishes(t.ctx, t.ada.id, { hobbies: 'gardening', avoid: 'long text '.repeat(40), other: 'x '.repeat(500) });
+  saveWishes(t.ctx, t.ada.id, aboutBody({ q_hobbies: 'gardening', q_avoid: 'long text '.repeat(40), q_other: 'x '.repeat(500) }));
   const form = await t.adminGet(`/admin/participants/${t.ada.id}/about`);
   const rows = (name) => Number(new RegExp(`<textarea id="${name}"[^>]* rows="(\\d+)"`).exec(form.body)[1]);
-  assert.equal(rows('hobbies'), 3);
-  assert.ok(rows('avoid') > 3 && rows('avoid') < 20, String(rows('avoid')));
-  assert.equal(rows('other'), 20);
+  assert.equal(rows('q_hobbies'), 3);
+  assert.ok(rows('q_avoid') > 3 && rows('q_avoid') < 20, String(rows('q_avoid')));
+  assert.equal(rows('q_other'), 20);
   const own = await t.app.inject({ url: `/p/${t.ada.token}/about` });
-  assert.ok(own.body.includes('<textarea id="avoid" name="avoid" rows="' + rows('avoid') + '"'));
+  assert.ok(own.body.includes('<textarea id="q_avoid" name="q_avoid" rows="' + rows('q_avoid') + '"'));
 });
 
 test('drawing on behalf is refused while the group is closed', async () => {
@@ -137,7 +136,7 @@ test('the QR route returns an SVG of the personal link and logs no link', async 
 test('the card shows the receiver, their wishes, the theme and the date, and needs a draw first', async () => {
   const t = await withNoEmailAda({ names: ['Ada', 'Ben', 'Cor'], opened: true });
   const receiver = receiverOf(t, t.ada.id);
-  saveWishes(t.ctx, receiver.id, { hobbies: 'knitting', likes: ['chocolate'], detail_chocolate: 'dark' });
+  saveWishes(t.ctx, receiver.id, aboutBody({ q_hobbies: 'knitting', q_likes: ['chocolate'], d_likes_chocolate: 'dark' }));
 
   const early = await t.adminGet(`/admin/participants/${t.ada.id}/card`);
   assert.equal(early.statusCode, 409);
@@ -173,7 +172,7 @@ test('marking the card printed returns to the print view, and changes afterwards
   // The receiver changes their wishes after the print.
   t.clock.ms += MINUTE;
   const receiver = receiverOf(t, t.ada.id);
-  saveWishes(t.ctx, receiver.id, { hobbies: 'reading' });
+  saveWishes(t.ctx, receiver.id, aboutBody({ q_hobbies: 'reading' }));
   assert.ok((await dashboard()).body.includes(outOfDate));
 
   // Printing again clears it; a reassignment brings it back.

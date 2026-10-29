@@ -1,5 +1,5 @@
+import { wishForm } from '../questions.js';
 import { reminderKind } from '../reminders.js';
-import { wishForm } from '../wishes.js';
 import { SKIP_CODES } from './skip-codes.js';
 import { RECEIVER_KINDS, renderEmail } from './templates.js';
 

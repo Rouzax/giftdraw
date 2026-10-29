@@ -1,11 +1,12 @@
 import { domainToASCII } from 'node:url';
+import { parseWishesForm, readAnswers } from './answers.js';
 import { chooseInsertGiver, insertIntoCycle, makeCycle, planRemoval, validateAssignment } from './draw/cycle.js';
 import { NAME_MAX } from './limits.js';
 import { kickDrain } from './mail/outbox.js';
+import { wishForm } from './questions.js';
 import { reminderKind } from './reminders.js';
 import { assignmentVersion } from './status.js';
 import { clipText, unixLines } from './text.js';
-import { hasWishes, parseWishesForm, wishForm } from './wishes.js';
 
 const MIN_GROUP = 3;
 const EMAIL_MAX = 254;
@@ -24,7 +25,7 @@ export const PLAN_JSON_MAX = 64 + PASTE_ROWS_MAX * ((NAME_MAX + EMAIL_MAX) * 6 +
 const EMAIL = /^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$/;
 const SEPARATOR = /[\t;,]/;
 
-// Likes and pets are sets, so their order does not make a change, and
+// Ticked choices are sets, so their order does not make a change, and
 // texts stored with CRLF line breaks read the same as with LF.
 function canonical(value) {
   if (typeof value === 'string') return unixLines(value);
@@ -35,17 +36,21 @@ function canonical(value) {
   return value;
 }
 
+// Answers are compared as read, not as stored, so a row in an older shape
+// saved again with the same answers is no change.
 function sameWishes(a, b) {
-  if (!hasWishes(a) && !hasWishes(b)) return true;
-  return JSON.stringify(canonical(a)) === JSON.stringify(canonical(b));
+  return JSON.stringify(canonical(readAnswers(a))) === JSON.stringify(canonical(readAnswers(b)));
 }
 
+// Gives null, storing nothing, for a post from a page whose fields cannot
+// be read (see parseWishesForm).
 export function saveWishes(ctx, participantId, body) {
   const { repo } = ctx;
   return repo.tx(() => {
     const participant = repo.getParticipant(participantId);
     const event = repo.getEvent(repo.getGroup(participant.groupId).eventId);
     const wishes = parseWishesForm(body, wishForm(event), participant.wishes);
+    if (!wishes) return null;
     // A save without a change must not mark a printed card out of date or
     // mail the giver about nothing.
     if (sameWishes(participant.wishes, wishes)) return wishes;

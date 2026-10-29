@@ -4,7 +4,7 @@ import { setTimeout as wait } from 'node:timers/promises';
 import { remindNow, saveWishes } from '../src/people.js';
 import { cardOutOfDate } from '../src/status.js';
 import { startScheduler, tick } from '../src/scheduler.js';
-import { makeTestApp, seedGroup } from './helpers.js';
+import { aboutBody, makeTestApp, seedGroup } from './helpers.js';
 
 const T0 = Date.parse('2026-11-01T10:00:00.000Z');
 const MINUTE = 60_000;
@@ -82,7 +82,7 @@ test('three wish saves within 15 minutes give one wishes-updated to the drawn gi
   const start = clock.ms;
   for (const offset of [0, 5, 10]) {
     clock.ms = start + offset * MINUTE;
-    saveWishes(ctx, ben.id, { hobbies: `reading ${offset}` });
+    saveWishes(ctx, ben.id, aboutBody({ q_hobbies: `reading ${offset}` }));
   }
   assert.equal(ctx.repo.getParticipant(ben.id).notifyGiverDueAt, new Date(start + 15 * MINUTE).toISOString());
   clock.ms = start + 14 * MINUTE;
@@ -112,7 +112,7 @@ test('a queued wishes-updated mail logs no participant ids', async () => {
   const { ctx, clock, logs, people } = t;
   const ben = people[1];
   const giver = markGiverDrawn(t, ben);
-  saveWishes(ctx, ben.id, { hobbies: 'secret hobby' });
+  saveWishes(ctx, ben.id, aboutBody({ q_hobbies: 'secret hobby' }));
   clock.ms += 15 * MINUTE;
   await tick(ctx);
   const queued = logLines(logs).filter((l) => l.msg === 'wish_update_queued');
@@ -132,7 +132,7 @@ test('a cleared flag without a mail logs the reason at info', async () => {
   const { ctx, clock, logs, people, group } = t;
   const ben = people[1];
   const giver = markGiverDrawn(t, ben);
-  saveWishes(ctx, ben.id, { hobbies: 'reading' });
+  saveWishes(ctx, ben.id, aboutBody({ q_hobbies: 'reading' }));
   const map = ctx.repo.getAssignment(group.id);
   ctx.repo.setAssignment(group.id, new Map([...map].map(([g, r]) => [r, g])), ctx.nowIso());
   clock.ms += 15 * MINUTE;
@@ -155,7 +155,7 @@ test('a drawn giver without email or with mail off drops the update with that re
     const t = await setup({ opened: true });
     const ben = t.people[1];
     const giver = markGiverDrawn(t, ben);
-    saveWishes(t.ctx, ben.id, { hobbies: 'reading' });
+    saveWishes(t.ctx, ben.id, aboutBody({ q_hobbies: 'reading' }));
     prepare(t, giver);
     t.clock.ms += 15 * MINUTE;
     await tick(t.ctx);
@@ -171,7 +171,7 @@ test('a drawn giver without email or with mail off drops the update with that re
 test('wish saves before the giver drew set no flag and send nothing', async () => {
   const { ctx, clock, db, people } = await setup({ opened: true });
   const ben = people[1];
-  saveWishes(ctx, ben.id, { hobbies: 'reading' });
+  saveWishes(ctx, ben.id, aboutBody({ q_hobbies: 'reading' }));
   assert.equal(ctx.repo.getParticipant(ben.id).notifyGiverDueAt, null);
   clock.ms += 20 * MINUTE;
   assert.equal((await tick(ctx)).wishUpdates, 0);
@@ -183,7 +183,7 @@ test('a flag set before a reassignment to a giver who has not drawn sends nothin
   const { ctx, clock, db, people, group } = t;
   const ben = people[1];
   const giver = markGiverDrawn(t, ben);
-  saveWishes(ctx, ben.id, { hobbies: 'reading' });
+  saveWishes(ctx, ben.id, aboutBody({ q_hobbies: 'reading' }));
   // Reverse the three-person cycle: Ben's new giver is the one who has not drawn.
   const map = ctx.repo.getAssignment(group.id);
   ctx.repo.setAssignment(group.id, new Map([...map].map(([g, r]) => [r, g])), ctx.nowIso());
@@ -200,7 +200,7 @@ test('saving the same wishes again changes nothing: no flag, no update time, car
   const t = await setup({ opened: true });
   const { ctx, clock, db, people } = t;
   const ben = people[1];
-  const form = { hobbies: 'reading', likes: ['tea', 'chocolate'], detail_chocolate: 'dark', pets: 'cat' };
+  const form = aboutBody({ q_hobbies: 'reading', q_likes: ['tea', 'chocolate'], d_likes_chocolate: 'dark', q_pets: 'cat' });
   saveWishes(ctx, ben.id, form);
   const savedAt = ctx.repo.getParticipant(ben.id).wishesUpdatedAt;
   const giver = markGiverDrawn(t, ben);
@@ -210,7 +210,7 @@ test('saving the same wishes again changes nothing: no flag, no update time, car
   clock.ms += MINUTE;
   saveWishes(ctx, ben.id, form);
   // Never filled in and saved empty is no change either.
-  saveWishes(ctx, people[2].id, {});
+  saveWishes(ctx, people[2].id, aboutBody({}));
   const after = ctx.repo.getParticipant(ben.id);
   assert.equal(after.wishesUpdatedAt, savedAt);
   assert.equal(after.notifyGiverDueAt, null);
@@ -220,7 +220,7 @@ test('saving the same wishes again changes nothing: no flag, no update time, car
   assert.equal((await tick(ctx)).wishUpdates, 0);
   assert.equal(outboxRows(db, 'wishes-updated').length, 0);
 
-  saveWishes(ctx, ben.id, { ...form, hobbies: 'reading, walking' });
+  saveWishes(ctx, ben.id, { ...form, q_hobbies: 'reading, walking' });
   const changed = ctx.repo.getParticipant(ben.id);
   assert.equal(changed.wishesUpdatedAt, ctx.nowIso());
   assert.ok(changed.notifyGiverDueAt);
@@ -368,7 +368,7 @@ test('with mail off the tick queues no reminders or wish updates', async () => {
   mailer.enabled = false;
   const ben = people[1];
   markGiverDrawn(t, ben);
-  saveWishes(ctx, ben.id, { hobbies: 'reading' });
+  saveWishes(ctx, ben.id, aboutBody({ q_hobbies: 'reading' }));
   clock.ms = Date.parse('2026-12-12T08:00:00.000Z');
   const result = await tick(ctx);
   assert.equal(result.reminders, 0);
@@ -395,7 +395,7 @@ test('a wish change after the exchange date mails nobody and logs why', async ()
   markGiverDrawn(t, ben);
   // The seeded exchange is 2026-12-18; midnight there is 23:00Z the day before.
   clock.ms = Date.parse('2026-12-17T23:00:00.000Z');
-  saveWishes(ctx, ben.id, { hobbies: 'reading' });
+  saveWishes(ctx, ben.id, aboutBody({ q_hobbies: 'reading' }));
   clock.ms += 15 * MINUTE;
   assert.equal((await tick(ctx)).wishUpdates, 0);
   assert.equal(outboxRows(db, 'wishes-updated').length, 0);

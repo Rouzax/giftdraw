@@ -6,6 +6,7 @@ import { makeContext } from '../src/context.js';
 import { openDb } from '../src/db/open.js';
 import { makeCycle } from '../src/draw/cycle.js';
 import { drainOutbox } from '../src/mail/outbox.js';
+import { SECTION_IDS } from '../src/questions.js';
 
 export const TEST_ENV = {
   APP_URL: 'https://gifts.example.com',
@@ -22,6 +23,12 @@ export function formBody(form) {
     for (const item of Array.isArray(value) ? value : [value]) params.append(name, item);
   }
   return params.toString();
+}
+
+// An about-form post as the built-in form sends it: the questions the page
+// showed, then the answer fields (q_<question>, d_<question>_<choice>).
+export function aboutBody(fields = {}, questions = SECTION_IDS) {
+  return { questions: questions.join(' '), ...fields };
 }
 
 // Built from the documented cookie format rather than the app's own signer,

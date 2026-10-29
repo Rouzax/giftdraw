@@ -5,7 +5,7 @@ import { SafeHtml } from '../src/html.js';
 import { t as tr } from '../src/i18n/index.js';
 import { icon, iconInline } from '../src/icons.js';
 import { saveWishes } from '../src/people.js';
-import { makeTestApp, seedGroup } from './helpers.js';
+import { aboutBody, makeTestApp, seedGroup } from './helpers.js';
 
 const T0 = Date.parse('2026-11-01T10:00:00.000Z');
 
@@ -69,7 +69,7 @@ test('participant screens put icons next to their words', async () => {
 
   assertNoStyle((await t.app.inject(`/p/${ada.token}/about`)).body);
 
-  saveWishes(t.ctx, ada.id, { hobbies: 'Lezen' });
+  saveWishes(t.ctx, ada.id, aboutBody({ q_hobbies: 'Lezen' }));
   const waiting = (await t.app.inject(`/p/${ada.token}`)).body;
   assertNextTo(waiting, 'mail', tr('nl', 'waiting.thanks'));
   assertNextTo(waiting, 'pencil', tr('nl', 'waiting.edit'));
@@ -78,7 +78,7 @@ test('participant screens put icons next to their words', async () => {
   // Without a place there is no pin, and without email no envelope.
   t.ctx.repo.updateGroup(t.groupId, { exchangePlace: null }, t.ctx.nowIso());
   t.ctx.repo.updateParticipant(ben.id, { email: null });
-  saveWishes(t.ctx, ben.id, { hobbies: 'Tuinieren' });
+  saveWishes(t.ctx, ben.id, aboutBody({ q_hobbies: 'Tuinieren' }));
   const plain = (await t.app.inject(`/p/${ben.token}`)).body;
   assert.match(plain, /icon-calendar/);
   assert.equal(plain.includes('icon-map-pin'), false);
@@ -101,7 +101,7 @@ test('dashboard status cells carry an icon and keep their text', async () => {
   const t = await setup({ names: ['Ada', 'Ben', 'Cor', 'Dirk'] });
   const [ada, ben, cor] = t.people;
   t.ctx.repo.updateParticipant(cor.id, { email: null, invitedAt: null });
-  saveWishes(t.ctx, ada.id, { hobbies: 'Lezen' });
+  saveWishes(t.ctx, ada.id, aboutBody({ q_hobbies: 'Lezen' }));
   const row = t.ctx.repo.enqueue(ben.id, 'invite', t.ctx.nowIso());
   t.ctx.repo.claimDue(t.ctx.nowIso(), 10);
   t.ctx.repo.markFailed(row, 'smtp-550', null, t.ctx.nowIso());

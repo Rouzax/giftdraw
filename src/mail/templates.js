@@ -1,6 +1,7 @@
+import { wishLines } from '../answers.js';
 import { html } from '../html.js';
 import { exchangeLine, t, themeText } from '../i18n/index.js';
-import { endsInMark, wishForm, wishLines } from '../wishes.js';
+import { endsInMark, wishForm } from '../questions.js';
 
 // Outbox kind -> catalogue key under email.*
 const KEYS = {

@@ -196,6 +196,10 @@ export function formValue(form) {
   return { questions: form.questions.map(storedQuestion) };
 }
 
+// A typed wording may already end in a question mark or an ellipsis; the
+// lines then join their value without the usual colon.
+export const endsInMark = (label) => /[?!.:…]$/.test(label);
+
 // The organiser's wording replaces the built-in one for everyone; the
 // built-in one follows the reader's language.
 export function questionText(question, lang, kind = 'form') {

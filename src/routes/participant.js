@@ -1,7 +1,8 @@
+import { hasWishes } from '../answers.js';
 import { isLang } from '../i18n/index.js';
 import { createLimiter } from '../limiter.js';
 import { drawFor, mailOn, saveWishes } from '../people.js';
-import { hasWishes, wishForm } from '../wishes.js';
+import { wishForm } from '../questions.js';
 import { participantScreen } from '../status.js';
 import { participantPage } from '../views/layout.js';
 import { aboutFormView, drawView, resultView, waitingView, welcomeView } from '../views/participant.js';
@@ -98,8 +99,17 @@ export function participantRoutes(app, ctx, { sendPage, sendError, isParticipant
     return render(reply, data.lang, aboutFormView({ ...data, wishes: request.participant.wishes }));
   });
 
+  // A page loaded before an update can post fields this version cannot
+  // read. Its form comes back with the stored answers, so the participant
+  // sees nothing was saved instead of a redirect that looks like a save.
+  function outdatedForm(request, reply, participant) {
+    request.log.info({ group_id: participant.groupId }, 'wishes_form_outdated');
+    const data = screenData(participant);
+    return render(reply, data.lang, aboutFormView({ ...data, wishes: participant.wishes, outdated: true }));
+  }
+
   app.post('/p/:token/about', { onRequest: loadParticipant }, async (request, reply) => {
-    saveWishes(ctx, request.participant.id, request.body);
+    if (!saveWishes(ctx, request.participant.id, request.body)) return outdatedForm(request, reply, request.participant);
     // No participant id: the wish-update lines that follow say something
     // about this person's giver, and together they would reveal the pair.
     request.log.info({ group_id: request.participant.groupId }, 'wishes_saved');
@@ -119,14 +129,17 @@ export function participantRoutes(app, ctx, { sendPage, sendError, isParticipant
     if (!isLang(lang)) return sendError(reply, 400, participant.language);
     const fromAbout = request.body?.from === 'about';
     // The about form posted itself here: its answers are saved first. Only
-    // that form sends the list of its sections.
-    const withWishes = fromAbout && typeof request.body?.sections === 'string';
+    // that form sends the list of its questions; one rendered before
+    // questions existed sends its sections instead, which cannot be read.
+    const withWishes = fromAbout && typeof request.body?.questions === 'string';
+    const outdated = fromAbout && !withWishes && typeof request.body?.sections === 'string';
     if (withWishes) saveWishes(ctx, participant.id, request.body);
     repo.updateParticipant(participant.id, { language: lang });
     // No participant id next to a wish save, as for wishes_saved: it would
     // tie this receiver to the giver the wish-update lines describe.
     if (withWishes) request.log.info({ group_id: participant.groupId, lang }, 'language_changed_wishes_saved');
     else request.log.info({ participant_id: participant.id, lang }, 'language_changed');
+    if (outdated) return outdatedForm(request, reply, repo.getParticipant(participant.id));
     // Only known targets, so the form cannot be used as an open redirect.
     const back = fromAbout ? '/about' : '';
     return reply.redirect(`/p/${participant.token}${back}`, 303);

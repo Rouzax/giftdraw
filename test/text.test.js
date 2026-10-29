@@ -3,8 +3,10 @@ import assert from 'node:assert/strict';
 import { field } from '../src/routes/admin-shared.js';
 import { normaliseEmail, parsePasteList } from '../src/people.js';
 import { clipText } from '../src/text.js';
-import { cleanHeading, mergeOptionLabels, parseWishesForm, wishForm } from '../src/wishes.js';
-import { makeTestApp, seedGroup } from './helpers.js';
+import { parseWishesForm } from '../src/answers.js';
+import { cleanHeading, wishForm } from '../src/questions.js';
+import { mergeOptionLabels } from '../src/wishes.js';
+import { aboutBody, makeTestApp, seedGroup } from './helpers.js';
 
 const FAMILY = '\u{1F468}‍\u{1F469}‍\u{1F467}';
 const OLDER = '\u{1F9D1}‍\u{1F9B3}';
@@ -52,9 +54,11 @@ test('a heading, a question and wish texts are cut at a whole emoji', () => {
   const [option] = mergeOptionLabels(`Boek? ${'c'.repeat(78)}${THUMB}`, [], 'nl');
   assertWhole(option.question);
   assert.equal(option.question, `${'c'.repeat(78)}?`);
-  const wishes = parseWishesForm({ hobbies: `${'x'.repeat(998)}${OLDER}`, avoid: `${'y'.repeat(999)}${FLAG}` }, wishForm({}));
-  assert.equal(wishes.hobbies, 'x'.repeat(998));
-  assert.equal(wishes.avoid, 'y'.repeat(999));
+  const { answers } = parseWishesForm(
+    { questions: 'hobbies avoid', q_hobbies: `${'x'.repeat(998)}${OLDER}`, q_avoid: `${'y'.repeat(999)}${FLAG}` }, wishForm({}),
+  );
+  assert.equal(answers.hobbies, 'x'.repeat(998));
+  assert.equal(answers.avoid, 'y'.repeat(999));
 });
 
 // Names are capped in UTF-16 code units, the way the name fields' maxlength
@@ -126,8 +130,8 @@ test('a theme, an option list and a wish typed up to the limit keep their last l
 
   const hobbies = lines(50, 19);
   assert.equal(hobbies.length, 999);
-  await t.post(`/p/${people[0].token}/about`, { hobbies: crlf(hobbies) });
-  assert.equal(t.ctx.repo.getParticipant(people[0].id).wishes.hobbies, hobbies);
+  await t.post(`/p/${people[0].token}/about`, aboutBody({ q_hobbies: crlf(hobbies) }));
+  assert.equal(t.ctx.repo.getParticipant(people[0].id).wishes.answers.hobbies, hobbies);
 });
 
 // Texts saved before line breaks were normalised are stored with CRLF; the
@@ -145,6 +149,6 @@ test('saving an old CRLF text unchanged marks nothing as changed', async () => {
   t.ctx.repo.updateParticipant(ada.id, { wishes: old });
   const giver = t.ctx.repo.giverOf(ada.id);
   t.ctx.repo.updateParticipant(giver.id, { drawnAt: t.ctx.nowIso() });
-  await t.post(`/p/${ada.token}/about`, { hobbies: 'Breien\r\nLezen' });
+  await t.post(`/p/${ada.token}/about`, aboutBody({ q_hobbies: 'Breien\r\nLezen' }));
   assert.equal(t.ctx.repo.getParticipant(ada.id).notifyGiverDueAt, null);
 });

@@ -1,22 +1,9 @@
 import { LANGS, t } from './i18n/index.js';
 import { QUESTION_MAX } from './limits.js';
 import { BUILTIN_CHOICES as LISTS, newChoiceId, readFormConfig, SECTION_IDS } from './questions.js';
-import { clipText, unixLines } from './text.js';
+import { clipText } from './text.js';
 
-export {
-  cleanHeading, DEFAULT_LIKE_IDS, detailPrompt, PET_IDS, readFormConfig, SECTION_IDS,
-} from './questions.js';
-
-// Fields of the stored wishes each section owns, so a hidden section can keep
-// its answer when the rest of the form is saved.
-const SECTION_FIELDS = {
-  hobbies: ['hobbies'],
-  likes: ['likes', 'likeDetails'],
-  pets: ['pets', 'petsOther', 'petDetails'],
-  avoid: ['avoid'],
-  other: ['other'],
-};
-const TEXT_MAX = 1000;
+export { cleanHeading, readFormConfig, SECTION_IDS } from './questions.js';
 
 const isDefault = (list, id) => list.ids.includes(id);
 const defaultLabel = (list, id) => (lang) => t(lang, `${list.key}.${id}`);
@@ -44,10 +31,6 @@ export function petOptions(event) {
   return listOptions(readFormConfig(event.formConfig).petOptions, LISTS.pets);
 }
 
-// A typed heading may already end in a question mark or an ellipsis; the
-// lines then join their value without the usual colon.
-export const endsInMark = (label) => /[?!.:…]$/.test(label);
-
 // Only what differs from the defaults is stored, and nothing at all when
 // everything is default, so the column stays NULL for untouched events.
 export function formConfigValue(config) {
@@ -63,15 +46,6 @@ export function formConfigValue(config) {
   if (Object.keys(sections).length) value.sections = sections;
   if (config.petOptions) value.petOptions = config.petOptions;
   return Object.keys(value).length ? value : null;
-}
-
-export function wishForm(event) {
-  const { sections } = readFormConfig(event.formConfig);
-  return {
-    sections: SECTION_IDS.map((id) => ({ id, ...sections[id] })),
-    likes: wishOptions(event),
-    pets: petOptions(event),
-  };
 }
 
 // The organiser's heading replaces the built-in one for everyone; the
@@ -168,135 +142,4 @@ export function optionsToStore(text, current, lang, kind) {
   const builtIn = kind === 'pets' ? petOptions({}) : wishOptions({});
   if (sameOptions(merged.length ? merged : builtIn, current, kind)) return undefined;
   return merged.length && !sameOptions(merged, builtIn, kind) ? merged : null;
-}
-
-function field(body, name) {
-  return Object.hasOwn(body, name) ? body[name] : undefined;
-}
-
-function text(value) {
-  const first = Array.isArray(value) ? value[0] : value;
-  if (typeof first !== 'string') return '';
-  return clipText(unixLines(first.trim()), TEXT_MAX, 'codepoints');
-}
-
-function pickIds(value, allowed) {
-  const out = [];
-  for (const id of Array.isArray(value) ? value : [value]) {
-    if (typeof id === 'string' && allowed.has(id) && !out.includes(id)) out.push(id);
-  }
-  return out;
-}
-
-const listOf = (value) => (Array.isArray(value) ? value : []);
-
-// The built-in other-pet detail keeps its own field and stored key, so
-// rows saved before the pet list was editable read the same.
-const petDetailField = (id) => (id === 'other' ? 'pets_other' : `pet_detail_${id}`);
-
-// Ticked ids plus the details typed for detail options. A filled-in detail
-// counts as ticking its box, so a forgotten tick does not throw it away. A
-// box that was ticked and comes back unticked with its stored detail
-// unchanged was unticked on purpose: without script the field keeps its
-// text, which would otherwise tick the box again on every save.
-function parseList(b, options, idsField, detailField, before) {
-  const ids = pickIds(field(b, idsField), new Set(options.map((o) => o.id)));
-  const details = {};
-  for (const option of options) {
-    if (!option.detail) continue;
-    const detail = text(field(b, detailField(option.id)));
-    if (!detail) continue;
-    if (!ids.includes(option.id)) {
-      if (before.ids.includes(option.id) && before.details[option.id] === detail) continue;
-      ids.push(option.id);
-    }
-    details[option.id] = detail;
-  }
-  return { ids, details };
-}
-
-// The about form posts the sections it showed. A section's answer is taken
-// from the post only if it is shown now and was on that form: a form loaded
-// before the organiser showed or hid a section would otherwise store an
-// empty answer over the kept one. A post without the list comes from a form
-// rendered before it existed, which showed every section shown now.
-function postedSections(b) {
-  const value = field(b, 'sections');
-  if (typeof value !== 'string') return null;
-  return new Set(value.split(/\s+/).filter((id) => SECTION_IDS.includes(id)));
-}
-
-export function parseWishesForm(body, form, previous = null) {
-  const b = body ?? {};
-  const posted = postedSections(b);
-  const likes = parseList(b, form.likes, 'likes', (id) => `detail_${id}`, {
-    ids: listOf(previous?.likes), details: { ...previous?.likeDetails },
-  });
-  const pets = parseList(b, form.pets, 'pets', petDetailField, {
-    ids: listOf(previous?.pets), details: { ...previous?.petDetails, other: previous?.petsOther },
-  });
-  const { other: petsOther = '', ...petDetails } = pets.details;
-  const wishes = {
-    hobbies: text(field(b, 'hobbies')),
-    likes: likes.ids,
-    likeDetails: likes.details,
-    pets: pets.ids,
-    petsOther,
-    // Left out when empty so a re-save of a row stored without it is no change.
-    ...(Object.keys(petDetails).length ? { petDetails } : {}),
-    avoid: text(field(b, 'avoid')),
-    other: text(field(b, 'other')),
-  };
-  for (const section of form.sections) {
-    if (section.show && (!posted || posted.has(section.id))) continue;
-    for (const name of SECTION_FIELDS[section.id]) {
-      if (previous && Object.hasOwn(previous, name)) wishes[name] = previous[name];
-      else if (name === 'petDetails') delete wishes[name];
-    }
-  }
-  return wishes;
-}
-
-const filled = (value) => (Array.isArray(value) ? value.length > 0
-  : value && typeof value === 'object' ? Object.keys(value).length > 0 : Boolean(value));
-
-// Answers kept in hidden sections are not shown to anyone, so they do not
-// count as filled in; without a form every section counts.
-export function hasWishes(wishes, form = null) {
-  if (!wishes) return false;
-  const shown = form ? form.sections.filter((s) => s.show).map((s) => s.id) : SECTION_IDS;
-  return shown.some((id) => SECTION_FIELDS[id].some((name) => filled(wishes[name])));
-}
-
-// `own` gives the text that stands in for an option, if any: the other-pet
-// text names the animal, so it replaces "other" itself.
-function listLine(ids, options, details, own, lang) {
-  const byId = new Map(options.map((o) => [o.id, o]));
-  return (ids ?? [])
-    .filter((id) => byId.has(id))
-    .map((id) => {
-      if (own(id)) return own(id);
-      // Every label as written, built-in or typed, so a line never mixes
-      // "thee" with "Boeken".
-      const label = labelOf(byId.get(id), lang);
-      const detail = details?.[id];
-      return detail ? `${label} (${detail})` : label;
-    })
-    .join(', ');
-}
-
-export function wishLines(wishes, form, lang) {
-  if (!wishes) return [];
-  const none = () => null;
-  const values = {
-    hobbies: wishes.hobbies,
-    likes: listLine(wishes.likes, form.likes, wishes.likeDetails, none, lang),
-    pets: listLine(wishes.pets, form.pets, wishes.petDetails,
-      (id) => (id === 'other' ? wishes.petsOther || null : null), lang),
-    avoid: wishes.avoid,
-    other: wishes.other,
-  };
-  return form.sections
-    .filter((section) => section.show && values[section.id])
-    .map((section) => ({ label: sectionHeading(section, lang, 'line'), value: values[section.id] }));
 }

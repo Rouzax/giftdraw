@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { makeTestApp, seedGroup, textOf } from './helpers.js';
+import { aboutBody, makeTestApp, seedGroup, textOf } from './helpers.js';
 
 const T0 = Date.parse('2026-11-01T10:00:00.000Z');
 const NL_THEME = 'Dit jaar doen we een regift';
@@ -42,11 +42,12 @@ test('the about form has every wish field, the theme and the date', async () => 
   const res = await app.inject(`/p/${ada.token}/about`);
   assert.equal(res.statusCode, 200);
   assert.ok(res.body.includes(`action="/p/${ada.token}/about"`));
-  for (const name of ['hobbies', 'pets_other', 'avoid', 'other', 'detail_chocolate']) {
+  for (const name of ['q_hobbies', 'd_pets_other', 'q_avoid', 'q_other', 'd_likes_chocolate']) {
     assert.ok(res.body.includes(`name="${name}"`), name);
   }
-  assert.ok(res.body.includes('name="likes" value="tea"'));
-  assert.ok(res.body.includes('name="pets" value="cat"'));
+  assert.ok(res.body.includes('name="q_likes" value="tea"'));
+  assert.ok(res.body.includes('name="q_pets" value="cat"'));
+  assert.ok(res.body.includes('name="questions" value="hobbies likes pets avoid other"'));
   assert.ok(res.body.includes('Thee'));
   assert.ok(res.body.includes(NL_THEME));
   assert.ok(res.body.includes('vrijdag 18 december'));
@@ -65,7 +66,7 @@ test('the about form shows the organiser question, escaped, and the generic prom
   assert.equal(res.statusCode, 200);
   assert.ok(res.body.includes('Welke &lt;b&gt;schrijver&lt;/b&gt;?'));
   assert.ok(!res.body.includes('<b>schrijver'));
-  assert.ok(res.body.includes('name="detail_wol-ab12"'));
+  assert.ok(res.body.includes('name="d_likes_wol-ab12"'));
   assert.ok(res.body.includes('Iets in het bijzonder?'));
   assert.ok(res.body.includes('Welke smaak?'));
 });
@@ -73,18 +74,20 @@ test('the about form shows the organiser question, escaped, and the generic prom
 test('saving wishes in a closed group leads to the waiting screen', async () => {
   const { app, ctx, post, ada, clock } = await setup();
   clock.ms += 60_000;
-  const res = await post(`/p/${ada.token}/about`, {
-    hobbies: 'Gardening',
-    likes: ['tea', 'chocolate'],
-    detail_chocolate: 'dark',
-    pets: 'cat',
-  });
+  const res = await post(`/p/${ada.token}/about`, aboutBody({
+    q_hobbies: 'Gardening',
+    q_likes: ['tea', 'chocolate'],
+    d_likes_chocolate: 'dark',
+    q_pets: 'cat',
+  }));
   assert.equal(res.statusCode, 303);
   assert.equal(res.headers.location, `/p/${ada.token}`);
   const stored = ctx.repo.getParticipant(ada.id);
-  assert.equal(stored.wishes.hobbies, 'Gardening');
-  assert.deepEqual(stored.wishes.likes, ['tea', 'chocolate']);
-  assert.deepEqual(stored.wishes.likeDetails, { chocolate: 'dark' });
+  assert.deepEqual(stored.wishes, { answers: {
+    hobbies: 'Gardening',
+    likes: { ticked: ['tea', 'chocolate'], details: { chocolate: 'dark' } },
+    pets: { ticked: ['cat'], details: {} },
+  } });
   assert.equal(stored.wishesUpdatedAt, new Date(clock.ms).toISOString());
 
   const page = await app.inject(`/p/${ada.token}`);
@@ -95,16 +98,16 @@ test('saving wishes in a closed group leads to the waiting screen', async () => 
 
   const form = await app.inject(`/p/${ada.token}/about`);
   assert.ok(form.body.includes('value="Gardening"') || form.body.includes('>Gardening</textarea>'));
-  assert.match(form.body, /name="likes" value="tea" checked/);
-  assert.match(form.body, /name="pets" value="cat" checked/);
-  assert.doesNotMatch(form.body, /name="likes" value="wine" checked/);
+  assert.match(form.body, /name="q_likes" value="tea" checked/);
+  assert.match(form.body, /name="q_pets" value="cat" checked/);
+  assert.doesNotMatch(form.body, /name="q_likes" value="wine" checked/);
 });
 
 // Fifteen minutes later the wish-update lines say something about this
 // person's giver, so the save itself names only the group.
 test('a wish save logs the group, not the participant', async () => {
   const { post, ada, group, logs } = await setup();
-  await post(`/p/${ada.token}/about`, { hobbies: 'reading' });
+  await post(`/p/${ada.token}/about`, aboutBody({ q_hobbies: 'reading' }));
   const line = logs.map((l) => JSON.parse(l)).find((l) => l.msg === 'wishes_saved');
   assert.equal(line.group_id, group.id);
   assert.ok(!Object.hasOwn(line, 'participant_id'));
@@ -112,7 +115,7 @@ test('a wish save logs the group, not the participant', async () => {
 
 test('saved HTML comes back escaped', async () => {
   const { app, post, ada } = await setup();
-  await post(`/p/${ada.token}/about`, { hobbies: '<script>alert(1)</script>', pets_other: '"><b>x' });
+  await post(`/p/${ada.token}/about`, aboutBody({ q_hobbies: '<script>alert(1)</script>', d_pets_other: '"><b>x' }));
   const form = await app.inject(`/p/${ada.token}/about`);
   assert.ok(form.body.includes('&lt;script&gt;alert(1)&lt;/script&gt;'));
   assert.ok(!form.body.includes('<script>alert(1)'));
@@ -121,9 +124,9 @@ test('saved HTML comes back escaped', async () => {
 
 test('a 5000 character field is stored as 1000', async () => {
   const { ctx, post, ada } = await setup();
-  const res = await post(`/p/${ada.token}/about`, { other: 'x'.repeat(5000) });
+  const res = await post(`/p/${ada.token}/about`, aboutBody({ q_other: 'x'.repeat(5000) }));
   assert.equal(res.statusCode, 303);
-  assert.equal(ctx.repo.getParticipant(ada.id).wishes.other.length, 1000);
+  assert.equal(ctx.repo.getParticipant(ada.id).wishes.answers.other.length, 1000);
 });
 
 test('an unknown token gets the HTML 404 page', async () => {
@@ -162,44 +165,100 @@ test('switching language on the about form keeps what was typed', async () => {
   assert.match(form.body, new RegExp(`<button type="submit" name="lang" value="en" lang="en" form="about-form" formaction="/p/${ada.token}/lang">`));
 
   const res = await post(`/p/${ada.token}/lang`, {
-    lang: 'en', from: 'about', sections: 'hobbies likes pets avoid other', hobbies: 'Yoga en wandelen', likes: 'tea',
+    lang: 'en', from: 'about', ...aboutBody({ q_hobbies: 'Yoga en wandelen', q_likes: 'tea' }),
   });
   assert.equal(res.statusCode, 303);
   assert.equal(res.headers.location, `/p/${ada.token}/about`);
   const stored = ctx.repo.getParticipant(ada.id);
   assert.equal(stored.language, 'en');
-  assert.equal(stored.wishes.hobbies, 'Yoga en wandelen');
-  assert.deepEqual(stored.wishes.likes, ['tea']);
+  assert.equal(stored.wishes.answers.hobbies, 'Yoga en wandelen');
+  assert.deepEqual(stored.wishes.answers.likes, { ticked: ['tea'], details: {} });
   const again = await app.inject(`/p/${ada.token}/about`);
   assert.ok(again.body.includes('Yoga en wandelen'));
 });
 
 test('switching language with the answers unchanged tells the giver nothing', async () => {
   const { ctx, post, ada } = await setup();
-  await post(`/p/${ada.token}/about`, { hobbies: 'Breien', likes: 'tea' });
+  await post(`/p/${ada.token}/about`, aboutBody({ q_hobbies: 'Breien', q_likes: 'tea' }));
   const giver = ctx.repo.giverOf(ada.id);
   ctx.repo.updateParticipant(giver.id, { drawnAt: ctx.nowIso() });
   const before = ctx.repo.getParticipant(ada.id);
-  await post(`/p/${ada.token}/lang`, { lang: 'en', from: 'about', sections: 'hobbies likes pets avoid other', hobbies: 'Breien', likes: 'tea' });
+  await post(`/p/${ada.token}/lang`, { lang: 'en', from: 'about', ...aboutBody({ q_hobbies: 'Breien', q_likes: 'tea' }) });
   const after = ctx.repo.getParticipant(ada.id);
   assert.equal(after.language, 'en');
   assert.equal(after.notifyGiverDueAt, null);
   assert.equal(after.wishesUpdatedAt, before.wishesUpdatedAt);
 });
 
-test('the language switch keeps answers of sections the posted form did not show', async () => {
+test('the language switch keeps answers of questions the posted form did not show', async () => {
   const { ctx, post, ada, event } = await setup();
-  await post(`/p/${ada.token}/about`, { hobbies: 'Breien', avoid: 'Noten', other: 'Graag iets kleins' });
+  await post(`/p/${ada.token}/about`, aboutBody({ q_hobbies: 'Breien', q_avoid: 'Noten', q_other: 'Graag iets kleins' }));
   // A form loaded before the organiser showed "avoid" again lists only hobbies.
-  await post(`/p/${ada.token}/lang`, { lang: 'en', from: 'about', sections: 'hobbies', hobbies: 'Breien en lezen', avoid: '' });
-  let wishes = ctx.repo.getParticipant(ada.id).wishes;
-  assert.equal(wishes.hobbies, 'Breien en lezen');
-  assert.equal(wishes.avoid, 'Noten');
-  // A section the organiser hid keeps its answer through the switch too.
+  await post(`/p/${ada.token}/lang`, { lang: 'en', from: 'about', ...aboutBody({ q_hobbies: 'Breien en lezen', q_avoid: '' }, ['hobbies']) });
+  let answers = ctx.repo.getParticipant(ada.id).wishes.answers;
+  assert.equal(answers.hobbies, 'Breien en lezen');
+  assert.equal(answers.avoid, 'Noten');
+  // A question the organiser hid keeps its answer through the switch too.
   ctx.repo.updateEvent(event.id, { formConfig: { sections: { other: { show: false } } } });
-  await post(`/p/${ada.token}/lang`, { lang: 'nl', from: 'about', sections: 'hobbies likes pets avoid', hobbies: 'Breien en lezen', avoid: 'Noten', other: '' });
-  wishes = ctx.repo.getParticipant(ada.id).wishes;
-  assert.equal(wishes.other, 'Graag iets kleins');
+  await post(`/p/${ada.token}/lang`, {
+    lang: 'nl', from: 'about', ...aboutBody({ q_hobbies: 'Breien en lezen', q_avoid: 'Noten', q_other: '' }, ['hobbies', 'likes', 'pets', 'avoid']),
+  });
+  answers = ctx.repo.getParticipant(ada.id).wishes.answers;
+  assert.equal(answers.other, 'Graag iets kleins');
+});
+
+// A page loaded before forms were lists of questions posts fields this
+// version cannot read; storing its post would empty every answer.
+test('a post from an outdated about page stores nothing and shows the form again with a notice', async () => {
+  const { app, ctx, post, adminPost, ada, clock } = await setup();
+  await post(`/p/${ada.token}/about`, aboutBody({ q_hobbies: 'Breien', q_likes: 'tea' }));
+  const giver = ctx.repo.giverOf(ada.id);
+  ctx.repo.updateParticipant(giver.id, { drawnAt: ctx.nowIso() });
+  ctx.repo.updateParticipant(ada.id, { notifyGiverDueAt: null });
+  const before = ctx.repo.getParticipant(ada.id);
+  clock.ms += 60_000;
+  const outdated = { sections: 'hobbies likes', hobbies: 'Nieuw', likes: 'wine' };
+  for (const send of [
+    () => post(`/p/${ada.token}/about`, outdated),
+    () => adminPost(`/admin/participants/${ada.id}/about`, outdated),
+  ]) {
+    const res = await send();
+    assert.equal(res.statusCode, 200);
+    assert.ok(textOf(res.body).includes('Deze pagina was verouderd, dus er is niets opgeslagen.'));
+    assert.ok(res.body.includes('>Breien</textarea>'));
+    assert.match(res.body, /name="q_likes" value="tea" checked/);
+  }
+  const after = ctx.repo.getParticipant(ada.id);
+  assert.deepEqual(after.wishes, before.wishes);
+  assert.equal(after.wishesUpdatedAt, before.wishesUpdatedAt);
+  assert.equal(after.notifyGiverDueAt, null);
+
+  const switched = await post(`/p/${ada.token}/lang`, { lang: 'en', from: 'about', ...outdated });
+  assert.equal(switched.statusCode, 200);
+  assert.ok(textOf(switched.body).includes('This page was out of date, so nothing was saved.'));
+  assert.equal(ctx.repo.getParticipant(ada.id).language, 'en');
+  assert.deepEqual(ctx.repo.getParticipant(ada.id).wishes, before.wishes);
+  const fresh = await app.inject(`/p/${ada.token}/about`);
+  assert.equal(textOf(fresh.body).includes('out of date'), false);
+});
+
+// Rows saved by v0.3.1 keep their own shape until an answer changes.
+test('saving unchanged answers on a v0.3.1 row is no change', async () => {
+  const { ctx, post, ada } = await setup();
+  const old = {
+    hobbies: 'Breien', likes: ['chocolate', 'tea'], likeDetails: { chocolate: 'puur' }, pets: ['other'], petsOther: 'konijn', avoid: '', other: '',
+  };
+  ctx.repo.updateParticipant(ada.id, { wishes: old, wishesUpdatedAt: '2026-10-01T10:00:00.000Z' });
+  const giver = ctx.repo.giverOf(ada.id);
+  ctx.repo.updateParticipant(giver.id, { drawnAt: ctx.nowIso() });
+  await post(`/p/${ada.token}/about`, aboutBody({
+    q_hobbies: 'Breien', q_likes: ['tea', 'chocolate'], d_likes_chocolate: 'puur', q_pets: 'other', d_pets_other: 'konijn', q_avoid: '',
+  }));
+  const after = ctx.repo.getParticipant(ada.id);
+  assert.equal(after.wishesUpdatedAt, '2026-10-01T10:00:00.000Z');
+  assert.equal(after.notifyGiverDueAt, null);
+  await post(`/p/${ada.token}/about`, aboutBody({ q_hobbies: 'Breien en lezen' }));
+  assert.notEqual(ctx.repo.getParticipant(ada.id).wishesUpdatedAt, '2026-10-01T10:00:00.000Z');
 });
 
 test('the on-behalf wish form has no language switch', async () => {
@@ -212,10 +271,10 @@ test('the on-behalf wish form has no language switch', async () => {
 
 test('switching language away from the form leaves the wishes alone', async () => {
   const { ctx, post, ada } = await setup();
-  await post(`/p/${ada.token}/about`, { hobbies: 'Breien' });
-  await post(`/p/${ada.token}/lang`, { lang: 'en', hobbies: 'Nooit' });
+  await post(`/p/${ada.token}/about`, aboutBody({ q_hobbies: 'Breien' }));
+  await post(`/p/${ada.token}/lang`, { lang: 'en', ...aboutBody({ q_hobbies: 'Nooit' }) });
   await post(`/p/${ada.token}/lang`, { lang: 'nl', from: 'about' });
-  assert.equal(ctx.repo.getParticipant(ada.id).wishes.hobbies, 'Breien');
+  assert.equal(ctx.repo.getParticipant(ada.id).wishes.answers.hobbies, 'Breien');
 });
 
 test('a junk language is refused and the stored language is unchanged', async () => {
@@ -235,7 +294,7 @@ test('25 participants behind one IP each get through a whole visit in a minute',
   for (const p of people) {
     assert.equal((await app.inject(`/p/${p.token}`)).statusCode, 200);
     assert.equal((await app.inject(`/p/${p.token}/about`)).statusCode, 200);
-    assert.equal((await post(`/p/${p.token}/about`, { hobbies: 'Yoga' })).statusCode, 303);
+    assert.equal((await post(`/p/${p.token}/about`, aboutBody({ q_hobbies: 'Yoga' }))).statusCode, 303);
   }
 });
 
@@ -269,7 +328,7 @@ test('the waiting screen does not promise an email to someone without one', asyn
   const clock = { ms: T0 };
   const t = await makeTestApp({ clock: () => new Date(clock.ms) });
   const { people } = seedGroup(t.ctx, { names: ['Ada', 'Ben', 'Cor'], withEmail: false });
-  await t.post(`/p/${people[0].token}/about`, { hobbies: 'Yoga' });
+  await t.post(`/p/${people[0].token}/about`, aboutBody({ q_hobbies: 'Yoga' }));
   const page = await t.app.inject(`/p/${people[0].token}`);
   assert.ok(page.body.includes('De organisator laat je weten'));
   assert.ok(!page.body.includes('e-mail'));
@@ -278,7 +337,7 @@ test('the waiting screen does not promise an email to someone without one', asyn
 test('with email off the waiting screen does not promise an email, even to someone with an address', async () => {
   const t = await setup();
   t.mailer.enabled = false;
-  await t.post(`/p/${t.ada.token}/about`, { hobbies: 'Yoga' });
+  await t.post(`/p/${t.ada.token}/about`, aboutBody({ q_hobbies: 'Yoga' }));
   const page = await t.app.inject(`/p/${t.ada.token}`);
   assert.ok(page.body.includes('De organisator laat je weten'));
   assert.ok(!page.body.includes('e-mail'));

@@ -9,9 +9,9 @@ import {
   wishLines,
 } from '../src/answers.js';
 import { formValue, wishForm } from '../src/questions.js';
-import * as old from '../src/wishes.js';
 
-const v031Event = {
+// A v0.3.1 event that renamed hobbies and hid avoid.
+const v031EventHidingAvoid = {
   wishOptions: [
     { id: 'tea', label: 'Thee', detail: false },
     { id: 'books', label: 'Boeken', detail: true, question: 'Welke schrijver?' },
@@ -46,7 +46,7 @@ const v031Answers = {
   avoid: 'noten',
 };
 
-const form = wishForm(v031Event);
+const form = wishForm(v031EventHidingAvoid);
 const plain = wishForm({});
 const shown = (f) => f.questions.filter((q) => q.show).map((q) => q.id).join(' ');
 
@@ -63,11 +63,24 @@ test('readAnswers reads empty and malformed rows as no answers', () => {
     { d: { ticked: ['x'], details: { x: 'y' } } });
 });
 
+// The lines v0.3.1 itself showed for this row.
+const v031Lines = {
+  nl: [
+    { label: 'Favoriete auto', value: 'Mini' },
+    { label: 'Houdt van', value: 'Boeken of puzzels (Tolkien), Thee, Wol (blauw)' },
+    { label: 'Huisdieren', value: 'Vogel (parkiet), konijn' },
+  ],
+  en: [
+    { label: 'Favoriete auto', value: 'Mini' },
+    { label: 'Likes', value: 'Books or puzzles (Tolkien), Tea, Wol (blauw)' },
+    { label: 'Pets', value: 'Vogel (parkiet), konijn' },
+  ],
+};
+
 test('a v0.3.1 row gives the same giver lines in both shapes as v0.3.1 did', () => {
   const stored = wishForm({ formConfig: formValue(form) });
   for (const lang of ['nl', 'en']) {
-    const before = old.wishLines(v031Wishes, old.wishForm(v031Event), lang);
-    assert.ok(before.length > 0);
+    const before = v031Lines[lang];
     assert.deepEqual(wishLines(v031Wishes, form, lang), before);
     assert.deepEqual(wishLines({ answers: readAnswers(v031Wishes) }, form, lang), before);
     assert.deepEqual(wishLines({ answers: readAnswers(v031Wishes) }, stored, lang), before);
@@ -133,6 +146,17 @@ test('parseWishesForm reads text and ticks by question id', () => {
     likes: { ticked: ['tea', 'books'], details: { books: 'Tolkien' } },
     pets: { ticked: ['dog'], details: {} },
   } });
+});
+
+test('parseWishesForm keeps markup verbatim, takes the first of repeated text fields and ignores non-strings', () => {
+  const { answers } = parseWishesForm(body({ q_other: '<script>', q_hobbies: ['a', 'b'], q_avoid: { x: 1 }, q_likes: [{}] }, plain), plain, null);
+  assert.deepEqual(answers, { other: '<script>', hobbies: 'a' });
+});
+
+test('parseWishesForm does not split an emoji at the limit', () => {
+  const { answers } = parseWishesForm(body({ q_hobbies: `${'a'.repeat(999)}\u{1F600}b` }), form, null);
+  assert.equal(answers.hobbies, `${'a'.repeat(999)}\u{1F600}`);
+  assert.equal(Array.from(answers.hobbies).length, 1000);
 });
 
 test('parseWishesForm caps text at 1000 characters', () => {

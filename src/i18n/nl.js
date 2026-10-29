@@ -22,6 +22,7 @@ export default {
   'about.intro': 'Alles is vrijwillig. Vul in wat je wilt.',
   'about.save': 'Opslaan',
   'about.saved': 'Je antwoorden zijn bewaard.',
+  'about.outdated': 'Deze pagina was verouderd, dus er is niets opgeslagen. Bekijk je antwoorden en sla opnieuw op.',
 
   'wish.hobbies': "Hobby's en interesses",
   'wish.likes': 'Ik houd van...',

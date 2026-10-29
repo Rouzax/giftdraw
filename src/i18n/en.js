@@ -21,6 +21,7 @@ export default {
   'about.intro': 'Everything is optional. Fill in what you like.',
   'about.save': 'Save',
   'about.saved': 'Your answers are saved.',
+  'about.outdated': 'This page was out of date, so nothing was saved. Check your answers and save again.',
 
   'wish.hobbies': 'Hobbies and interests',
   'wish.likes': 'I like...',

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { validateAssignment } from '../src/draw/cycle.js';
 import { saveWishes } from '../src/people.js';
 import { wishOptions } from '../src/wishes.js';
-import { makeTestApp } from './helpers.js';
+import { aboutBody, makeTestApp } from './helpers.js';
 
 const T0 = Date.parse('2026-11-01T10:00:00.000Z');
 const FOUR = 'Ada, ada@example.com\nBen; ben@example.com\nCor\nDirk\tdirk@example.com';
@@ -255,7 +255,7 @@ test('the dashboard shows no email, the small group warning and each status colu
   await t.adminPost(`/admin/groups/${groupId}/invite`);
   await settle(t);
   t.ctx.repo.updateParticipant(ada.id, { visitedAt: t.ctx.nowIso() });
-  saveWishes(t.ctx, ben.id, { hobbies: 'tuinieren' });
+  saveWishes(t.ctx, ben.id, aboutBody({ q_hobbies: 'tuinieren' }));
   t.ctx.repo.updateParticipant(cor.id, { printedAt: '2026-10-01T00:00:00.000Z' });
 
   const res = await t.adminGet(`/admin/groups/${groupId}`);
@@ -303,12 +303,12 @@ test('event settings save theme and wish options, and reordering keeps saved lik
   assert.equal(event.cleanupWeeks, 6);
   assert.equal(event.themeText, 'Neem iets moois mee.');
   const socks = wishOptions(event).find((o) => !['tea', 'chocolate'].includes(o.id)).id;
-  saveWishes(t.ctx, ada.id, { likes: ['tea', socks] });
+  saveWishes(t.ctx, ada.id, aboutBody({ q_likes: ['tea', socks] }));
 
   await save('Sokken\nChocolade?\nThee');
   event = t.ctx.repo.getEvent(eventId);
   assert.deepEqual(wishOptions(event).map((o) => o.id), [socks, 'chocolate', 'tea']);
-  assert.deepEqual(t.ctx.repo.getParticipant(ada.id).wishes.likes, ['tea', socks]);
+  assert.deepEqual(t.ctx.repo.getParticipant(ada.id).wishes.answers.likes.ticked, ['tea', socks]);
   const page = await t.adminGet(`/admin/events/${eventId}`);
   assert.ok(page.body.includes('Sokken\nChocolade?\nThee'));
 });
@@ -342,15 +342,14 @@ test('changing only the question keeps the option id and the saved likes', async
   });
   await save('Sokken? Welke maat?\nThee');
   const [socks] = t.ctx.repo.getEvent(eventId).wishOptions;
-  saveWishes(t.ctx, ada.id, { likes: [socks.id], [`detail_${socks.id}`]: '42' });
+  saveWishes(t.ctx, ada.id, aboutBody({ q_likes: [socks.id], [`d_likes_${socks.id}`]: '42' }));
   for (const text of ['Sokken? Welke kleur?', 'Sokken?', 'Sokken? Welke kleur?']) {
     await save(`${text}\nThee`);
     const [now] = t.ctx.repo.getEvent(eventId).wishOptions;
     assert.equal(now.id, socks.id, text);
   }
-  const wishes = t.ctx.repo.getParticipant(ada.id).wishes;
-  assert.deepEqual(wishes.likes, [socks.id]);
-  assert.equal(wishes.likeDetails[socks.id], '42');
+  const { answers } = t.ctx.repo.getParticipant(ada.id).wishes;
+  assert.deepEqual(answers.likes, { ticked: [socks.id], details: { [socks.id]: '42' } });
 });
 
 test('empty theme and wish options fall back to the defaults', async () => {

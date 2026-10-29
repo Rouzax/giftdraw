@@ -1,7 +1,8 @@
+import { hasWishes, readAnswers, wishLines } from '../answers.js';
 import { html, raw } from '../html.js';
 import { icon, iconInline } from '../icons.js';
 import { exchangeLine, LANGS, t, themeText } from '../i18n/index.js';
-import { detailPrompt, endsInMark, hasWishes, sectionHeading, wishForm, wishLines } from '../wishes.js';
+import { detailPrompt, endsInMark, questionText, wishForm } from '../questions.js';
 
 // Fragments take their links and form targets as arguments so the organiser
 // can show the same screens inside the admin shell when acting on behalf.
@@ -91,46 +92,44 @@ function checkbox(id, name, value, label, on) {
   return html`<label class="check"><input type="checkbox" id="${id}" name="${name}" value="${value}"${checked(on)}> <span>${label}</span></label>`;
 }
 
-// One tick box per option; a detail option gets its text field right under
-// its box. detailName and detailValue say where that text is posted and kept.
-function tickList(options, name, prefix, chosen, lang, detailName, detailValue) {
-  return options.map((option) => {
-    const boxId = `${prefix}-${option.id}`;
-    const box = checkbox(boxId, name, option.id, option.label(lang), chosen.has(option.id));
-    if (!option.detail) return box;
+// One tick box per choice; a detail choice gets its text field right under
+// its box.
+function tickList(question, answer, lang) {
+  const ticked = new Set(answer?.ticked ?? []);
+  return question.choices.map((choice) => {
+    const boxId = `c_${question.id}_${choice.id}`;
+    const box = checkbox(boxId, `q_${question.id}`, choice.id, choice.label(lang), ticked.has(choice.id));
+    if (!choice.detail) return box;
+    const detail = `d_${question.id}_${choice.id}`;
     return html`${box}
-<div class="detail">${textInput(detailName(option.id), detailPrompt(option, lang), detailValue(option.id), boxId)}</div>`;
+<div class="detail">${textInput(detail, detailPrompt(choice, lang), answer?.details[choice.id], boxId)}</div>`;
   });
 }
 
-export function aboutFormView({ event, group, wishes, lang, tz, formAction, langAction, showLangSwitch }) {
-  const w = wishes ?? {};
-  const form = wishForm(event);
-  const fields = {
-    hobbies: (heading) => textArea('hobbies', heading, w.hobbies),
-    likes: (heading) => html`<fieldset>
+// A stored answer of the other kind than its question asks for is not
+// shown; the next save drops it.
+function questionField(question, answer, lang) {
+  const heading = questionText(question, lang);
+  if (question.type === 'text') return textArea(`q_${question.id}`, heading, typeof answer === 'string' ? answer : '');
+  return html`<fieldset>
 <legend>${heading}</legend>
-${tickList(form.likes, 'likes', 'like', new Set(w.likes ?? []), lang, (id) => `detail_${id}`, (id) => w.likeDetails?.[id])}
-</fieldset>`,
-    pets: (heading) => html`<fieldset>
-<legend>${heading}</legend>
-${tickList(form.pets, 'pets', 'pet', new Set(w.pets ?? []), lang,
-    (id) => (id === 'other' ? 'pets_other' : `pet_detail_${id}`),
-    (id) => (id === 'other' ? w.petsOther : w.petDetails?.[id]))}
-</fieldset>`,
-    avoid: (heading) => textArea('avoid', heading, w.avoid),
-    other: (heading) => textArea('other', heading, w.other),
-  };
-  const shown = form.sections.filter((section) => section.show);
-  const sections = shown.map((section) => fields[section.id](sectionHeading(section, lang)));
+${tickList(question, typeof answer === 'object' ? answer : null, lang)}
+</fieldset>`;
+}
 
+// outdated says the post came from a page whose fields cannot be read, so
+// nothing was saved and the stored answers are shown again.
+export function aboutFormView({ event, group, wishes, lang, tz, formAction, langAction, showLangSwitch, outdated = false }) {
+  const answers = readAnswers(wishes);
+  const shown = wishForm(event).questions.filter((question) => question.show);
   const body = html`<h1>${t(lang, 'about.title')}</h1>
+${outdated ? html`<p class="notice" role="alert">${t(lang, 'about.outdated')}</p>` : ''}
 <p class="lead">${t(lang, 'about.intro')}</p>
 ${themeBlock({ event, group, lang, tz })}
 <form class="about" id="about-form" method="post" action="${formAction}">
 <input type="hidden" name="from" value="about">
-<input type="hidden" name="sections" value="${shown.map((section) => section.id).join(' ')}">
-${sections}
+<input type="hidden" name="questions" value="${shown.map((question) => question.id).join(' ')}">
+${shown.map((question) => questionField(question, answers[question.id], lang))}
 <button type="submit" class="button">${t(lang, 'about.save')}</button>
 </form>
 ${footer({ lang, langAction, showLangSwitch, from: 'about' })}`;
