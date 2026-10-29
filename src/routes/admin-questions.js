@@ -9,7 +9,8 @@ import { adminLang } from './admin-auth.js';
 import { field } from './admin-shared.js';
 
 const TYPES = new Set(['text', 'choices']);
-const ROW_ACTION = /^(up|down|remove):(\d{1,3})$/;
+// Any index is matched; one outside the draft's rows is ignored.
+const ROW_ACTION = /^(up|down|remove):(\d+)$/;
 // Fields are read past their maxlength, so a clipped value is cut by the
 // same code-point rule as on save rather than mid-character.
 const READ_MAX = 4;
@@ -41,7 +42,7 @@ function readDraft(body, question) {
   const draft = { show: body?.show === '1', text: field(body, 'text', HEADING_MAX * READ_MAX), choices: [] };
   if (question.type !== 'choices') return draft;
   const rowsMax = Math.max(CHOICES_MAX, question.choices.length) + 1;
-  const count = Math.min(Number.parseInt(field(body, 'choiceCount', 3), 10) || 0, rowsMax);
+  const count = Math.min(Number.parseInt(field(body, 'choiceCount', String(rowsMax).length), 10) || 0, rowsMax);
   const known = new Set(question.choices.map((c) => c.id));
   const used = new Set();
   for (let i = 0; i < count; i += 1) {

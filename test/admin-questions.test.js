@@ -201,6 +201,21 @@ test('a sixteenth question and a thirty-first choice are refused', async () => {
   assert.deepEqual(event(t).formConfig, stored);
 });
 
+test('a stored list past a thousand choices is read in full when a row is removed', async () => {
+  const t = await setup();
+  const many = Array.from({ length: 1000 }, (_, i) => ({ id: `c-${i}`, label: String(i) }));
+  setQuestions(t, [{ id: 'likes', type: 'choices', choices: many }]);
+  const stored = event(t).formConfig;
+  const { fields } = await editPage(t, 'likes');
+  assert.equal(fields.choiceCount, '1000');
+  const res = await t.adminPost(editUrl(t, 'likes'), { ...fields, action: 'remove:999' });
+  assert.equal(res.statusCode, 200);
+  const shown = shownFields(res.body, editUrl(t, 'likes'));
+  assert.equal(shown.choiceCount, '999');
+  assert.deepEqual(shownRows(shown).map((r) => r.id), many.slice(0, 999).map((c) => c.id));
+  assert.deepEqual(event(t).formConfig, stored);
+});
+
 test('moving a question reorders the form and marks printed cards out of date', async () => {
   const t = await setup();
   const move = async (id, dir) => {
