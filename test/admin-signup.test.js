@@ -524,3 +524,237 @@ test('starting the draw is refused while sign-up is still open', async () => {
   assert.equal(event(t, eventId).signupDoneAt, null);
   assert.equal((await t.adminGet(`/admin/events/${eventId}/signup/finish`)).statusCode, 409);
 });
+
+test('sending after the closing date passed is refused and queues nothing', async () => {
+  const t = await setup();
+  const { eventId } = await eventWithGroups(t, [3]);
+  await turnOn(t, eventId, '2026-11-02');
+  t.clock.ms = Date.parse('2026-11-02T23:00:00.000Z');
+  const page = await t.adminGet(`/admin/events/${eventId}`);
+  assert.ok(page.body.includes(escape(tr('nl', 'admin.signup.setupPassed'))));
+  assert.ok(!page.body.includes(`action="/admin/events/${eventId}/signup/send"`));
+  assert.deepEqual(sendSignup(t.ctx, eventId), { refused: 'passed' });
+  const res = await t.adminPost(`/admin/events/${eventId}/signup/send`, { formToken: newFormToken() });
+  assert.equal(res.statusCode, 409);
+  assert.ok(res.body.includes(escape(tr('nl', 'admin.signup.error.signup-passed'))));
+  assert.deepEqual(rows(t, 'signup'), []);
+  assert.equal(event(t, eventId).signupSentAt, null);
+  assert.equal(state(t, eventId), 'setup');
+  await t.adminPost(`/admin/events/${eventId}/signup`, { deadline: '2026-11-10' });
+  await send(t, eventId);
+  assert.equal(rows(t, 'signup').length, 3);
+});
+
+test('sign-up cannot be turned on once anyone in the event was invited', async () => {
+  const t = await setup();
+  const { eventId, groupIds: [groupId] } = await eventWithGroups(t, [4]);
+  const [ada] = people(t, groupId);
+  assert.equal((await t.adminPost(`/admin/participants/${ada.id}/resend-invite`)).statusCode, 303);
+  assert.ok(t.ctx.repo.getParticipant(ada.id).invitedAt);
+  assert.equal(t.ctx.repo.getGroup(groupId).invitationsSentAt, null);
+  const page = await t.adminGet(`/admin/events/${eventId}`);
+  assert.ok(!page.body.includes('id="signup"'));
+  const res = await t.adminPost(`/admin/events/${eventId}/signup`, { deadline: DEADLINE });
+  assert.equal(res.statusCode, 400);
+  assert.ok(res.body.includes(escape(tr('nl', 'admin.signup.error.invited'))));
+  assert.equal(event(t, eventId).signupDeadline, null);
+});
+
+test('the event page leaves the sign-up panel out once it can no longer be turned on', async () => {
+  const t = await setup();
+  const { eventId, groupIds: [groupId] } = await eventWithGroups(t, [4]);
+  await t.adminPost(`/admin/groups/${groupId}/invite`);
+  const page = await t.adminGet(`/admin/events/${eventId}`);
+  assert.ok(!page.body.includes('id="signup"'));
+  assert.ok(!page.body.includes(escape(tr('nl', 'admin.signup.intro'))));
+});
+
+test('a closing date on or after a group\'s automatic opening date is refused', async () => {
+  const t = await setup();
+  const { eventId, groupIds: [groupId] } = await eventWithGroups(t, [3]);
+  t.ctx.repo.updateGroup(groupId, { autoOpenAt: '2026-11-20' });
+  const message = escape(tr('nl', 'admin.signup.error.signup-after-auto-open'));
+  for (const deadline of ['2026-11-20', '2026-11-25']) {
+    const res = await t.adminPost(`/admin/events/${eventId}/signup`, { deadline });
+    assert.equal(res.statusCode, 400);
+    assert.ok(res.body.includes(message));
+  }
+  assert.equal(event(t, eventId).signupDeadline, null);
+  await turnOn(t, eventId, '2026-11-19');
+  const moved = await t.adminPost(`/admin/events/${eventId}/signup`, { deadline: '2026-11-21' });
+  assert.equal(moved.statusCode, 400);
+  assert.ok(moved.body.includes(message));
+  assert.equal(event(t, eventId).signupDeadline, '2026-11-19');
+});
+
+test('while sign-up is active an automatic opening date on or before the closing date is refused', async () => {
+  const t = await setup();
+  const { eventId, groupIds: [groupId] } = await eventWithGroups(t, [3]);
+  await turnOn(t, eventId);
+  const message = escape(tr('nl', 'admin.group.error.autoOpenBeforeSignup'));
+  const form = { name: 'Maandag', exchangeDate: '2026-12-18' };
+  for (const autoOpenAt of [DEADLINE, '2026-11-10']) {
+    const res = await t.adminPost(`/admin/groups/${groupId}`, { ...form, autoOpenAt });
+    assert.equal(res.statusCode, 400);
+    assert.ok(res.body.includes(message));
+  }
+  const created = await t.adminPost(`/admin/events/${eventId}/groups`, { ...form, name: 'Dinsdag', autoOpenAt: DEADLINE });
+  assert.equal(created.statusCode, 400);
+  assert.ok(created.body.includes(message));
+  assert.equal(t.ctx.repo.getGroup(groupId).autoOpenAt, null);
+  const later = await t.adminPost(`/admin/groups/${groupId}`, { ...form, autoOpenAt: '2026-11-21' });
+  assert.equal(later.statusCode, 303);
+});
+
+test('the finish page warns for a group whose automatic opening date has come', async () => {
+  const t = await setup();
+  const { eventId, a, b } = await answeredAndClosed(t);
+  t.ctx.repo.updateGroup(a, { autoOpenAt: '2026-11-21' });
+  t.ctx.repo.updateGroup(b, { autoOpenAt: '2026-11-25' });
+  t.clock.ms = Date.parse('2026-11-21T07:00:00.000Z');
+  const page = await t.adminGet(`/admin/events/${eventId}/signup/finish`);
+  const warning = escape(tr('nl', 'admin.signup.finish.opensAtOnce'));
+  assert.equal(page.body.split(warning).length - 1, 1);
+  const [groupA, groupB] = page.body.split('<section class="panel">').slice(1);
+  assert.ok(groupA.includes(warning));
+  assert.ok(!groupB.includes(warning));
+});
+
+test('the person page offers no invitation or reminder while sign-up is active, and refuses them', async () => {
+  const t = await setup();
+  const { eventId, groupIds: [groupId] } = await eventWithGroups(t, [4]);
+  await turnOn(t, eventId);
+  const [ada] = people(t, groupId);
+  const page = await t.adminGet(`/admin/participants/${ada.id}`);
+  assert.ok(!page.body.includes(`action="/admin/participants/${ada.id}/resend-invite"`));
+  assert.ok(!page.body.includes(`action="/admin/participants/${ada.id}/remind"`));
+  assert.ok(!page.body.includes(`action="/admin/participants/${ada.id}/resend-signup"`));
+  for (const path of ['resend-invite', 'remind']) {
+    const res = await t.adminPost(`/admin/participants/${ada.id}/${path}`);
+    assert.equal(res.headers.location, `/admin/participants/${ada.id}?done=signup-active`);
+  }
+  assert.equal(t.ctx.repo.getParticipant(ada.id).invitedAt, null);
+  assert.deepEqual(rows(t, 'invite'), []);
+  const notice = await t.adminGet(`/admin/participants/${ada.id}?done=signup-active`);
+  assert.ok(notice.body.includes(escape(tr('nl', 'admin.person.done.signup-active'))));
+});
+
+test('while sign-up is open the person page resends the sign-up mail to someone who has not answered', async () => {
+  const t = await setup();
+  const { eventId, groupIds: [groupId] } = await eventWithGroups(t, [4]);
+  await turnOn(t, eventId);
+  await send(t, eventId);
+  await paste(t, groupId, 'Zoe');
+  const [ada, ben] = people(t, groupId);
+  const zoe = people(t, groupId).find((p) => p.name === 'Zoe');
+  await answerAs(t, ben, 'no');
+  const page = await t.adminGet(`/admin/participants/${ada.id}`);
+  assert.ok(page.body.includes(`action="/admin/participants/${ada.id}/resend-signup"`));
+  assert.ok(page.body.includes(escape(tr('nl', 'admin.person.mail.resendSignup'))));
+  assert.ok(!page.body.includes(`action="/admin/participants/${ada.id}/resend-invite"`));
+  for (const who of [ben, zoe]) {
+    const other = await t.adminGet(`/admin/participants/${who.id}`);
+    assert.ok(!other.body.includes(`action="/admin/participants/${who.id}/resend-signup"`), who.name);
+  }
+
+  const before = rows(t, 'signup').length;
+  const res = await t.adminPost(`/admin/participants/${ada.id}/resend-signup`);
+  assert.equal(res.headers.location, `/admin/participants/${ada.id}?done=signup-queued`);
+  const added = t.db.prepare("SELECT participant_id AS id, manual FROM outbox WHERE kind = 'signup' ORDER BY outbox.id").all().slice(before);
+  assert.deepEqual(added.map((r) => [r.id, r.manual]), [[ada.id, 1]]);
+  const answered = await t.adminPost(`/admin/participants/${ben.id}/resend-signup`);
+  assert.equal(answered.headers.location, `/admin/participants/${ben.id}?done=signup-answered`);
+  const noEmail = await t.adminPost(`/admin/participants/${zoe.id}/resend-signup`);
+  assert.equal(noEmail.headers.location, `/admin/participants/${zoe.id}?done=no-email`);
+  assert.equal(rows(t, 'signup').length, before + 1);
+
+  await t.adminPost(`/admin/events/${eventId}/signup/close`);
+  const closed = await t.adminPost(`/admin/participants/${ada.id}/resend-signup`);
+  assert.equal(closed.headers.location, `/admin/participants/${ada.id}?done=signup-not-open`);
+});
+
+test('resending the sign-up mail marks someone never asked as asked', async () => {
+  const t = await setup();
+  const { eventId, groupIds: [groupId] } = await eventWithGroups(t, [3]);
+  await turnOn(t, eventId);
+  await send(t, eventId);
+  const [ada] = people(t, groupId);
+  t.ctx.repo.updateParticipant(ada.id, { signupInvitedAt: null });
+  await t.adminPost(`/admin/participants/${ada.id}/resend-signup`);
+  assert.equal(t.ctx.repo.getParticipant(ada.id).signupInvitedAt, t.ctx.nowIso());
+});
+
+test('someone who already has an answer when sign-up is sent is never mailed about it', async () => {
+  const t = await setup();
+  const { eventId, groupIds: [groupId] } = await eventWithGroups(t, [4]);
+  await turnOn(t, eventId);
+  const [ada, ben] = people(t, groupId);
+  await t.adminPost(`/admin/participants/${ada.id}/signup`, { answer: 'no' });
+  await t.adminPost(`/admin/participants/${ben.id}/signup`, { answer: 'yes' });
+  await send(t, eventId);
+  for (const p of [ada, ben]) assert.equal(t.ctx.repo.getParticipant(p.id).signupInvitedAt, null);
+  assert.equal(rows(t, 'signup').length, 2);
+  while (t.clock.ms < Date.parse('2026-11-20T23:00:00.000Z')) {
+    t.clock.ms += 3_600_000;
+    await tick(t.ctx);
+  }
+  const mailed = t.db.prepare('SELECT DISTINCT participant_id AS id FROM outbox').all().map((r) => r.id);
+  assert.ok(!mailed.includes(ada.id) && !mailed.includes(ben.id), mailed.join());
+  assert.ok(rows(t, 'remind-signup').length > 0);
+});
+
+test('a group whose invitations fail does not stop the others, and the finish is logged', async () => {
+  const t = await setup();
+  const { eventId, a, b } = await answeredAndClosed(t);
+  const mark = t.ctx.repo.markInvitationsSent;
+  t.ctx.repo.markInvitationsSent = (groupId, now) => {
+    if (groupId === a) throw new Error('boom');
+    return mark(groupId, now);
+  };
+  let checkpoints = 0;
+  const checkpoint = t.ctx.repo.checkpoint;
+  t.ctx.repo.checkpoint = () => {
+    checkpoints += 1;
+    return checkpoint();
+  };
+  const res = await t.adminPost(`/admin/events/${eventId}/signup/finish`, { formToken: newFormToken(), confirm: '1' });
+  assert.equal(res.statusCode, 303, res.body);
+  assert.equal(state(t, eventId), 'done');
+  assert.ok(t.ctx.repo.getGroup(b).invitationsSentAt);
+  assert.equal(t.ctx.repo.getGroup(a).invitationsSentAt, null);
+  assert.deepEqual(rows(t, 'invite'), people(t, b).map((p) => p.id));
+  const failed = msgs(t).filter((l) => l.msg === 'invitations_failed');
+  assert.deepEqual(failed.map((l) => l.group_id), [a]);
+  assert.equal(msgs(t).filter((l) => l.msg === 'signup_finished').length, 1);
+  assert.equal(checkpoints, 1);
+});
+
+test('an answer refused from the person page shows the person page', async () => {
+  const t = await setup();
+  const { groupIds: [a] } = await eventWithGroups(t, [3]);
+  const [ada] = people(t, a);
+  const res = await t.adminPost(`/admin/participants/${ada.id}/signup`, { answer: 'yes', back: 'person' });
+  assert.equal(res.statusCode, 409);
+  assert.ok(res.body.includes(`<h1>${ada.name}</h1>`));
+  assert.ok(res.body.includes(escape(tr('nl', 'admin.signup.error.state'))));
+});
+
+test('the organiser cannot set an answer once sign-up is done', async () => {
+  const t = await setup();
+  const { eventId, a } = await answeredAndClosed(t);
+  await t.adminPost(`/admin/events/${eventId}/signup/finish`, { formToken: newFormToken(), confirm: '1' });
+  const [ada] = people(t, a);
+  const res = await t.adminPost(`/admin/participants/${ada.id}/signup`, { answer: 'no', back: 'event' });
+  assert.equal(res.statusCode, 409);
+  assert.equal(t.ctx.repo.getParticipant(ada.id).signup, 'yes');
+});
+
+test('the group dashboard drops the waiting-for-invitations line while sign-up is active', async () => {
+  const t = await setup();
+  const { eventId, groupIds: [groupId] } = await eventWithGroups(t, [4]);
+  t.ctx.repo.updateGroup(groupId, { autoOpenAt: '2026-12-01' });
+  const line = escape(tr('nl', 'admin.warning.awaiting-invitations'));
+  assert.ok((await t.adminGet(`/admin/groups/${groupId}`)).body.includes(line));
+  await turnOn(t, eventId);
+  assert.ok(!(await t.adminGet(`/admin/groups/${groupId}`)).body.includes(line));
+});

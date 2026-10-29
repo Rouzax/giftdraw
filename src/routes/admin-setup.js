@@ -31,8 +31,9 @@ export function adminSetupRoutes(app, ctx, {
     }
   }
 
-  // Returns {values} or {error}. While sign-up is active every exchange
-  // must come after its closing date, as when the date was set.
+  // Returns {values} or {error}. While sign-up is active every exchange and
+  // automatic opening must come after its closing date, as when the date
+  // was set: nobody is paired before then.
   function readGroupForm(body, event, current = null) {
     const values = {
       name: field(body, 'name', NAME_MAX).trim(),
@@ -49,8 +50,11 @@ export function adminSetupRoutes(app, ctx, {
     }
     const dates = groupDatesError(values, today(), current);
     if (dates) return { values, error: `admin.group.error.${dates}` };
-    if (signupActive(event, ctx.now(), config.tz) && values.exchangeDate <= event.signupDeadline) {
-      return { values, error: 'admin.group.error.exchangeBeforeSignup' };
+    if (signupActive(event, ctx.now(), config.tz)) {
+      if (values.exchangeDate <= event.signupDeadline) return { values, error: 'admin.group.error.exchangeBeforeSignup' };
+      if (values.autoOpenAt !== null && values.autoOpenAt <= event.signupDeadline) {
+        return { values, error: 'admin.group.error.autoOpenBeforeSignup' };
+      }
     }
     return { values };
   }

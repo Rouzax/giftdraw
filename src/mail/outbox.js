@@ -1,6 +1,6 @@
 import { wishForm } from '../questions.js';
 import { reminderKind } from '../reminders.js';
-import { signupState } from '../signup.js';
+import { signupActive, signupState } from '../signup.js';
 import { SKIP_CODES } from './skip-codes.js';
 import { RECEIVER_KINDS, renderEmail } from './templates.js';
 
@@ -15,6 +15,12 @@ const REMINDER_KINDS = new Set(['remind-wishes', 'remind-draw']);
 // The answer each sign-up kind is about: the mail and its reminder ask
 // someone who has not answered, the nudge goes to someone who said no.
 const SIGNUP_ANSWER = { signup: null, 'remind-signup': null, 'signup-nudge': 'no' };
+// Kinds whose log lines leave out the recipient's id. A receiver mail goes to
+// that receiver's giver, and its timing follows something the receiver did
+// (a wish save, a removal), so the id would reveal who gives to whom. A nudge
+// goes only to someone who said no, so the id would say who that is. The
+// outbox id still finds the row.
+const UNNAMED_KINDS = new Set([...RECEIVER_KINDS, 'signup-nudge']);
 
 // Only a short code is kept: SMTP error messages and objects quote addresses
 // and server replies, which must stay out of the database and the logs. The
@@ -50,8 +56,12 @@ function prepare(ctx, row) {
   const event = group && repo.getEvent(group.eventId);
   if (!event) throw new Skip('no-group');
   // A reminder waits in the queue for a retry or a busy drain; by then the
-  // wishes may be in, the draw open or done, and it would ask the wrong thing.
-  if (REMINDER_KINDS.has(row.kind) && reminderKind(participant, group, wishForm(event)) !== row.kind) throw new Skip('stale-reminder');
+  // wishes may be in, the draw open or done, or the event signing up, and it
+  // would ask the wrong thing.
+  if (REMINDER_KINDS.has(row.kind)
+    && (signupActive(event, ctx.now(), config.tz) || reminderKind(participant, group, wishForm(event)) !== row.kind)) {
+    throw new Skip('stale-reminder');
+  }
   // The same for a draw-open or invite sent again by hand after giving up:
   // someone who has drawn since must not be asked to start.
   if ((row.kind === 'draw-open' || row.kind === 'invite') && participant.drawnAt) throw new Skip('stale-mail');
@@ -91,10 +101,7 @@ function recordSent(ctx, row, fields) {
 }
 
 async function sendOne(ctx, row) {
-  // A receiver mail goes to that receiver's giver, and its timing follows
-  // something the receiver did (a wish save, a removal), so its recipient id
-  // would reveal who gives to whom. The outbox id still finds the row.
-  const fields = RECEIVER_KINDS.has(row.kind)
+  const fields = UNNAMED_KINDS.has(row.kind)
     ? { outbox_id: row.id, kind: row.kind }
     : { outbox_id: row.id, participant_id: row.participantId, kind: row.kind };
   try {

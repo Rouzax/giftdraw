@@ -2,10 +2,10 @@ import { domainToASCII } from 'node:url';
 import { parseWishesForm, readAnswers } from './answers.js';
 import { chooseInsertGiver, insertIntoCycle, makeCycle, planRemoval, validateAssignment } from './draw/cycle.js';
 import { NAME_MAX } from './limits.js';
-import { kickDrain } from './mail/outbox.js';
+import { errorCode, kickDrain } from './mail/outbox.js';
 import { wishForm } from './questions.js';
 import { reminderKind } from './reminders.js';
-import { joins, signupActive, signupState } from './signup.js';
+import { closesAt, joins, signupActive, signupState } from './signup.js';
 import { assignmentVersion } from './status.js';
 import { clipText, unixLines } from './text.js';
 
@@ -408,12 +408,14 @@ export function sendInvitations(ctx, groupId) {
 }
 
 // Marks each person with an address as asked and queues the sign-up mail;
-// with mail off nobody is marked, as with invitations. Returns the count.
+// with mail off nobody is marked, as with invitations. Someone whose answer
+// the organiser already recorded is not asked, so no reminder or nudge
+// follows either. Returns the count.
 function askToSignUp(ctx, people, now) {
   if (!mailOn(ctx)) return 0;
   let queued = 0;
   for (const p of people) {
-    if (!p.email || p.signupInvitedAt) continue;
+    if (!p.email || p.signupInvitedAt || p.signup) continue;
     ctx.repo.updateParticipant(p.id, { signupInvitedAt: now });
     enqueueMail(ctx, p.id, 'signup', now);
     queued += 1;
@@ -423,13 +425,17 @@ function askToSignUp(ctx, people, now) {
 
 // One press for the whole event. Runs in one transaction with the state
 // check, so two overlapping presses send each mail once. Returns {queued} or
-// {refused: state} when the sign-up is not waiting to be sent.
+// {refused: state} when the sign-up is not waiting to be sent, and
+// {refused: 'passed'} when its closing date is already over: sending then
+// would open and close it at once.
 export function sendSignup(ctx, eventId) {
   const { repo } = ctx;
   const now = ctx.nowIso();
   const result = repo.tx(() => {
-    const state = signupState(repo.getEvent(eventId), ctx.now(), ctx.config.tz);
+    const event = repo.getEvent(eventId);
+    const state = signupState(event, ctx.now(), ctx.config.tz);
     if (state !== 'setup') return { refused: state };
+    if (ctx.now() >= closesAt(event.signupDeadline, ctx.config.tz)) return { refused: 'passed' };
     repo.updateEvent(eventId, { signupSentAt: now }, now);
     return { queued: askToSignUp(ctx, repo.listEventParticipants(eventId), now) };
   });
@@ -440,7 +446,9 @@ export function sendSignup(ctx, eventId) {
 // Starts the draw for the whole event: everyone who does not join is
 // removed, each group is paired from who is left, and the sign-up is done.
 // One transaction with the state check, so a second press finds it done.
-// Invitations follow for every group, as they would without sign-up.
+// Invitations follow for every group, as they would without sign-up; each
+// group sends in its own transaction, so one that fails leaves the others
+// invited and can be sent again from its dashboard.
 // Returns {joined, removed, unpairedGroupIds} or {refused: state}.
 export function finishSignup(ctx, eventId) {
   const { repo } = ctx;
@@ -468,9 +476,51 @@ export function finishSignup(ctx, eventId) {
     return { joined, removed, unpairedGroupIds };
   });
   if (result.refused) return result;
-  const queued = repo.listGroups(eventId).reduce((sum, group) => sum + (sendInvitations(ctx, group.id).queued ?? 0), 0);
+  // Truncating the WAL keeps the removed people's data out of the log file.
+  // The removal has already happened, so a busy database only costs that.
+  if (result.removed) {
+    try {
+      repo.checkpoint();
+    } catch (err) {
+      ctx.log.warn({ error_class: err?.name ?? typeof err }, 'checkpoint_failed');
+    }
+  }
+  let queued = 0;
+  for (const group of repo.listGroups(eventId)) {
+    try {
+      queued += sendInvitations(ctx, group.id).queued ?? 0;
+    } catch (err) {
+      ctx.log.error({ group_id: group.id, code: errorCode(err) }, 'invitations_failed');
+    }
+  }
   if (queued) kickDrain(ctx);
   return result;
+}
+
+function signingUp(ctx, participant) {
+  return pairingPaused(ctx, ctx.repo.getGroup(participant.groupId));
+}
+
+// The sign-up mail once more, for someone who has not answered while sign-up
+// is open. Manual, like a reminder sent by hand; it marks someone never
+// asked (added with mail off, say) as asked, so the reminders follow.
+export function resendSignup(ctx, participantId) {
+  const { repo } = ctx;
+  if (!mailOn(ctx)) return 'mail-off';
+  const now = ctx.nowIso();
+  const outcome = repo.tx(() => {
+    const participant = repo.getParticipant(participantId);
+    const event = repo.getEvent(repo.getGroup(participant.groupId).eventId);
+    if (signupState(event, ctx.now(), ctx.config.tz) !== 'open') return 'signup-not-open';
+    if (!participant.email) return 'no-email';
+    if (participant.signup) return 'signup-answered';
+    if (repo.hasQueuedMail(participantId, 'signup')) return 'already-queued';
+    if (!participant.signupInvitedAt) repo.updateParticipant(participantId, { signupInvitedAt: now });
+    enqueueMail(ctx, participantId, 'signup', now, { manual: true });
+    return 'signup-queued';
+  });
+  if (outcome === 'signup-queued') kickDrain(ctx);
+  return outcome;
 }
 
 // The organiser's per-participant mail buttons. Each returns the outcome key
@@ -483,6 +533,8 @@ export function resendInvite(ctx, participantId) {
   const now = ctx.nowIso();
   const outcome = repo.tx(() => {
     const participant = repo.getParticipant(participantId);
+    // The invitation leads to the draw, which waits for the sign-up.
+    if (signingUp(ctx, participant)) return 'signup-active';
     if (!participant.email) return 'no-email';
     if (repo.hasQueuedMail(participantId, 'invite')) return 'already-queued';
     if (!participant.invitedAt) repo.updateParticipant(participantId, { invitedAt: now });
@@ -499,6 +551,7 @@ export function remindNow(ctx, participantId) {
   if (!mailOn(ctx)) return 'mail-off';
   const outcome = repo.tx(() => {
     const participant = repo.getParticipant(participantId);
+    if (signingUp(ctx, participant)) return 'signup-active';
     if (!participant.email) return 'no-email';
     // A reminder before the invitation would be the first mail they get.
     if (!participant.invitedAt) return 'not-invited';

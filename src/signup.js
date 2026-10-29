@@ -46,16 +46,17 @@ export function dueSignupMail({ participant, event, history, nudgeHistory, now, 
   if (!participant.email || !participant.signupInvitedAt) return null;
   const time = localParts(now, tz).time.slice(0, 5);
   if (time < SEND_AT || time >= SEND_UNTIL) return null;
+  // Only slots on a later day than the sign-up mail count, also for someone
+  // added later: a reminder or nudge an hour after being asked would chase a
+  // question they have only just been given.
+  const asked = [event.signupSentAt, participant.signupInvitedAt].map((iso) => localParts(new Date(iso), tz).date);
+  const afterAsked = (date) => asked.every((day) => date > day);
 
   if (participant.signup === null) {
     if (history.count >= MAX_REMINDERS) return null;
-    // Only slots on a later day than the sign-up mail count, also for
-    // someone added later: a reminder the morning after being asked, or an
-    // hour after it, would chase a question they have only just been given.
-    const asked = [event.signupSentAt, participant.signupInvitedAt].map((iso) => localParts(new Date(iso), tz).date);
     const current = REMINDER_DAYS
       .map((days) => addDays(event.signupDeadline, -days))
-      .filter((date) => asked.every((day) => date > day))
+      .filter(afterAsked)
       .map((date) => instantAt(date, SEND_AT, tz))
       .filter((slot) => slot <= now)
       .at(-1);
@@ -65,7 +66,9 @@ export function dueSignupMail({ participant, event, history, nudgeHistory, now, 
   // Only a no given before the nudge slot gets one; someone who said no
   // later has just made up their mind.
   if (participant.signup === 'no' && nudgeHistory.count === 0) {
-    const slot = instantAt(addDays(event.signupDeadline, -NUDGE_DAYS), SEND_AT, tz);
+    const date = addDays(event.signupDeadline, -NUDGE_DAYS);
+    if (!afterAsked(date)) return null;
+    const slot = instantAt(date, SEND_AT, tz);
     return now >= slot && Date.parse(participant.signupAt) < slot ? 'signup-nudge' : null;
   }
   return null;

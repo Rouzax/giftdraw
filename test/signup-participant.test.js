@@ -141,6 +141,7 @@ test('a sign-up not sent yet tells the participant to wait and offers no answer'
   const res = await t.app.inject(`/p/${t.ada.token}`);
   assert.equal(res.statusCode, 200);
   assert.ok(has(res.body, 'signup.setup'));
+  assert.ok(textOf(res.body).includes('De organisator vraagt je binnenkort of je meedoet.'));
   assert.deepEqual(buttons(res.body), []);
   assert.ok(!res.body.includes(`action="/p/${t.ada.token}/signup"`));
   const post = await answer(t, t.ada, 'yes');

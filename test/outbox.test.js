@@ -418,3 +418,27 @@ test('a queued sign-up reminder or nudge is not sent once sign-up has closed', a
   assert.equal(mails.length, 0);
   for (const id of [reminder, nudge]) assert.equal(outboxRow(db, id).error_code, 'stale-signup');
 });
+
+test('a wish or draw reminder still queued when the event starts signing up is not sent', async () => {
+  const { ctx, db, mails, ada, event, drain } = await setup();
+  const wishes = ctx.repo.enqueue(ada.id, 'remind-wishes', ctx.nowIso());
+  ctx.repo.updateEvent(event.id, { signupDeadline: '2026-11-20' }, ctx.nowIso());
+  assert.deepEqual(await drain(), { sent: 0, failed: 1 });
+  assert.equal(mails.length, 0);
+  assert.equal(outboxRow(db, wishes).error_code, 'stale-reminder');
+});
+
+// A nudge goes only to someone who said no, so its id would say who that is.
+test('a sign-up nudge is logged without a participant id, sent or failed', async () => {
+  const { ctx, mailer, ada, ben, event, drain, logs } = await setup();
+  ctx.repo.updateEvent(event.id, { signupDeadline: '2026-11-20', signupSentAt: ctx.nowIso() }, ctx.nowIso());
+  for (const p of [ada, ben]) ctx.repo.updateParticipant(p.id, { signup: 'no', signupAt: ctx.nowIso() });
+  ctx.repo.enqueue(ada.id, 'signup-nudge', ctx.nowIso());
+  assert.deepEqual(await drain(), { sent: 1, failed: 0 });
+  mailer.fail = () => Object.assign(new Error('down'), { code: 'ECONNECTION' });
+  ctx.repo.enqueue(ben.id, 'signup-nudge', ctx.nowIso());
+  assert.deepEqual(await drain(), { sent: 0, failed: 1 });
+  const lines = logLines(logs).filter((l) => ['mail_sent', 'mail_failed'].includes(l.msg));
+  assert.deepEqual(lines.map((l) => [l.msg, l.kind]), [['mail_sent', 'signup-nudge'], ['mail_failed', 'signup-nudge']]);
+  for (const line of lines) assert.ok(!Object.hasOwn(line, 'participant_id'));
+});

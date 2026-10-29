@@ -1,6 +1,7 @@
 import { hasWishes } from '../answers.js';
 import { t } from '../i18n/index.js';
 import { wishForm } from '../questions.js';
+import { reminderKind } from '../reminders.js';
 import { signupActive, signupState } from '../signup.js';
 import { cardOutOfDate, groupWarnings } from '../status.js';
 import { createSubmitLog, formFingerprint } from '../submit-log.js';
@@ -8,7 +9,7 @@ import { clipText, unixLines } from '../text.js';
 import { todayIn } from '../time.js';
 import { adminLang } from './admin-auth.js';
 import { behalfPage, printPage, renderAdminPage } from '../views/layout.js';
-import { eventView, groupView, QUESTION_DONE } from '../views/admin.js';
+import { eventView, groupView, participantView, QUESTION_DONE } from '../views/admin.js';
 import { formPanel } from '../views/questions.js';
 
 export const ID = /^\d{1,15}$/;
@@ -129,6 +130,7 @@ export function adminShared(ctx, { sendPage, sendError }) {
       groups,
       newGroup,
       signupState: signupState(event, ctx.now(), config.tz),
+      today,
       themeValue: event.themeText ?? t(event.language, 'theme.default'),
       formPanel: formPanel(lang, { event, form: wishForm(event), done: QUESTION_DONE.has(extra.done) ? extra.done : null }),
       tz: config.tz,
@@ -139,6 +141,7 @@ export function adminShared(ctx, { sendPage, sendError }) {
 
   function groupPage(lang, group, extra = {}) {
     const event = repo.getEvent(group.eventId);
+    const signingUp = signupActive(event, ctx.now(), config.tz);
     const people = repo.listParticipants(group.id);
     const byId = new Map(people.map((p) => [p.id, p]));
     const form = wishForm(event);
@@ -156,11 +159,31 @@ export function adminShared(ctx, { sendPage, sendError }) {
       event,
       group,
       rows,
-      warnings: groupWarnings(group, people.length),
+      // While sign-up runs, its own line says why nothing opens yet.
+      warnings: groupWarnings(group, people.length).filter((w) => !(signingUp && w === 'awaiting-invitations')),
       mailEnabled: ctx.mailer.enabled,
       givenUpCount: repo.countGivenUp(group.id),
-      signupActive: signupActive(event, ctx.now(), config.tz),
+      signupActive: signingUp,
       tz: config.tz,
+      ...extra,
+    });
+  }
+
+  function personPage(lang, participant, extra = {}) {
+    const group = repo.getGroup(participant.groupId);
+    const event = repo.getEvent(group.eventId);
+    const receiver = participant.receiverId ? repo.getParticipant(participant.receiverId) : null;
+    return participantView(lang, {
+      participant,
+      group,
+      receiver,
+      cardOutOfDate: cardOutOfDate(participant, receiver, group, event),
+      mail: repo.mailStatus(participant.id),
+      link: `${config.appUrl}/p/${participant.token}`,
+      remindKind: reminderKind(participant, group, wishForm(event)),
+      mailEnabled: ctx.mailer.enabled,
+      tz: config.tz,
+      signupState: signupState(event, ctx.now(), config.tz),
       ...extra,
     });
   }
@@ -175,6 +198,7 @@ export function adminShared(ctx, { sendPage, sendError }) {
     renderPrint,
     groupPage,
     eventPage,
+    personPage,
     loadEvent: { preHandler: load(repo.getEvent) },
     loadGroup: { preHandler: load(repo.getGroup) },
     deleteEvent: { preHandler: [replayFirst, load(repo.getEvent)] },

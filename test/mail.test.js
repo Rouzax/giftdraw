@@ -53,13 +53,13 @@ const ANSWERS = {
 const SIGNUP = {
   nl: {
     signup: 'Doe je mee met Gifts 2026?',
-    'remind-signup': 'Nog 8 dagen: doe je mee met Gifts 2026?',
+    'remind-signup': 'Nog 8 dagen om te zeggen of je meedoet aan Gifts 2026',
     'signup-nudge': 'Weet je het zeker?',
     deadline: 'tot en met vrijdag 20 november',
   },
   en: {
     signup: 'Are you taking part in Gifts 2026?',
-    'remind-signup': '8 days left: are you taking part in Gifts 2026?',
+    'remind-signup': '8 days left to say whether you are taking part in Gifts 2026',
     'signup-nudge': 'Are you sure?',
     deadline: 'until the end of Friday 20 November',
   },
@@ -94,7 +94,9 @@ for (const lang of ['nl', 'en']) {
 
   test(`the last-day sign-up reminder in ${lang} speaks of one day`, () => {
     const mail = render('remind-signup', lang, { now: new Date('2026-11-20T08:00:00.000Z') });
-    const want = lang === 'nl' ? 'Nog 1 dag: doe je mee met Gifts 2026?' : '1 day left: are you taking part in Gifts 2026?';
+    const want = lang === 'nl'
+      ? 'Nog 1 dag om te zeggen of je meedoet aan Gifts 2026'
+      : '1 day left to say whether you are taking part in Gifts 2026';
     assert.equal(mail.subject, `${EXPECT[lang].app}: ${want}`);
   });
 }

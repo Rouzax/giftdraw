@@ -8,6 +8,7 @@ import { newFormToken } from '../submit-log.js';
 
 const LOCALES = { nl: 'nl-NL', en: 'en-GB' };
 const MIN_GROUP = 3;
+const SIGNUP_ACTIVE = new Set(['setup', 'open', 'closed']);
 
 export function loginView(lang, { error = null } = {}) {
   const title = t(lang, 'admin.login.title');
@@ -112,6 +113,12 @@ ${formToken()}
 </section>`;
 }
 
+// Invitations lead straight to the draw, so after any went out it is too
+// late to ask who takes part.
+export function tooLateForSignup(groups) {
+  return groups.some(({ group, people }) => group.invitationsSentAt || group.openedAt || people.some((p) => p.invitedAt));
+}
+
 function answerText(lang, p, state) {
   if (p.signup) return t(lang, `admin.signup.answer.${p.signup}`);
   return t(lang, state === 'closed' ? 'admin.signup.answer.noneClosed' : 'admin.signup.answer.none');
@@ -151,8 +158,10 @@ ${setAnswerForm(lang, p, 'event')}
 }
 
 // The sign-up step of the whole event. Each state shows where it stands and
-// only the steps that are possible from there.
-function signupPanel(lang, { event, groups, state, tz, mailEnabled, error, value }) {
+// only the steps that are possible from there. Once invitations went out it
+// can no longer be turned on, so the panel is left out, except to show why a
+// press from an older page was refused.
+function signupPanel(lang, { event, groups, state, today, tz, mailEnabled, error, value }) {
   const action = `/admin/events/${event.id}/signup`;
   const date = event.signupDeadline ? formatDate(lang, event.signupDeadline, tz) : null;
   const deadlineForm = (labelKey, buttonKey, fieldValue, primary) => html`<form method="post" action="${action}" class="stack">
@@ -165,16 +174,25 @@ ${dateInput('signup-deadline', 'deadline', t(lang, labelKey), fieldValue, { requ
 </form>`;
   let steps;
   if (state === 'off') {
-    const tooLate = groups.some(({ group }) => group.invitationsSentAt || group.openedAt);
-    steps = html`<p>${t(lang, 'admin.signup.intro')}</p>
-${tooLate ? html`<p class="muted">${t(lang, 'admin.signup.tooLate')}</p>` : deadlineForm('admin.signup.deadline', 'admin.signup.on', value, true)}`;
+    if (tooLateForSignup(groups)) {
+      if (!error) return '';
+      steps = '';
+    } else {
+      steps = html`<p>${t(lang, 'admin.signup.intro')}</p>
+${deadlineForm('admin.signup.deadline', 'admin.signup.on', value, true)}`;
+    }
   } else if (state === 'setup') {
-    steps = html`<p>${t(lang, 'admin.signup.setup', { date })}</p>
-<form method="post" action="${action}/send" class="stack">
+    // A closing date already over would open and close the sign-up at once,
+    // so sending waits for a new one.
+    const send = event.signupDeadline < today
+      ? html`<p class="notice warn">${t(lang, 'admin.signup.setupPassed')}</p>`
+      : html`<form method="post" action="${action}/send" class="stack">
 ${formToken()}
 <p class="hint">${t(lang, mailEnabled ? 'admin.signup.sendHint' : 'admin.signup.sendHintNoMail')}</p>
 <button type="submit" class="primary with-icon">${iconText('send', t(lang, 'admin.signup.send'))}</button>
-</form>
+</form>`;
+    steps = html`<p>${t(lang, 'admin.signup.setup', { date })}</p>
+${send}
 ${deadlineForm('admin.signup.newDeadline', 'admin.signup.move', value || event.signupDeadline, false)}
 ${stepForm('off', 'admin.signup.off', 'admin.signup.offHint')}
 ${answerLists(lang, groups, state)}`;
@@ -202,7 +220,7 @@ ${steps}
 // formPanel is the question list, which shows its own done notices next
 // to the list they are about.
 export function eventView(lang, {
-  event, groups, newGroup, themeValue, formPanel, tz, mailEnabled, signupState = 'off', error = null, groupError = null,
+  event, groups, newGroup, themeValue, formPanel, today, tz, mailEnabled, signupState = 'off', error = null, groupError = null,
   signupError = null, signupValue = '', done = null,
 }) {
   const title = event.name;
@@ -220,7 +238,7 @@ ${QUESTION_DONE.has(done) ? '' : doneNotice(lang, done)}
 <h2>${t(lang, 'admin.groups.title')}</h2>
 ${groupList}
 </section>
-${signupPanel(lang, { event, groups, state: signupState, tz, mailEnabled, error: signupError, value: signupValue })}
+${signupPanel(lang, { event, groups, state: signupState, today, tz, mailEnabled, error: signupError, value: signupValue })}
 <section class="panel">
 <h2>${t(lang, 'admin.groups.new')}</h2>
 ${errorNotice(lang, groupError)}
@@ -258,8 +276,9 @@ ${deleteForm(lang, `/admin/events/${event.id}/delete`, { label: t(lang, 'admin.e
 }
 
 // The last look before starting the draw: per group who stays and who is
-// removed, and which groups stay too small to pair.
-export function signupFinishView(lang, { event, groups, mailEnabled }) {
+// removed, which groups stay too small to pair, and which open for drawing
+// at once because their automatic opening day has come.
+export function signupFinishView(lang, { event, groups, today, mailEnabled }) {
   const title = t(lang, 'admin.signup.finish.title');
   const names = (people) => (people.length
     ? html`<ul>${people.map((p) => html`<li>${p.name}</li>`)}</ul>`
@@ -270,6 +289,7 @@ export function signupFinishView(lang, { event, groups, mailEnabled }) {
 ${groups.map(({ group, joining, leaving }) => html`<section class="panel">
 <h2>${group.name}</h2>
 ${joining.length < MIN_GROUP ? html`<p class="notice warn">${t(lang, 'admin.warning.below-minimum')}</p>` : ''}
+${group.autoOpenAt && group.autoOpenAt <= today ? html`<p class="notice warn">${t(lang, 'admin.signup.finish.opensAtOnce')}</p>` : ''}
 <h3>${t(lang, 'admin.signup.finish.joining')}</h3>
 ${names(joining)}
 <h3>${t(lang, 'admin.signup.finish.leaving')}</h3>
@@ -713,14 +733,16 @@ ${list}`;
 
 const DONE_OK = new Set([
   'saved', 'wishes-saved', 'link-regenerated', 'invite-queued', 'remind-queued', 'failed-requeued', 'all-requeued',
+  'signup-queued',
 ]);
 // Done, but with something left for the organiser to do.
+const SIGNUP_WARN = ['signup-active', 'signup-answered', 'signup-not-open'];
 const DONE_WARN = new Set([
   'nothing-to-remind', 'no-email', 'not-invited', 'mail-off', 'no-failure', 'already-queued', 'added-tell', 'removed-tell',
-  'already-imported',
+  'already-imported', ...SIGNUP_WARN,
 ]);
 export const PERSON_DONE = new Set([
-  ...DONE_OK, 'nothing-to-remind', 'no-email', 'not-invited', 'mail-off', 'no-failure', 'already-queued',
+  ...DONE_OK, 'nothing-to-remind', 'no-email', 'not-invited', 'mail-off', 'no-failure', 'already-queued', ...SIGNUP_WARN,
 ]);
 
 export function doneNotice(lang, done) {
@@ -781,26 +803,40 @@ function remindHint(lang, p, remindKind) {
   return t(lang, `admin.person.mail.remindHint.${remindKind}`);
 }
 
-function mailPanel(lang, { participant: p, mail, remindKind, mailEnabled, tz }) {
+// While the event signs up, invitations and reminders wait for the draw;
+// only the sign-up mail can go again, to someone who has not answered while
+// it is open.
+function mailButtons(lang, p, remindKind, signupState) {
+  const form = (path, icon, key) => html`<form method="post" action="/admin/participants/${p.id}/${path}" class="inline-form">
+<button type="submit" class="with-icon">${iconText(icon, t(lang, key))}</button>
+</form>`;
+  if (SIGNUP_ACTIVE.has(signupState)) {
+    const resend = signupState === 'open' && !p.signup;
+    return {
+      buttons: resend ? form('resend-signup', 'mail', 'admin.person.mail.resendSignup') : '',
+      hint: t(lang, resend ? 'admin.person.mail.resendSignupHint' : 'admin.person.mail.signupHint'),
+    };
+  }
+  return {
+    buttons: html`${form('resend-invite', 'mail', 'admin.person.mail.resendInvite')}
+${remindKind && p.invitedAt ? form('remind', 'bell', 'admin.person.mail.remind') : ''}`,
+    hint: remindHint(lang, p, remindKind),
+  };
+}
+
+function mailPanel(lang, { participant: p, mail, remindKind, mailEnabled, tz, signupState }) {
   let content;
   if (!p.email) content = html`<p class="muted">${t(lang, 'admin.person.mail.noEmail')}</p>`;
   else if (!mailEnabled) content = html`<p class="muted">${t(lang, 'admin.mailOff')}</p>`;
   else {
     const failure = mail.lastFailure;
-    const remind = remindKind && p.invitedAt
-      ? html`<form method="post" action="/admin/participants/${p.id}/remind" class="inline-form">
-<button type="submit" class="with-icon">${iconText('bell', t(lang, 'admin.person.mail.remind'))}</button>
-</form>`
-      : '';
+    const { buttons, hint } = mailButtons(lang, p, remindKind, signupState);
     content = html`${failure ? html`<p>${t(lang, 'admin.person.mail.failure')} ${failureText(lang, failure, tz)}</p>` : ''}
 <div class="button-row">
-<form method="post" action="/admin/participants/${p.id}/resend-invite" class="inline-form">
-<button type="submit" class="with-icon">${iconText('mail', t(lang, 'admin.person.mail.resendInvite'))}</button>
-</form>
-${remind}
+${buttons}
 ${failure && !failure.retrying ? resendFailedForm(lang, p.id) : ''}
 </div>
-<p class="hint">${remindHint(lang, p, remindKind)}</p>`;
+<p class="hint">${hint}</p>`;
   }
   return html`<section class="panel">
 <h2>${t(lang, 'admin.person.mail.title')}</h2>
@@ -864,9 +900,10 @@ ${card}
 
 // Shown while the event is signing up, so the organiser can record an
 // answer given to her in person.
-function signupPersonPanel(lang, p, state) {
+function signupPersonPanel(lang, p, state, error) {
   return html`<section class="panel" id="signup">
 <h2>${t(lang, 'admin.person.signup.title')}</h2>
+${errorNotice(lang, error)}
 <p>${t(lang, 'admin.person.signup.answer', { answer: answerText(lang, p, state) })}</p>
 ${setAnswerForm(lang, p, 'person')}
 </section>`;
@@ -874,7 +911,7 @@ ${setAnswerForm(lang, p, 'person')}
 
 export function participantView(lang, {
   participant, group, receiver, mail, link, remindKind, mailEnabled, tz, cardOutOfDate = false, signupState = 'off',
-  done = null, error = null, values = null, duplicate = null,
+  done = null, error = null, values = null, duplicate = null, signupError = null,
 }) {
   const title = participant.name;
   const behalf = behalfPanel(lang, { participant, group, receiver, cardOutOfDate, tz });
@@ -885,10 +922,10 @@ export function participantView(lang, {
 <h1>${title}</h1>
 ${doneNotice(lang, done)}
 ${personFacts(lang, { participant, group, receiver, tz })}
-${['setup', 'open', 'closed'].includes(signupState) ? signupPersonPanel(lang, participant, signupState) : ''}
+${SIGNUP_ACTIVE.has(signupState) ? signupPersonPanel(lang, participant, signupState, signupError) : errorNotice(lang, signupError)}
 ${first}
 ${linkPanel(lang, { participant, link, mailEnabled })}
-${mailPanel(lang, { participant, mail, remindKind, mailEnabled, tz })}
+${mailPanel(lang, { participant, mail, remindKind, mailEnabled, tz, signupState })}
 ${later}
 ${editPanel(lang, { participant, values, error, duplicate, mailEnabled })}
 <section class="panel danger">

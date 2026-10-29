@@ -3,7 +3,7 @@ import { signupDeadlineError } from '../limits.js';
 import { finishSignup, sendSignup } from '../people.js';
 import { joins, signupActive, signupState } from '../signup.js';
 import { todayIn } from '../time.js';
-import { signupFinishView } from '../views/admin.js';
+import { signupFinishView, tooLateForSignup } from '../views/admin.js';
 import { adminLang } from './admin-auth.js';
 import { field } from './admin-shared.js';
 
@@ -15,7 +15,7 @@ const ANSWERS = new Set(['yes', 'no']);
 // The event-wide sign-up step: one deadline, one send, one close for all
 // groups of the event.
 export function adminSignupRoutes(app, ctx, {
-  render, sendError, eventPage, loadEvent, loadParticipant, resubmitted, redirectDone,
+  render, sendError, eventPage, personPage, loadEvent, loadParticipant, resubmitted, redirectDone,
 }) {
   const { repo, config } = ctx;
 
@@ -37,9 +37,7 @@ export function adminSignupRoutes(app, ctx, {
     const deadline = field(request.body, 'deadline', 10).trim();
     if (!Object.hasOwn(DEADLINE_DONE, state)) return refuse(request, reply, event, 'state', 409);
     const groups = repo.listGroups(event.id);
-    // Invitations lead straight to the draw, so after them it is too late
-    // to ask who takes part.
-    if (state === 'off' && groups.some((g) => g.invitationsSentAt || g.openedAt)) {
+    if (state === 'off' && tooLateForSignup(groups.map((group) => ({ group, people: repo.listParticipants(group.id) })))) {
       return refuse(request, reply, event, 'invited', 400, deadline);
     }
     const code = signupDeadlineError(deadline, todayIn(ctx.now(), config.tz), groups);
@@ -91,6 +89,7 @@ export function adminSignupRoutes(app, ctx, {
       // requested result is already there.
       return redirectDone(request, reply, eventUrl(event));
     }
+    if (result.refused === 'passed') return refuse(request, reply, event, 'signup-passed', 409);
     if (result.refused) return refuse(request, reply, event, 'state', 409);
     request.log.info({ event_id: event.id, queued: result.queued, mail_enabled: ctx.mailer.enabled }, 'signup_sent');
     return redirectDone(request, reply, eventUrl(event, 'signup-sent'));
@@ -114,11 +113,16 @@ export function adminSignupRoutes(app, ctx, {
     const answer = request.body?.answer;
     if (!ANSWERS.has(answer)) return sendError(reply, 400, adminLang(request));
     const event = repo.getEvent(repo.getGroup(participant.groupId).eventId);
-    if (!signupActive(event, ctx.now(), config.tz)) return refuse(request, reply, event, 'state', 409);
+    const fromPerson = request.body?.back === 'person';
+    if (!signupActive(event, ctx.now(), config.tz)) {
+      if (!fromPerson) return refuse(request, reply, event, 'state', 409);
+      request.log.info({ event_id: event.id, reason: 'state' }, 'signup_refused');
+      const view = personPage(adminLang(request), participant, { signupError: 'admin.signup.error.state' });
+      return render(request, reply, view, 409);
+    }
     repo.updateParticipant(participant.id, { signup: answer, signupAt: ctx.nowIso() });
     request.log.info({ participant_id: participant.id, event_id: event.id }, 'signup_set');
-    const back = request.body?.back === 'person' ? `/admin/participants/${participant.id}` : `${eventUrl(event)}#signup`;
-    return reply.redirect(back, 303);
+    return reply.redirect(fromPerson ? `/admin/participants/${participant.id}` : `${eventUrl(event)}#signup`, 303);
   });
 
   function finishPage(request, reply, event) {
@@ -129,7 +133,8 @@ export function adminSignupRoutes(app, ctx, {
       const people = repo.listParticipants(group.id);
       return { group, joining: people.filter(joins), leaving: people.filter((p) => !joins(p)) };
     });
-    return render(request, reply, signupFinishView(adminLang(request), { event, groups, mailEnabled: ctx.mailer.enabled }));
+    const today = todayIn(ctx.now(), config.tz);
+    return render(request, reply, signupFinishView(adminLang(request), { event, groups, today, mailEnabled: ctx.mailer.enabled }));
   }
 
   app.get('/admin/events/:id/signup/finish', loadEvent, async (request, reply) => finishPage(request, reply, request.record));

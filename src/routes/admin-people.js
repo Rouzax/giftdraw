@@ -3,15 +3,12 @@ import { html } from '../html.js';
 import { isLang, t } from '../i18n/index.js';
 import {
   commitRemoveParticipant, drawFor, normaliseEmail, planRemoveParticipant, remindNow, resendFailed, resendInvite,
-  saveWishes,
+  resendSignup, saveWishes,
 } from '../people.js';
 import { NAME_MAX } from '../limits.js';
-import { wishForm } from '../questions.js';
-import { reminderKind } from '../reminders.js';
-import { signupState } from '../signup.js';
 import { cardOutOfDate } from '../status.js';
 import { newToken } from '../tokens.js';
-import { cardTools, messageView, PERSON_DONE, participantView, removeView } from '../views/admin.js';
+import { cardTools, messageView, PERSON_DONE, removeView } from '../views/admin.js';
 import { aboutFormView, cardView, resultView } from '../views/participant.js';
 import { adminLang } from './admin-auth.js';
 import { field, ID, parseJsonField } from './admin-shared.js';
@@ -27,32 +24,13 @@ const QR_LEVEL = 'M';
 const QR_CELL = 8;
 
 export function adminPeopleRoutes(app, ctx, {
-  render, renderBehalf, renderPrint, sendError, loadParticipant, resubmitted, redirectDone,
+  render, renderBehalf, renderPrint, sendError, loadParticipant, personPage, resubmitted, redirectDone,
 }) {
   const { repo, config } = ctx;
 
   const personUrl = (id, done) => `/admin/participants/${id}${done ? `?done=${done}` : ''}`;
   const personalLink = (participant) => `${config.appUrl}/p/${participant.token}`;
   const receiverOf = (participant) => (participant.receiverId ? repo.getParticipant(participant.receiverId) : null);
-
-  function personPage(lang, participant, extra = {}) {
-    const group = repo.getGroup(participant.groupId);
-    const event = repo.getEvent(group.eventId);
-    const receiver = receiverOf(participant);
-    return participantView(lang, {
-      participant,
-      group,
-      receiver,
-      cardOutOfDate: cardOutOfDate(participant, receiver, group, event),
-      mail: repo.mailStatus(participant.id),
-      link: personalLink(participant),
-      remindKind: reminderKind(participant, group, wishForm(event)),
-      mailEnabled: ctx.mailer.enabled,
-      tz: config.tz,
-      signupState: signupState(event, ctx.now(), config.tz),
-      ...extra,
-    });
-  }
 
   app.get('/admin/participants/:id', loadParticipant, async (request, reply) => {
     const done = PERSON_DONE.has(request.query?.done) ? request.query.done : null;
@@ -118,6 +96,7 @@ export function adminPeopleRoutes(app, ctx, {
   mailAction('resend-invite', resendInvite, 'invite_resent');
   mailAction('remind', remindNow, 'reminder_sent_manually');
   mailAction('resend-failed', resendFailed, 'failed_mail_requeued');
+  mailAction('resend-signup', resendSignup, 'signup_resent');
 
   // The SVG holds the link, which is a credential: it is never cached or logged.
   app.get('/admin/participants/:id/qr', loadParticipant, async (request, reply) => {

@@ -38,24 +38,27 @@ function closeSignups(ctx, now) {
 }
 
 // Reminders to answer and the one nudge after a no, for events whose
-// sign-up is still running; dueSignupMail checks that it is open.
+// sign-up is still running; dueSignupMail checks that it is open. Events and
+// participants each fail on their own, so one bad row holds up nobody else.
 function signupMails(ctx, now) {
   const { repo, config } = ctx;
   if (!mailOn(ctx)) return 0;
-  // Each row carries the participant's id so a failing row is logged by it.
-  const rows = repo.listSignupEvents().flatMap((event) =>
-    repo.listEventParticipants(event.id).map((participant) => ({ id: participant.id, participant, event })));
-  return eachRow(ctx, 'signup-mails', rows, 'participant_id', ({ participant, event }) => {
-    const due = dueSignupMail({
-      participant,
-      event,
-      history: repo.reminderHistory(participant.id, 'remind-signup'),
-      nudgeHistory: repo.reminderHistory(participant.id, 'signup-nudge'),
-      now,
-      tz: config.tz,
+  let queued = 0;
+  eachRow(ctx, 'signup-mails', repo.listSignupEvents(), 'event_id', (event) => {
+    queued += eachRow(ctx, 'signup-mails', repo.listEventParticipants(event.id), 'participant_id', (participant) => {
+      const due = dueSignupMail({
+        participant,
+        event,
+        history: repo.reminderHistory(participant.id, 'remind-signup'),
+        nudgeHistory: repo.reminderHistory(participant.id, 'signup-nudge'),
+        now,
+        tz: config.tz,
+      });
+      return due ? enqueueMail(ctx, participant.id, due, now.toISOString()) : false;
     });
-    return due ? enqueueMail(ctx, participant.id, due, now.toISOString()) : false;
+    return false;
   });
+  return queued;
 }
 
 function autoOpen(ctx, now) {
@@ -73,16 +76,25 @@ function autoOpen(ctx, now) {
   });
 }
 
+// Turning sign-up on is refused once anyone is invited, so nobody in an
+// event that is signing up has an invitation to be reminded of; the check
+// keeps it that way should such a row exist anyway.
 function reminders(ctx, now) {
   const { repo, config } = ctx;
   if (!mailOn(ctx)) return 0;
   const groups = new Map();
   const forms = new Map();
+  const signingUp = new Map();
   return eachRow(ctx, 'reminders', repo.listAllParticipants(), 'participant_id', (participant) => {
     if (!groups.has(participant.groupId)) groups.set(participant.groupId, repo.getGroup(participant.groupId));
     const group = groups.get(participant.groupId);
     if (!group) return false;
-    if (!forms.has(group.eventId)) forms.set(group.eventId, wishForm(repo.getEvent(group.eventId) ?? {}));
+    if (!forms.has(group.eventId)) {
+      const event = repo.getEvent(group.eventId);
+      forms.set(group.eventId, wishForm(event ?? {}));
+      signingUp.set(group.eventId, Boolean(event) && signupActive(event, now, config.tz));
+    }
+    if (signingUp.get(group.eventId)) return false;
     const form = forms.get(group.eventId);
     const kind = reminderKind(participant, group, form);
     if (!kind) return false;

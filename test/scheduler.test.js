@@ -460,8 +460,8 @@ test('sign-up reminders and the nudge go out once each, and reopening sends no m
   ].sort());
   assert.equal(ctx.repo.getEvent(event.id).signupClosedAt, '2026-11-20T23:00:00.000Z');
   const subjects = mails.map((m) => m.subject);
-  assert.ok(subjects.includes('Lootjes trekken: Nog 8 dagen: doe je mee met Gifts 2026?'), subjects.join('\n'));
-  assert.ok(subjects.includes('Lootjes trekken: Nog 3 dagen: doe je mee met Gifts 2026?'), subjects.join('\n'));
+  assert.ok(subjects.includes('Lootjes trekken: Nog 8 dagen om te zeggen of je meedoet aan Gifts 2026'), subjects.join('\n'));
+  assert.ok(subjects.includes('Lootjes trekken: Nog 3 dagen om te zeggen of je meedoet aan Gifts 2026'), subjects.join('\n'));
   assert.ok(subjects.includes('Lootjes trekken: Weet je het zeker?'), subjects.join('\n'));
 
   // The organiser reopens with a new deadline ten days on; the new slots
@@ -489,4 +489,33 @@ test('with mail off the tick queues no sign-up mails', async () => {
   clock.ms = Date.parse('2026-11-13T08:00:00.000Z');
   assert.equal((await tick(ctx)).signupMails, 0);
   assert.deepEqual(signupRows(db), []);
+});
+
+test('wish and draw reminders wait while the event is signing up', async () => {
+  const { ctx, clock, db, event } = await setup();
+  ctx.repo.updateEvent(event.id, { signupDeadline: '2026-11-20' }, ctx.nowIso());
+  clock.ms = WISHES_DUE;
+  assert.equal((await tick(ctx)).reminders, 0);
+  assert.equal(outboxRows(db, 'remind-wishes').length, 0);
+  ctx.repo.updateEvent(event.id, { signupDeadline: null }, ctx.nowIso());
+  assert.equal((await tick(ctx)).reminders, 3);
+});
+
+test('one event failing its sign-up mails does not stop another event', async () => {
+  const { ctx, clock, db, event, people, logs } = await signupSetup();
+  const seeded = seedGroup(ctx, { names: ['Eva', 'Fem', 'Gijs'], invited: false });
+  const now = ctx.nowIso();
+  ctx.repo.updateEvent(seeded.event.id, { signupDeadline: '2026-11-20', signupSentAt: now }, now);
+  for (const p of seeded.people) ctx.repo.updateParticipant(p.id, { signupInvitedAt: now });
+  const list = ctx.repo.listEventParticipants;
+  ctx.repo.listEventParticipants = (id) => {
+    if (id === event.id) throw new Error('boom');
+    return list(id);
+  };
+  clock.ms = Date.parse('2026-11-13T08:00:00.000Z');
+  assert.equal((await tick(ctx)).signupMails, 3);
+  assert.deepEqual(signupRows(db).map(([id]) => id), seeded.people.map((p) => p.id));
+  assert.ok(!signupRows(db).some(([id]) => people.some((p) => p.id === id)));
+  const errors = logLines(logs).filter((l) => l.msg === 'tick_row_error');
+  assert.deepEqual(errors.map((l) => [l.step, l.event_id]), [['signup-mails', event.id]]);
 });

@@ -47,6 +47,10 @@ test('signupDeadlineError', () => {
   assert.equal(signupDeadlineError('2026-10-31', '2026-11-01', groups), 'signup-past');
   assert.equal(signupDeadlineError('2026-12-10', '2026-11-01', groups), 'signup-after-exchange');
   assert.equal(signupDeadlineError('2027-01-01', '2026-11-01', []), null);
+  const opening = [{ exchangeDate: '2026-12-18', autoOpenAt: '2026-12-01' }, { exchangeDate: '2026-12-18', autoOpenAt: null }];
+  assert.equal(signupDeadlineError('2026-11-30', '2026-11-01', opening), null);
+  assert.equal(signupDeadlineError('2026-12-01', '2026-11-01', opening), 'signup-after-auto-open');
+  assert.equal(signupDeadlineError('2026-12-05', '2026-11-01', opening), 'signup-after-auto-open');
 });
 
 test('the repo stores sign-up fields without moving card timestamps', async (t) => {
@@ -76,6 +80,10 @@ const NONE = { count: 0, lastAt: null };
 const ONE = { count: 1, lastAt: '2026-11-13T08:00:30.000Z' };
 const TWO = { count: 2, lastAt: '2026-11-18T08:00:30.000Z' };
 const SAID_NO = { ...ASKED, signup: 'no', signupAt: '2026-11-15T12:00:00.000Z' };
+const DST = {
+  event: { signupDeadline: '2027-04-02', signupSentAt: '2027-03-20T10:00:00.000Z' },
+  participant: { signupInvitedAt: '2027-03-20T10:00:00.000Z' },
+};
 
 const DUE = [
   ['nothing on deadline-8', {}, '2026-11-12T08:00:00.000Z', NONE, NONE, null],
@@ -113,6 +121,24 @@ const DUE = [
   ['answered no: never a second nudge', { participant: SAID_NO }, '2026-11-19T08:00:00.000Z', NONE, { count: 1, lastAt: 'x' }, null],
   ['answered no after 09:00 on deadline-2: no nudge',
     { participant: { ...SAID_NO, signupAt: '2026-11-18T08:30:00.000Z' } }, '2026-11-18T10:00:00.000Z', NONE, NONE, null],
+  ['sent at 08:30 on deadline-2 to someone who said no at once: no nudge at 09:00',
+    { event: { signupSentAt: '2026-11-18T07:30:00.000Z' },
+      participant: { ...SAID_NO, signupInvitedAt: '2026-11-18T07:30:00.000Z', signupAt: '2026-11-18T07:45:00.000Z' } },
+    '2026-11-18T08:00:00.000Z', NONE, NONE, null],
+  ['added at 08:30 on deadline-2 and said no at once: no nudge at 09:00',
+    { participant: { ...SAID_NO, signupInvitedAt: '2026-11-18T07:30:00.000Z', signupAt: '2026-11-18T07:45:00.000Z' } },
+    '2026-11-18T08:00:00.000Z', NONE, NONE, null],
+  ['asked the day before deadline-2 and said no: a nudge at 09:00',
+    { participant: { ...SAID_NO, signupInvitedAt: '2026-11-17T10:00:00.000Z', signupAt: '2026-11-17T12:00:00.000Z' } },
+    '2026-11-18T08:00:00.000Z', NONE, NONE, 'signup-nudge'],
+  // Summer time starts on 28 March 2027: 09:00 Amsterdam is 08:00Z on
+  // deadline-7 (26 March) and 07:00Z on deadline-2 (31 March).
+  ['across summer time: nothing at 07:59Z on deadline-7', DST, '2027-03-26T07:59:00.000Z', NONE, NONE, null],
+  ['across summer time: a reminder at 08:00Z on deadline-7', DST, '2027-03-26T08:00:00.000Z', NONE, NONE, 'remind-signup'],
+  ['across summer time: nothing at 06:59Z on deadline-2', DST, '2027-03-31T06:59:00.000Z',
+    { count: 1, lastAt: '2027-03-26T08:00:30.000Z' }, NONE, null],
+  ['across summer time: a reminder at 07:00Z on deadline-2', DST, '2027-03-31T07:00:00.000Z',
+    { count: 1, lastAt: '2027-03-26T08:00:30.000Z' }, NONE, 'remind-signup'],
   ['closed: nothing', { event: { signupClosedAt: '2026-11-12T10:00:00.000Z' } }, '2026-11-13T08:00:00.000Z', NONE, NONE, null],
   ['closed: no nudge', { event: { signupClosedAt: '2026-11-17T10:00:00.000Z' }, participant: SAID_NO },
     '2026-11-18T08:00:00.000Z', NONE, NONE, null],
