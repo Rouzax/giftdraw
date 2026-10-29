@@ -1,8 +1,9 @@
 import { hasWishes, readAnswers, wishLines } from '../answers.js';
 import { html, raw } from '../html.js';
 import { icon, iconInline } from '../icons.js';
-import { exchangeLine, LANGS, t, themeText } from '../i18n/index.js';
+import { exchangeLine, formatDate, LANGS, t, themeText } from '../i18n/index.js';
 import { detailPrompt, endsInMark, questionText, wishForm } from '../questions.js';
+import { joins } from '../signup.js';
 
 // Fragments take their links and form targets as arguments so the organiser
 // can show the same screens inside the admin shell when acting on behalf.
@@ -61,6 +62,53 @@ ${themeBlock({ event, group, lang, tz })}
 <a class="button" href="${editHref}">${iconInline('pencil', t(lang, 'waiting.edit'))}</a>
 ${footer({ lang, langAction, showLangSwitch })}`;
   return { title: t(lang, 'waiting.title'), body };
+}
+
+function answerForm(lang, action, buttons) {
+  return html`<form method="post" action="${action}">
+${buttons.map(({ answer, key, primary }) => html`<button type="submit" class="button${primary ? '' : ' secondary'}" name="answer" value="${answer}">${t(lang, key)}</button>`)}
+</form>`;
+}
+
+// The sign-up step before the draw, by its state. ask is the answer the mail
+// link suggested (?a=); it only puts that button first, because a mail
+// scanner opens the same link without anyone choosing.
+export function signupView({
+  participant, event, group, lang, tz, state, ask = null, signupAction, langAction, showLangSwitch,
+}) {
+  let content;
+  if (state === 'setup') {
+    content = html`<p class="lead">${t(lang, 'signup.setup')}</p>
+${themeBlock({ event, group, lang, tz })}`;
+  } else if (state === 'closed') {
+    // Not answering counts as not joining once sign-up has closed.
+    const joined = joins(participant);
+    content = html`<p class="lead">${t(lang, 'signup.closed')}</p>
+<p class="answer">${t(lang, joined ? 'signup.joined' : 'signup.notJoined')}</p>
+<p>${t(lang, joined ? 'signup.askToLeave' : 'signup.askToJoin')}</p>
+${themeBlock({ event, group, lang, tz })}`;
+  } else {
+    let buttons;
+    if (participant.signup) {
+      const other = participant.signup === 'yes' ? 'no' : 'yes';
+      buttons = [{ answer: other, key: other === 'yes' ? 'signup.switchToYes' : 'signup.switchToNo', primary: false }];
+    } else {
+      const order = ask === 'no' ? ['no', 'yes'] : ['yes', 'no'];
+      buttons = order.map((answer, i) => ({ answer, key: `signup.${answer}`, primary: !ask || i === 0 }));
+    }
+    const answered = participant.signup
+      ? html`<p class="answer">${t(lang, joins(participant) ? 'signup.joined' : 'signup.notJoined')}</p>`
+      : '';
+    content = html`<p class="lead">${t(lang, 'signup.question', { event: event.name })}</p>
+${answered}
+${themeBlock({ event, group, lang, tz })}
+<p>${t(lang, 'signup.deadline', { date: formatDate(lang, event.signupDeadline, tz) })}</p>
+${answerForm(lang, signupAction, buttons)}`;
+  }
+  const body = html`<h1>${t(lang, 'welcome.greeting', { name: participant.name })}</h1>
+${content}
+${footer({ lang, langAction, showLangSwitch })}`;
+  return { title: t(lang, 'signup.title'), body };
 }
 
 // Enough rows to show prefilled text whole, so no line sits half under the

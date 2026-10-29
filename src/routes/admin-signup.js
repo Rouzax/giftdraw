@@ -1,18 +1,22 @@
 import { makeCycle } from '../draw/cycle.js';
 import { signupDeadlineError } from '../limits.js';
-import { sendSignup } from '../people.js';
-import { signupState } from '../signup.js';
+import { finishSignup, sendSignup } from '../people.js';
+import { joins, signupActive, signupState } from '../signup.js';
 import { todayIn } from '../time.js';
+import { signupFinishView } from '../views/admin.js';
 import { adminLang } from './admin-auth.js';
 import { field } from './admin-shared.js';
 
 const MIN_GROUP = 3;
 // The done notice each deadline post leads to, by the state it started in.
 const DEADLINE_DONE = { off: 'signup-on', setup: 'signup-moved', open: 'signup-moved', closed: 'signup-reopened' };
+const ANSWERS = new Set(['yes', 'no']);
 
 // The event-wide sign-up step: one deadline, one send, one close for all
 // groups of the event.
-export function adminSignupRoutes(app, ctx, { render, eventPage, loadEvent, resubmitted, redirectDone }) {
+export function adminSignupRoutes(app, ctx, {
+  render, sendError, eventPage, loadEvent, loadParticipant, resubmitted, redirectDone,
+}) {
   const { repo, config } = ctx;
 
   const stateOf = (event) => signupState(event, ctx.now(), config.tz);
@@ -61,7 +65,7 @@ export function adminSignupRoutes(app, ctx, { render, eventPage, loadEvent, resu
   app.post('/admin/events/:id/signup/off', loadEvent, async (request, reply) => {
     const event = request.record;
     const state = stateOf(event);
-    // A second press finds sign-up already off: what she asked for.
+    // A second press finds sign-up already off, which is the requested result.
     if (state === 'off') return reply.redirect(eventUrl(event), 303);
     if (state !== 'setup') return refuse(request, reply, event, 'state', 409);
     const now = ctx.nowIso();
@@ -83,8 +87,8 @@ export function adminSignupRoutes(app, ctx, { render, eventPage, loadEvent, resu
     const event = request.record;
     const result = sendSignup(ctx, event.id);
     if (result.refused === 'open' || result.refused === 'closed') {
-      // A press from a page loaded before the sign-up went out: what she
-      // asked for has happened.
+      // A press from a page loaded before the sign-up went out: the
+      // requested result is already there.
       return redirectDone(request, reply, eventUrl(event));
     }
     if (result.refused) return refuse(request, reply, event, 'state', 409);
@@ -100,5 +104,49 @@ export function adminSignupRoutes(app, ctx, { render, eventPage, loadEvent, resu
     repo.updateEvent(event.id, { signupClosedAt: ctx.nowIso() }, ctx.nowIso());
     request.log.info({ event_id: event.id, by: 'organiser' }, 'signup_closed');
     return reply.redirect(eventUrl(event, 'signup-closed'), 303);
+  });
+
+  // The organiser records an answer given to her, from the sign-up lists or
+  // the person page. back returns to one of those two pages only, so the
+  // field cannot be used as an open redirect.
+  app.post('/admin/participants/:id/signup', loadParticipant, async (request, reply) => {
+    const participant = request.record;
+    const answer = request.body?.answer;
+    if (!ANSWERS.has(answer)) return sendError(reply, 400, adminLang(request));
+    const event = repo.getEvent(repo.getGroup(participant.groupId).eventId);
+    if (!signupActive(event, ctx.now(), config.tz)) return refuse(request, reply, event, 'state', 409);
+    repo.updateParticipant(participant.id, { signup: answer, signupAt: ctx.nowIso() });
+    request.log.info({ participant_id: participant.id, event_id: event.id }, 'signup_set');
+    const back = request.body?.back === 'person' ? `/admin/participants/${participant.id}` : `${eventUrl(event)}#signup`;
+    return reply.redirect(back, 303);
+  });
+
+  function finishPage(request, reply, event) {
+    const state = stateOf(event);
+    if (state === 'done') return reply.redirect(eventUrl(event), 303);
+    if (state !== 'closed') return refuse(request, reply, event, 'state', 409);
+    const groups = repo.listGroups(event.id).map((group) => {
+      const people = repo.listParticipants(group.id);
+      return { group, joining: people.filter(joins), leaving: people.filter((p) => !joins(p)) };
+    });
+    return render(request, reply, signupFinishView(adminLang(request), { event, groups, mailEnabled: ctx.mailer.enabled }));
+  }
+
+  app.get('/admin/events/:id/signup/finish', loadEvent, async (request, reply) => finishPage(request, reply, request.record));
+
+  // Removing people cannot be undone, so the post acts only with the ticked
+  // confirmation; without it the confirmation page comes back.
+  app.post('/admin/events/:id/signup/finish', loadEvent, async (request, reply) => {
+    const again = resubmitted(request, reply);
+    if (again) return again;
+    const event = request.record;
+    if (request.body?.confirm !== '1') return finishPage(request, reply, event);
+    const result = finishSignup(ctx, event.id);
+    if (result.refused === 'done') return redirectDone(request, reply, eventUrl(event));
+    if (result.refused) return refuse(request, reply, event, 'state', 409);
+    request.log.info({
+      event_id: event.id, joined: result.joined, removed: result.removed, groups_unpaired: result.unpairedGroupIds.length,
+    }, 'signup_finished');
+    return redirectDone(request, reply, eventUrl(event, 'signup-done'));
   });
 }

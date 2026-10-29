@@ -3,6 +3,7 @@ import { iconText } from '../icons.js';
 import { exchangeWhen, formatDate, LANGS, t } from '../i18n/index.js';
 import { NAME_MAX, PLACE_MAX, THEME_MAX } from '../limits.js';
 import { PASTE_TEXT_MAX } from '../people.js';
+import { joins } from '../signup.js';
 import { newFormToken } from '../submit-log.js';
 
 const LOCALES = { nl: 'nl-NL', en: 'en-GB' };
@@ -111,6 +112,44 @@ ${formToken()}
 </section>`;
 }
 
+function answerText(lang, p, state) {
+  if (p.signup) return t(lang, `admin.signup.answer.${p.signup}`);
+  return t(lang, state === 'closed' ? 'admin.signup.answer.noneClosed' : 'admin.signup.answer.none');
+}
+
+// back names the page to return to: 'event' or 'person'.
+function setAnswerForm(lang, p, back) {
+  const button = (answer, key) => (p.signup === answer ? '' : html`<button type="submit" name="answer" value="${answer}">${t(lang, key)}</button>`);
+  return html`<form method="post" action="/admin/participants/${p.id}/signup" class="inline-form">
+<input type="hidden" name="back" value="${back}">
+${button('yes', 'admin.signup.setYes')}
+${button('no', 'admin.signup.setNo')}
+</form>`;
+}
+
+// Per group: the counts, and everyone with their answer. Before sending
+// nobody could answer yet, so the too-small warning waits until then.
+function answerLists(lang, groups, state) {
+  return groups.map(({ group, people }) => {
+    const yes = people.filter(joins).length;
+    const no = people.filter((p) => p.signup === 'no').length;
+    const counts = state === 'closed'
+      ? t(lang, 'admin.signup.countsClosed', { yes, no: people.length - yes })
+      : t(lang, 'admin.signup.counts', { yes, no, none: people.length - yes - no });
+    const warn = state !== 'setup' && yes < MIN_GROUP
+      ? html`<p class="notice warn">${t(lang, 'admin.warning.below-minimum')}</p>`
+      : '';
+    return html`<h3>${group.name}</h3>
+<p>${counts}</p>
+${warn}
+<ul class="group-list">${people.map((p) => html`<li>
+<a href="/admin/participants/${p.id}">${p.name}</a>
+<span class="muted">${answerText(lang, p, state)}</span>
+${setAnswerForm(lang, p, 'event')}
+</li>`)}</ul>`;
+  });
+}
+
 // The sign-up step of the whole event. Each state shows where it stands and
 // only the steps that are possible from there.
 function signupPanel(lang, { event, groups, state, tz, mailEnabled, error, value }) {
@@ -137,13 +176,18 @@ ${formToken()}
 <button type="submit" class="primary with-icon">${iconText('send', t(lang, 'admin.signup.send'))}</button>
 </form>
 ${deadlineForm('admin.signup.newDeadline', 'admin.signup.move', value || event.signupDeadline, false)}
-${stepForm('off', 'admin.signup.off', 'admin.signup.offHint')}`;
+${stepForm('off', 'admin.signup.off', 'admin.signup.offHint')}
+${answerLists(lang, groups, state)}`;
   } else if (state === 'open') {
     steps = html`<p>${t(lang, 'admin.signup.open', { date })}</p>
 ${deadlineForm('admin.signup.newDeadline', 'admin.signup.move', value || event.signupDeadline, false)}
+${answerLists(lang, groups, state)}
 ${stepForm('close', 'admin.signup.close', 'admin.signup.closeHint')}`;
   } else if (state === 'closed') {
     steps = html`<p>${t(lang, 'admin.signup.closed')}</p>
+${answerLists(lang, groups, state)}
+<p class="hint">${t(lang, 'admin.signup.finishHint')}</p>
+<p><a class="button-link" href="${action}/finish">${t(lang, 'admin.signup.finish')}</a></p>
 ${deadlineForm('admin.signup.newDeadline', 'admin.signup.reopen', value, false)}`;
   } else {
     steps = html`<p>${t(lang, 'admin.signup.done')}</p>`;
@@ -210,6 +254,34 @@ ${formPanel}
 <p><a class="button-link with-icon" href="/admin/events/${event.id}/export" download>${iconText('download', t(lang, 'admin.event.export'))}</a></p>
 </section>
 ${deleteForm(lang, `/admin/events/${event.id}/delete`, { label: t(lang, 'admin.event.delete'), warning: t(lang, 'admin.event.deleteWarning') })}`;
+  return { title, body };
+}
+
+// The last look before starting the draw: per group who stays and who is
+// removed, and which groups stay too small to pair.
+export function signupFinishView(lang, { event, groups, mailEnabled }) {
+  const title = t(lang, 'admin.signup.finish.title');
+  const names = (people) => (people.length
+    ? html`<ul>${people.map((p) => html`<li>${p.name}</li>`)}</ul>`
+    : html`<p class="muted">${t(lang, 'admin.signup.finish.nobody')}</p>`);
+  const body = html`${backLink(`/admin/events/${event.id}#signup`, t(lang, 'admin.signup.finish.back'))}
+<h1>${title}</h1>
+<p>${t(lang, mailEnabled ? 'admin.signup.finish.intro' : 'admin.signup.finish.introNoMail')}</p>
+${groups.map(({ group, joining, leaving }) => html`<section class="panel">
+<h2>${group.name}</h2>
+${joining.length < MIN_GROUP ? html`<p class="notice warn">${t(lang, 'admin.warning.below-minimum')}</p>` : ''}
+<h3>${t(lang, 'admin.signup.finish.joining')}</h3>
+${names(joining)}
+<h3>${t(lang, 'admin.signup.finish.leaving')}</h3>
+${names(leaving)}
+</section>`)}
+<section class="panel">
+<form method="post" action="/admin/events/${event.id}/signup/finish" class="stack">
+${formToken()}
+<label class="check"><input type="checkbox" name="confirm" value="1" required> <span>${t(lang, 'admin.delete.confirm')}</span></label>
+<button type="submit" class="primary">${t(lang, 'admin.signup.finish.confirm')}</button>
+</form>
+</section>`;
   return { title, body };
 }
 
@@ -413,7 +485,7 @@ export const GROUP_DONE = new Set([
 export const QUESTION_DONE = new Set(['question-added', 'question-saved', 'question-removed']);
 export const EVENT_DONE = new Set([
   'event-created', 'saved', 'imported', 'already-imported', 'signup-on', 'signup-off', 'signup-moved', 'signup-sent',
-  'signup-closed', 'signup-reopened', ...QUESTION_DONE,
+  'signup-closed', 'signup-reopened', 'signup-done', ...QUESTION_DONE,
 ]);
 
 // Mail still being retried goes out by itself, so only given-up mail counts.
@@ -790,8 +862,18 @@ ${card}
 </section>`;
 }
 
+// Shown while the event is signing up, so the organiser can record an
+// answer given to her in person.
+function signupPersonPanel(lang, p, state) {
+  return html`<section class="panel" id="signup">
+<h2>${t(lang, 'admin.person.signup.title')}</h2>
+<p>${t(lang, 'admin.person.signup.answer', { answer: answerText(lang, p, state) })}</p>
+${setAnswerForm(lang, p, 'person')}
+</section>`;
+}
+
 export function participantView(lang, {
-  participant, group, receiver, mail, link, remindKind, mailEnabled, tz, cardOutOfDate = false,
+  participant, group, receiver, mail, link, remindKind, mailEnabled, tz, cardOutOfDate = false, signupState = 'off',
   done = null, error = null, values = null, duplicate = null,
 }) {
   const title = participant.name;
@@ -803,6 +885,7 @@ export function participantView(lang, {
 <h1>${title}</h1>
 ${doneNotice(lang, done)}
 ${personFacts(lang, { participant, group, receiver, tz })}
+${['setup', 'open', 'closed'].includes(signupState) ? signupPersonPanel(lang, participant, signupState) : ''}
 ${first}
 ${linkPanel(lang, { participant, link, mailEnabled })}
 ${mailPanel(lang, { participant, mail, remindKind, mailEnabled, tz })}

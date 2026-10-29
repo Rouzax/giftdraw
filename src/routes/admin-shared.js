@@ -112,7 +112,10 @@ export function adminShared(ctx, { sendPage, sendError }) {
 
   function eventPage(lang, event, extra = {}) {
     const today = todayIn(ctx.now(), config.tz);
-    const groups = repo.listGroups(event.id).map((group) => ({ group, size: repo.listParticipants(group.id).length }));
+    const groups = repo.listGroups(event.id).map((group) => {
+      const people = repo.listParticipants(group.id);
+      return { group, people, size: people.length };
+    });
     const latest = repo.latestGroup(event.id);
     const newGroup = {
       name: '',

@@ -5,7 +5,7 @@ import { NAME_MAX } from './limits.js';
 import { kickDrain } from './mail/outbox.js';
 import { wishForm } from './questions.js';
 import { reminderKind } from './reminders.js';
-import { signupActive, signupState } from './signup.js';
+import { joins, signupActive, signupState } from './signup.js';
 import { assignmentVersion } from './status.js';
 import { clipText, unixLines } from './text.js';
 
@@ -434,6 +434,42 @@ export function sendSignup(ctx, eventId) {
     return { queued: askToSignUp(ctx, repo.listEventParticipants(eventId), now) };
   });
   if (result.queued) kickDrain(ctx);
+  return result;
+}
+
+// Starts the draw for the whole event: everyone who does not join is
+// removed, each group is paired from who is left, and the sign-up is done.
+// One transaction with the state check, so a second press finds it done.
+// Invitations follow for every group, as they would without sign-up.
+// Returns {joined, removed, unpairedGroupIds} or {refused: state}.
+export function finishSignup(ctx, eventId) {
+  const { repo } = ctx;
+  const now = ctx.nowIso();
+  const result = repo.tx(() => {
+    const state = signupState(repo.getEvent(eventId), ctx.now(), ctx.config.tz);
+    if (state !== 'closed') return { refused: state };
+    let joined = 0;
+    let removed = 0;
+    const unpairedGroupIds = [];
+    for (const group of repo.listGroups(eventId)) {
+      const people = repo.listParticipants(group.id);
+      // Nobody is paired while sign-up runs, so no giver points at someone
+      // removed here.
+      for (const p of people.filter((person) => !joins(person))) {
+        repo.removeParticipantWithAssignment(p.id, null, now);
+        removed += 1;
+      }
+      const ids = people.filter(joins).map((p) => p.id);
+      joined += ids.length;
+      if (ids.length >= MIN_GROUP) repo.setAssignment(group.id, makeCycle(ids), now);
+      else unpairedGroupIds.push(group.id);
+    }
+    repo.updateEvent(eventId, { signupDoneAt: now }, now);
+    return { joined, removed, unpairedGroupIds };
+  });
+  if (result.refused) return result;
+  const queued = repo.listGroups(eventId).reduce((sum, group) => sum + (sendInvitations(ctx, group.id).queued ?? 0), 0);
+  if (queued) kickDrain(ctx);
   return result;
 }
 

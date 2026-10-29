@@ -396,3 +396,131 @@ test('while sign-up is active a group cannot exchange on or before the closing d
   const later = await t.adminPost(`/admin/events/${eventId}/groups`, { name: 'Woensdag', exchangeDate: '2026-11-21', autoOpenAt: '' });
   assert.equal(later.statusCode, 303);
 });
+
+const answerAs = (t, p, value) => t.post(`/p/${p.token}/signup`, { answer: value });
+
+// Group A: four yes, one no, one without an answer. Group B: two yes.
+async function answeredAndClosed(t) {
+  const { eventId, groupIds: [a, b] } = await eventWithGroups(t, [6, 2]);
+  await turnOn(t, eventId);
+  await send(t, eventId);
+  const [ada, ben, cor, dirk, eva, fem] = people(t, a);
+  for (const p of [ada, ben, cor, dirk, ...people(t, b)]) assert.equal((await answerAs(t, p, 'yes')).statusCode, 303);
+  assert.equal((await answerAs(t, eva, 'no')).statusCode, 303);
+  await t.adminPost(`/admin/events/${eventId}/signup/close`);
+  return { eventId, a, b, eva, fem };
+}
+
+test('the sign-up panel lists each group with its answers and a button to change each', async () => {
+  const t = await setup();
+  const { eventId, groupIds: [a] } = await eventWithGroups(t, [4]);
+  await turnOn(t, eventId);
+  await send(t, eventId);
+  const [ada, ben] = people(t, a);
+  await answerAs(t, ada, 'yes');
+  await answerAs(t, ben, 'no');
+  const open = await t.adminGet(`/admin/events/${eventId}`);
+  assert.ok(open.body.includes(escape(tr('nl', 'admin.signup.counts', { yes: 1, no: 1, none: 2 }))));
+  assert.ok(open.body.includes(escape(tr('nl', 'admin.warning.below-minimum'))));
+  for (const p of people(t, a)) assert.ok(open.body.includes(`action="/admin/participants/${p.id}/signup"`));
+  assert.ok(open.body.includes('name="back" value="event"'));
+
+  await t.adminPost(`/admin/events/${eventId}/signup/close`);
+  const closed = await t.adminGet(`/admin/events/${eventId}`);
+  assert.ok(closed.body.includes(escape(tr('nl', 'admin.signup.countsClosed', { yes: 1, no: 3 }))));
+  assert.ok(closed.body.includes(`href="/admin/events/${eventId}/signup/finish"`));
+});
+
+test('the organiser sets someone who did not answer to yes after closing', async () => {
+  const t = await setup();
+  const { eventId, fem } = await answeredAndClosed(t);
+  const res = await t.adminPost(`/admin/participants/${fem.id}/signup`, { answer: 'yes', back: 'event' });
+  assert.equal(res.statusCode, 303);
+  assert.equal(res.headers.location, `/admin/events/${eventId}#signup`);
+  assert.equal(t.ctx.repo.getParticipant(fem.id).signup, 'yes');
+  assert.ok(t.ctx.repo.getParticipant(fem.id).signupAt);
+  const line = msgs(t).find((l) => l.msg === 'signup_set');
+  assert.equal(line.participant_id, fem.id);
+
+  const page = await t.adminGet(`/admin/participants/${fem.id}`);
+  assert.ok(page.body.includes(`action="/admin/participants/${fem.id}/signup"`));
+  assert.ok(page.body.includes('name="back" value="person"'));
+  const back = await t.adminPost(`/admin/participants/${fem.id}/signup`, { answer: 'no', back: 'person' });
+  assert.equal(back.headers.location, `/admin/participants/${fem.id}`);
+  assert.equal(t.ctx.repo.getParticipant(fem.id).signup, 'no');
+  const elsewhere = await t.adminPost(`/admin/participants/${fem.id}/signup`, { answer: 'yes', back: 'https://example.org' });
+  assert.equal(elsewhere.headers.location, `/admin/events/${eventId}#signup`);
+  const bad = await t.adminPost(`/admin/participants/${fem.id}/signup`, { answer: 'maybe' });
+  assert.equal(bad.statusCode, 400);
+});
+
+test('the organiser cannot set an answer when sign-up is off', async () => {
+  const t = await setup();
+  const { groupIds: [a] } = await eventWithGroups(t, [3]);
+  const [ada] = people(t, a);
+  const res = await t.adminPost(`/admin/participants/${ada.id}/signup`, { answer: 'yes' });
+  assert.equal(res.statusCode, 409);
+  assert.equal(t.ctx.repo.getParticipant(ada.id).signup, null);
+  const page = await t.adminGet(`/admin/participants/${ada.id}`);
+  assert.ok(!page.body.includes(`action="/admin/participants/${ada.id}/signup"`));
+});
+
+test('starting the draw removes who does not join, pairs the rest and invites them', async () => {
+  const t = await setup();
+  const { eventId, a, b, eva, fem } = await answeredAndClosed(t);
+  const below = escape(tr('nl', 'admin.warning.below-minimum'));
+
+  const preview = await t.adminGet(`/admin/events/${eventId}/signup/finish`);
+  assert.equal(preview.statusCode, 200);
+  const removed = preview.body.split(escape(tr('nl', 'admin.signup.finish.leaving')))[1];
+  assert.ok(removed.includes('Eva') && removed.includes('Fem'));
+  assert.equal(preview.body.split(below).length - 1, 1);
+  assert.ok(preview.body.includes(`action="/admin/events/${eventId}/signup/finish"`));
+  assert.ok(preview.body.includes('name="confirm"'));
+
+  const unconfirmed = await t.adminPost(`/admin/events/${eventId}/signup/finish`, { formToken: newFormToken() });
+  assert.equal(unconfirmed.statusCode, 200);
+  assert.ok(unconfirmed.body.includes(below));
+  assert.equal(people(t, a).length, 6);
+  assert.equal(event(t, eventId).signupDoneAt, null);
+
+  const formToken = newFormToken();
+  const res = await t.adminPost(`/admin/events/${eventId}/signup/finish`, { formToken, confirm: '1' });
+  assert.equal(res.statusCode, 303, res.body);
+  assert.equal(res.headers.location, `/admin/events/${eventId}?done=signup-done`);
+
+  const inA = people(t, a);
+  assert.equal(inA.length, 4);
+  assert.ok(validateAssignment(t.ctx.repo.getAssignment(a), inA.map((p) => p.id)));
+  const inB = people(t, b);
+  assert.equal(inB.length, 2);
+  assert.ok(inB.every((p) => p.receiverId === null));
+  for (const gone of [eva, fem]) assert.equal((await t.app.inject(`/p/${gone.token}`)).statusCode, 404);
+  const remaining = [...inA, ...inB];
+  assert.deepEqual(rows(t, 'invite'), remaining.map((p) => p.id));
+  assert.ok(event(t, eventId).signupDoneAt);
+  assert.equal(state(t, eventId), 'done');
+  const line = msgs(t).find((l) => l.msg === 'signup_finished');
+  assert.deepEqual([line.joined, line.removed, line.groups_unpaired], [6, 2, 1]);
+
+  const again = await t.adminPost(`/admin/events/${eventId}/signup/finish`, { formToken, confirm: '1' });
+  assert.equal(again.headers.location, res.headers.location);
+  assert.equal(rows(t, 'invite').length, remaining.length);
+  assert.equal(msgs(t).filter((l) => l.msg === 'signup_finished').length, 1);
+
+  const page = await t.adminGet(`/admin/events/${eventId}?done=signup-done`);
+  assert.ok(page.body.includes(escape(tr('nl', 'admin.person.done.signup-done'))));
+  assert.equal(openGroup(t.ctx, a).opened, true);
+});
+
+test('starting the draw is refused while sign-up is still open', async () => {
+  const t = await setup();
+  const { eventId, groupIds: [a] } = await eventWithGroups(t, [3]);
+  await turnOn(t, eventId);
+  await send(t, eventId);
+  const res = await t.adminPost(`/admin/events/${eventId}/signup/finish`, { formToken: newFormToken(), confirm: '1' });
+  assert.equal(res.statusCode, 409);
+  assert.equal(people(t, a).length, 3);
+  assert.equal(event(t, eventId).signupDoneAt, null);
+  assert.equal((await t.adminGet(`/admin/events/${eventId}/signup/finish`)).statusCode, 409);
+});

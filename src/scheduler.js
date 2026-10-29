@@ -4,7 +4,7 @@ import { drainOutbox, errorCode } from './mail/outbox.js';
 import { enqueueMail, mailOn } from './people.js';
 import { wishForm } from './questions.js';
 import { dueReminder, reminderKind } from './reminders.js';
-import { signupActive } from './signup.js';
+import { closesAt, signupActive } from './signup.js';
 import { instantAt, todayIn } from './time.js';
 
 const AUTO_OPEN_AT = '09:00';
@@ -22,6 +22,19 @@ function eachRow(ctx, step, rows, idField, fn) {
     }
   }
   return count;
+}
+
+// The sign-up state already reads as closed once the deadline day is over;
+// the stamp records that moment and takes the event off the list the
+// scheduler checks for sign-up work.
+function closeSignups(ctx, now) {
+  const { repo, config } = ctx;
+  return eachRow(ctx, 'signup-close', repo.listSignupEvents(), 'event_id', (event) => {
+    if (now < closesAt(event.signupDeadline, config.tz)) return false;
+    repo.updateEvent(event.id, { signupClosedAt: now.toISOString() }, now.toISOString());
+    ctx.log.info({ event_id: event.id, by: 'deadline' }, 'signup_closed');
+    return true;
+  });
 }
 
 function autoOpen(ctx, now) {
@@ -112,9 +125,10 @@ function cleanup(ctx, now) {
 export async function tick(ctx) {
   const started = performance.now();
   const now = ctx.now();
-  const result = { opened: 0, reminders: 0, wishUpdates: 0, deleted: 0 };
+  const result = { signupClosed: 0, opened: 0, reminders: 0, wishUpdates: 0, deleted: 0 };
   let outcome = 'error';
   try {
+    result.signupClosed = closeSignups(ctx, now);
     result.opened = autoOpen(ctx, now);
     result.reminders = reminders(ctx, now);
     result.wishUpdates = wishUpdates(ctx, now);
@@ -126,6 +140,7 @@ export async function tick(ctx) {
   } finally {
     ctx.log.debug(
       {
+        signup_closed: result.signupClosed,
         opened: result.opened,
         reminders: result.reminders,
         wish_updates: result.wishUpdates,

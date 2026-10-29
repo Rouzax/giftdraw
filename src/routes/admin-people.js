@@ -8,6 +8,7 @@ import {
 import { NAME_MAX } from '../limits.js';
 import { wishForm } from '../questions.js';
 import { reminderKind } from '../reminders.js';
+import { signupState } from '../signup.js';
 import { cardOutOfDate } from '../status.js';
 import { newToken } from '../tokens.js';
 import { cardTools, messageView, PERSON_DONE, participantView, removeView } from '../views/admin.js';
@@ -48,6 +49,7 @@ export function adminPeopleRoutes(app, ctx, {
       remindKind: reminderKind(participant, group, wishForm(event)),
       mailEnabled: ctx.mailer.enabled,
       tz: config.tz,
+      signupState: signupState(event, ctx.now(), config.tz),
       ...extra,
     });
   }

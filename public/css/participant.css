@@ -83,6 +83,24 @@ h1 {
   background: var(--accent-dark);
 }
 
+/* The second choice on the sign-up page: as large to tap, quieter to see. */
+.button.secondary {
+  border: 2px solid var(--accent);
+  background: transparent;
+  color: var(--accent-dark);
+}
+
+.button.secondary:hover,
+.button.secondary:active {
+  background: var(--card);
+}
+
+.answer {
+  margin: 0 0 1.25rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
 @media (min-width: 48rem) {
   .button {
     display: inline-block;

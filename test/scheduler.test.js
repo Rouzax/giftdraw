@@ -401,3 +401,22 @@ test('a wish change after the exchange date mails nobody and logs why', async ()
   assert.equal(outboxRows(db, 'wishes-updated').length, 0);
   assert.deepEqual(dropped(logs).map((l) => [l.participant_id, l.reason]), [[ben.id, 'after-exchange']]);
 });
+
+test('a sign-up past its deadline is closed by the next tick, one still running is not', async () => {
+  const { ctx, event, clock, logs } = await setup({ invited: false });
+  const other = ctx.repo.createEvent({ name: 'Later', language: 'nl' }, ctx.nowIso());
+  ctx.repo.updateEvent(event.id, { signupDeadline: '2026-11-10', signupSentAt: ctx.nowIso() }, ctx.nowIso());
+  ctx.repo.updateEvent(other, { signupDeadline: '2026-11-11', signupSentAt: ctx.nowIso() }, ctx.nowIso());
+  clock.ms = Date.parse('2026-11-10T22:59:00.000Z');
+  await tick(ctx);
+  assert.equal(ctx.repo.getEvent(event.id).signupClosedAt, null);
+  clock.ms = Date.parse('2026-11-10T23:00:00.000Z');
+  await tick(ctx);
+  assert.equal(ctx.repo.getEvent(event.id).signupClosedAt, '2026-11-10T23:00:00.000Z');
+  assert.equal(ctx.repo.getEvent(other).signupClosedAt, null);
+  const closed = logLines(logs).filter((l) => l.msg === 'signup_closed');
+  assert.deepEqual(closed.map((l) => [l.event_id, l.by]), [[event.id, 'deadline']]);
+  clock.ms += MINUTE;
+  await tick(ctx);
+  assert.equal(logLines(logs).filter((l) => l.msg === 'signup_closed').length, 1);
+});

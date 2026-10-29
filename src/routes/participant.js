@@ -3,12 +3,14 @@ import { isLang } from '../i18n/index.js';
 import { createLimiter } from '../limiter.js';
 import { drawFor, mailOn, saveWishes } from '../people.js';
 import { wishForm } from '../questions.js';
+import { signupActive, signupState } from '../signup.js';
 import { participantScreen } from '../status.js';
 import { participantPage } from '../views/layout.js';
-import { aboutFormView, drawView, resultView, waitingView, welcomeView } from '../views/participant.js';
+import { aboutFormView, drawView, resultView, signupView, waitingView, welcomeView } from '../views/participant.js';
 
 const MINUTE = 60_000;
 const VIEWS = { welcome: welcomeView, waiting: waitingView, draw: drawView };
+const ANSWERS = new Set(['yes', 'no']);
 
 // Registered on the root instance so the block check also covers /p/ URLs
 // that match no route.
@@ -55,6 +57,7 @@ export function participantRoutes(app, ctx, { sendPage, sendError, isParticipant
       editHref: `${base}/about`,
       formAction: `${base}/about`,
       drawAction: `${base}/draw`,
+      signupAction: `${base}/signup`,
       langAction: `${base}/lang`,
       showLangSwitch: true,
       emailOn: mailOn(ctx),
@@ -81,17 +84,40 @@ export function participantRoutes(app, ctx, { sendPage, sendError, isParticipant
       if (firstTime) request.log.info({ participant_id: participant.id }, 'participant_drawn');
       return render(reply, data.lang, resultView({ ...data, receiver, reveal: true }));
     }
+    const ask = ANSWERS.has(request.query.a) ? request.query.a : null;
+    return render(reply, data.lang, currentScreen(data, ask));
+  });
+
+  // While the event is signing up, that step replaces every other screen.
+  function currentScreen(data, ask = null) {
+    const { participant, event } = data;
+    if (signupActive(event, ctx.now(), config.tz)) {
+      return signupView({ ...data, state: signupState(event, ctx.now(), config.tz), ask });
+    }
     const screen = participantScreen({
-      hasWishes: hasWishes(participant.wishes, wishForm(data.event)),
+      hasWishes: hasWishes(participant.wishes, wishForm(event)),
       groupOpen: Boolean(data.group.openedAt),
       drawn: Boolean(participant.drawnAt),
     });
     const receiver = participant.receiverId ? repo.getParticipant(participant.receiverId) : null;
-    if (screen === 'result' && receiver) {
-      return render(reply, data.lang, resultView({ ...data, receiver, reveal: false }));
-    }
+    if (screen === 'result' && receiver) return resultView({ ...data, receiver, reveal: false });
     const view = VIEWS[screen] ?? waitingView;
-    return render(reply, data.lang, view(data));
+    return view(data);
+  }
+
+  // Answers only count while the sign-up is open; a page loaded before it
+  // closed gets the page as it stands now, with nothing stored.
+  app.post('/p/:token/signup', { onRequest: loadParticipant }, async (request, reply) => {
+    const participant = request.participant;
+    const answer = request.body?.answer;
+    if (!ANSWERS.has(answer)) return sendError(reply, 400, participant.language);
+    const data = screenData(participant);
+    if (signupState(data.event, ctx.now(), config.tz) !== 'open') {
+      return render(reply.code(409), data.lang, currentScreen(data));
+    }
+    repo.updateParticipant(participant.id, { signup: answer, signupAt: ctx.nowIso() });
+    request.log.info({ participant_id: participant.id }, 'signup_answer');
+    return reply.redirect(`/p/${participant.token}`, 303);
   });
 
   app.get('/p/:token/about', { onRequest: loadParticipant }, async (request, reply) => {
