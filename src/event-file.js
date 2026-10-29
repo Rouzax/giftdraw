@@ -130,12 +130,15 @@ function readText(out, value, where, field, { max, required = false, multiline =
   return clean;
 }
 
-// One choice of a tick list as {label, ask, question}, or null after
-// reporting a problem. A plain text is read as a line of the old event
-// form's list, where a question mark starts the question: "Boeken? Welke
-// schrijver". Version 1 labels never hold a question mark, as that list
-// could not store one; a version 2 label is kept as the edit page keeps it.
-function readChoiceItem(out, item, at, { labelMax, labelMeasure, keepMarks }) {
+// One choice of a tick list as {label, ask, question, asTyped}, or null
+// after reporting a problem. A plain text is read as a line of the old
+// event form's list, where a question mark starts the question: "Boeken?
+// Welke schrijver". Version 1 labels never hold a question mark, as that
+// list could not store one. A version 2 object is taken as typed: its
+// label keeps a question mark, as the edit page does, and is never matched
+// to a built-in choice, so an own "Tea" next to the built-in one survives a
+// download and an import.
+function readChoiceItem(out, item, at, { labelMax, labelMeasure, objectAsTyped = false }) {
   let option = item;
   if (typeof item === 'string') {
     const mark = item.indexOf('?');
@@ -148,8 +151,8 @@ function readChoiceItem(out, item, at, { labelMax, labelMeasure, keepMarks }) {
   }
   checkKeys(out, option, 'option', at);
   const raw = readText(out, option.label, at, 'label', { max: labelMax, measure: labelMeasure, required: true });
-  const marks = keepMarks && typeof item !== 'string';
-  const label = typeof raw === 'string' && !marks ? raw.replace(/\?/g, '').replace(/\s+/g, ' ').trim() : raw;
+  const asTyped = objectAsTyped && typeof item !== 'string';
+  const label = typeof raw === 'string' && !asTyped ? raw.replace(/\?/g, '').replace(/\s+/g, ' ').trim() : raw;
   if (raw && !label) out.error(at, 'required', { field: 'label' });
   const question = readText(out, option.question, at, 'question', { max: QUESTION_MAX, measure: 'codepoints' });
   let ask = Boolean(question);
@@ -158,7 +161,7 @@ function readChoiceItem(out, item, at, { labelMax, labelMeasure, keepMarks }) {
     else ask = ask || option.askDetails;
   }
   if (!label || question === undefined) return null;
-  return { label, ask, question };
+  return { label, ask, question, asTyped };
 }
 
 // The event form allows a repeated choice, so a downloaded template can
@@ -177,8 +180,8 @@ function warnTwice(out, items, at) {
 // cleaned and cut like the edit page cuts it.
 function fileChoices(questionId, items) {
   const taken = new Set();
-  return items.map(({ label, ask, question }) => {
-    const builtIn = builtinChoiceFor(questionId, label, taken);
+  return items.map(({ label, ask, question, asTyped }) => {
+    const builtIn = asTyped ? null : builtinChoiceFor(questionId, label, taken);
     const own = builtIn ? null : cleanHeading(label);
     const id = builtIn ?? newChoiceId(own, taken);
     taken.add(id);
@@ -201,6 +204,11 @@ function readOptions(out, value, where, field) {
   const items = value.map((item, index) => readChoiceItem(out, item, at(index), { labelMax: OPTIONS_MAX }));
   if (items.includes(null)) return undefined;
   warnTwice(out, items, at);
+  // The old event form held longer labels than the form does now; the file
+  // still imports, and the organiser sees which labels are cut.
+  items.forEach(({ label }, index) => {
+    if (cleanHeading(label) !== label) out.warn(at(index), 'label-cut', { label, max: HEADING_MAX });
+  });
   const lines = items.map(({ label, ask, question }) => (ask ? `${label}?${question ? ` ${question}` : ''}` : label));
   if (lines.join('\n').length > OPTIONS_MAX) {
     out.error(where, 'options-too-long', { field, max: OPTIONS_MAX });
@@ -286,7 +294,7 @@ function readChoices(out, value, at, builtIn) {
   }
   const choiceAt = (index) => [...at, { choice: index + 1 }];
   const items = value.map((item, index) => readChoiceItem(out, item, choiceAt(index), {
-    labelMax: HEADING_MAX, labelMeasure: 'codepoints', keepMarks: true,
+    labelMax: HEADING_MAX, labelMeasure: 'codepoints', objectAsTyped: true,
   }));
   if (items.includes(null)) return undefined;
   warnTwice(out, items, choiceAt);
@@ -500,6 +508,16 @@ function warnAboutGroups(out, groups) {
   });
 }
 
+// The version whose rules read the file. Without a valid version the shape
+// decides, so a file that lost its version is told which one to add and
+// gets no problems that only the other version's rules would find.
+function rulesVersion(data) {
+  if (data.version === 1 || data.version === FILE_VERSION) return data.version;
+  const event = isObject(data.event) ? data.event : {};
+  const v1 = ['wishOptions', 'petOptions', 'sections'].some((key) => Object.hasOwn(event, key));
+  return v1 && !Object.hasOwn(event, 'questions') ? 1 : FILE_VERSION;
+}
+
 // Returns {errors, warnings, plan}; plan is null unless there are no errors.
 // today is the organiser's date, as for the group form.
 export function readEventFile(text, { today, existingNames = new Set() }) {
@@ -532,11 +550,12 @@ export function readEventFile(text, { today, existingNames = new Set() }) {
     return result();
   }
   checkKeys(out, data, 'file', []);
-  if (data.version === undefined) out.error([], 'version-missing', { version: FILE_VERSION });
+  const version = rulesVersion(data);
+  if (data.version === undefined) out.error([], 'version-missing', { version });
   else if (typeof data.version === 'number' && data.version > FILE_VERSION) out.error([], 'version-newer', {});
-  else if (data.version !== 1 && data.version !== FILE_VERSION) out.error([], 'version-unknown', { version: FILE_VERSION });
+  else if (data.version !== version) out.error([], 'version-unknown', { oldest: 1, newest: FILE_VERSION });
 
-  const event = readEvent(out, data.event, data.version === 1 ? 1 : FILE_VERSION, existingNames);
+  const event = readEvent(out, data.event, version, existingNames);
   let groups = null;
   if (!Array.isArray(data.groups)) {
     out.error([], data.groups === undefined ? 'required' : 'not-list', { field: 'groups' });
@@ -572,10 +591,12 @@ export function createEventFromPlan(ctx, plan) {
 }
 
 // A choice as a line of text, "Boeken? Welke schrijver?", where that reads
-// back the same; a label with a question mark of its own needs the object.
-function fileChoice(choice, lang) {
+// back the same. A label with a question mark of its own, or an own label a
+// line would match to a built-in choice, needs the object.
+function fileChoice(choice, questionId, lang) {
   const label = choice.label(lang);
-  if (label.includes('?')) {
+  const readsBuiltin = choice.own !== null && builtinChoiceFor(questionId, label, new Set()) !== null;
+  if (label.includes('?') || readsBuiltin) {
     if (!choice.detail) return { label };
     return choice.question ? { label, question: choice.question } : { label, askDetails: true };
   }
@@ -591,7 +612,7 @@ function fileQuestion(question, builtIns, lang) {
   if (question.text) out.text = question.text;
   if (!question.show) out.show = false;
   const defaultChoices = builtIn && sameForm({ questions: [question] }, { questions: [{ ...question, choices: builtIn.choices }] });
-  if (question.type === 'choices' && !defaultChoices) out.choices = question.choices.map((c) => fileChoice(c, lang));
+  if (question.type === 'choices' && !defaultChoices) out.choices = question.choices.map((c) => fileChoice(c, question.id, lang));
   return out;
 }
 
