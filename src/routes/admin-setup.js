@@ -5,15 +5,14 @@ import {
   commitAddParticipants, parsePasteList, PASTE_ROWS_MAX, PASTE_TEXT_MAX, PLAN_JSON_MAX, planAddParticipants,
   resendGroupFailed, sendInvitations,
 } from '../people.js';
-import { groupDatesError, HEADING_MAX, NAME_MAX, OPTIONS_MAX, PLACE_MAX, THEME_MAX } from '../limits.js';
+import { groupDatesError, NAME_MAX, PLACE_MAX, THEME_MAX } from '../limits.js';
 import { unixLines } from '../text.js';
 import { todayIn } from '../time.js';
-import {
-  cleanHeading, formConfigValue, optionLines, optionsToStore, petOptions, readFormConfig, SECTION_IDS, wishOptions,
-} from '../wishes.js';
+import { wishForm } from '../questions.js';
 import { adminLang } from './admin-auth.js';
 import { field, parseJsonField } from './admin-shared.js';
-import { EVENT_DONE, eventsView, eventView, GROUP_DONE, messageView, pasteConfirmView } from '../views/admin.js';
+import { EVENT_DONE, eventsView, eventView, GROUP_DONE, messageView, pasteConfirmView, QUESTION_DONE } from '../views/admin.js';
+import { formPanel } from '../views/questions.js';
 
 
 export function adminSetupRoutes(app, ctx, {
@@ -67,36 +66,11 @@ export function adminSetupRoutes(app, ctx, {
       groups,
       newGroup,
       themeValue: event.themeText ?? t(event.language, 'theme.default'),
-      optionsValue: optionLines(wishOptions(event), event.language),
-      sections: readFormConfig(event.formConfig).sections,
-      petsValue: optionLines(petOptions(event), event.language),
+      formPanel: formPanel(lang, { event, form: wishForm(event), done: QUESTION_DONE.has(extra.done) ? extra.done : null }),
       tz: config.tz,
       mailEnabled: ctx.mailer.enabled,
       ...extra,
     });
-  }
-
-  // The section controls post a marker, because an unticked show box sends
-  // nothing: without the marker the stored sections are kept as they are.
-  // A heading equal to a built-in one stays empty, so it keeps following
-  // each participant's language.
-  function readFormSections(body, event) {
-    const current = readFormConfig(event.formConfig);
-    let sections = current.sections;
-    if (body?.formSections === '1') {
-      sections = {};
-      for (const id of SECTION_IDS) {
-        const heading = cleanHeading(field(body, `heading_${id}`, HEADING_MAX * 4));
-        const builtIn = ['nl', 'en'].some((l) => t(l, `wish.${id}`) === heading);
-        sections[id] = { show: body[`show_${id}`] === '1', heading: builtIn ? null : heading };
-      }
-    }
-    let pets = current.petOptions;
-    if (typeof body?.petOptions === 'string') {
-      const value = optionsToStore(field(body, 'petOptions', OPTIONS_MAX), petOptions(event), event.language, 'pets');
-      if (value !== undefined) pets = value;
-    }
-    return formConfigValue({ sections, petOptions: pets });
   }
 
   app.post('/admin/events', async (request, reply) => {
@@ -143,8 +117,6 @@ export function adminSetupRoutes(app, ctx, {
       language,
       cleanupWeeks: Number(weeks),
       themeText: theme && !isDefault ? theme : null,
-      wishOptions: optionsToStore(field(body, 'wishOptions', OPTIONS_MAX), wishOptions(event), event.language, 'likes'),
-      formConfig: readFormSections(body, event),
     }, ctx.nowIso());
     request.log.info({ event_id: event.id }, 'event_updated');
     return reply.redirect(`/admin/events/${event.id}?done=saved`, 303);

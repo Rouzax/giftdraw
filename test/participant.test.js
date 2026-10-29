@@ -261,6 +261,22 @@ test('saving unchanged answers on a v0.3.1 row is no change', async () => {
   assert.notEqual(ctx.repo.getParticipant(ada.id).wishesUpdatedAt, '2026-10-01T10:00:00.000Z');
 });
 
+// A v0.3.1 row can still tick a choice the organiser removed later; the
+// form no longer shows it, so a save cannot keep it and that is no change.
+test('saving unchanged answers on a v0.3.1 row ticking a removed choice is no change', async () => {
+  const { ctx, post, ada } = await setup();
+  const eventId = ctx.repo.getGroup(ada.groupId).eventId;
+  ctx.repo.updateEvent(eventId, { wishOptions: [{ id: 'tea', label: 'Thee', detail: false }] });
+  const old = { hobbies: 'Breien', likes: ['tea', 'socks-1a2b'], likeDetails: { 'socks-1a2b': '42' }, pets: [], avoid: '', other: '' };
+  ctx.repo.updateParticipant(ada.id, { wishes: old, wishesUpdatedAt: '2026-10-01T10:00:00.000Z' });
+  const giver = ctx.repo.giverOf(ada.id);
+  ctx.repo.updateParticipant(giver.id, { drawnAt: ctx.nowIso() });
+  await post(`/p/${ada.token}/about`, aboutBody({ q_hobbies: 'Breien', q_likes: 'tea' }));
+  const after = ctx.repo.getParticipant(ada.id);
+  assert.equal(after.wishesUpdatedAt, '2026-10-01T10:00:00.000Z');
+  assert.equal(after.notifyGiverDueAt, null);
+});
+
 test('the on-behalf wish form has no language switch', async () => {
   const { adminGet, ada } = await setup();
   const res = await adminGet(`/admin/participants/${ada.id}/about`);

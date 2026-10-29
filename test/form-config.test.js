@@ -4,7 +4,7 @@ import { hasWishes, parseWishesForm, wishLines } from '../src/answers.js';
 import {
   cleanHeading, detailPrompt, endsInMark, questionText, readFormConfig, SECTION_IDS, wishForm,
 } from '../src/questions.js';
-import { formConfigValue, mergeOptionLabels, optionLines, petOptions } from '../src/wishes.js';
+import { formConfigValue, mergeOptionLabels, petOptions } from '../src/wishes.js';
 
 const plain = wishForm({});
 const withConfig = (formConfig) => wishForm({ formConfig });
@@ -65,7 +65,6 @@ test('the built-in pet list is dog, cat and other with the which-animal question
   assert.equal(pets[2].label('nl'), 'Ander dier');
   assert.equal(detailPrompt(pets[2], 'nl'), 'Welk dier?');
   assert.equal(detailPrompt(pets[2], 'en'), 'Which animal?');
-  assert.equal(optionLines(pets, 'nl'), 'Hond\nKat\nAnder dier?');
 });
 
 test('pet lines keep built-in ids in any language and add custom ones with questions', () => {
@@ -85,8 +84,7 @@ test('pet ids stay stable across reorder and a changed question', () => {
   const current = petOptions({ formConfig: { petOptions: first } });
   const again = mergeOptionLabels('Hond\nVogel? Welke kleur?', current, 'nl', 'pets');
   assert.deepEqual(again.map((o) => o.id), ['dog', first[0].id]);
-  const shown = optionLines(petOptions({ formConfig: { petOptions: again } }), 'nl');
-  assert.equal(shown, 'Hond\nVogel? Welke kleur?');
+  assert.equal(again[1].question, 'Welke kleur?');
 });
 
 test('old stored pets and other-pet text read and render as before', () => {

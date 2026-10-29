@@ -111,22 +111,17 @@ test('saving the edit form unchanged keeps an emoji name as it was', async () =>
 // sends it as CRLF, two units, so a text typed up to the limit arrives over it.
 const lines = (count, width) => Array.from({ length: count }, (_, i) => String(i).padEnd(width, 'x')).join('\n');
 
-test('a theme, an option list and a wish typed up to the limit keep their last line', async () => {
+test('a theme and a wish typed up to the limit keep their last line', async () => {
   const t = await makeTestApp();
   const { event, people } = seedGroup(t.ctx, { names: ['Ada', 'Ben', 'Cor'] });
   const theme = lines(40, 49);
   assert.equal(theme.length, 1999);
-  const options = lines(400, 9);
-  assert.equal(options.length, 3999);
   const crlf = (text) => text.replace(/\n/g, '\r\n');
   const res = await t.adminPost(`/admin/events/${event.id}`, {
-    name: event.name, language: 'nl', cleanupWeeks: '4', themeText: crlf(theme), wishOptions: crlf(options),
+    name: event.name, language: 'nl', cleanupWeeks: '4', themeText: crlf(theme),
   });
   assert.equal(res.statusCode, 303);
-  const stored = t.ctx.repo.getEvent(event.id);
-  assert.equal(stored.themeText, theme);
-  assert.equal(stored.wishOptions.length, 400);
-  assert.equal(stored.wishOptions.at(-1).label, '399xxxxxx');
+  assert.equal(t.ctx.repo.getEvent(event.id).themeText, theme);
 
   const hobbies = lines(50, 19);
   assert.equal(hobbies.length, 999);

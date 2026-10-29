@@ -2,7 +2,6 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { validateAssignment } from '../src/draw/cycle.js';
 import { saveWishes } from '../src/people.js';
-import { wishOptions } from '../src/wishes.js';
 import { aboutBody, makeTestApp } from './helpers.js';
 
 const T0 = Date.parse('2026-11-01T10:00:00.000Z');
@@ -288,82 +287,38 @@ test('the dashboard shows a failed mail that is still being retried', async () =
   assert.ok(res.body.includes('ECONNREFUSED'));
 });
 
-test('event settings save theme and wish options, and reordering keeps saved likes', async () => {
+test('event settings save the name, language, cleanup weeks and theme', async () => {
   const t = await setup();
   const eventId = await createEvent(t);
-  const groupId = await createGroup(t, eventId);
-  await t.adminPost(`/admin/groups/${groupId}/participants`, { text: 'Ada\nBen\nCor' });
-  const [ada] = t.ctx.repo.listParticipants(groupId);
-
-  const save = (wishText) => t.adminPost(`/admin/events/${eventId}`, {
-    name: 'Lootjes 2026', language: 'nl', cleanupWeeks: '6', themeText: 'Neem iets moois mee.', wishOptions: wishText,
+  const res = await t.adminPost(`/admin/events/${eventId}`, {
+    name: 'Lootjes', language: 'en', cleanupWeeks: '6', themeText: 'Neem iets moois mee.',
   });
-  assert.equal((await save('Thee\nChocolade?\nSokken')).statusCode, 303);
-  let event = t.ctx.repo.getEvent(eventId);
-  assert.equal(event.cleanupWeeks, 6);
-  assert.equal(event.themeText, 'Neem iets moois mee.');
-  const socks = wishOptions(event).find((o) => !['tea', 'chocolate'].includes(o.id)).id;
-  saveWishes(t.ctx, ada.id, aboutBody({ q_likes: ['tea', socks] }));
-
-  await save('Sokken\nChocolade?\nThee');
-  event = t.ctx.repo.getEvent(eventId);
-  assert.deepEqual(wishOptions(event).map((o) => o.id), [socks, 'chocolate', 'tea']);
-  assert.deepEqual(t.ctx.repo.getParticipant(ada.id).wishes.answers.likes.ticked, ['tea', socks]);
-  const page = await t.adminGet(`/admin/events/${eventId}`);
-  assert.ok(page.body.includes('Sokken\nChocolade?\nThee'));
+  assert.equal(res.statusCode, 303);
+  const event = t.ctx.repo.getEvent(eventId);
+  assert.deepEqual([event.name, event.language, event.cleanupWeeks, event.themeText], ['Lootjes', 'en', 6, 'Neem iets moois mee.']);
 });
 
-test('a custom question is stored, shown back in the textarea and survives an unchanged save', async () => {
-  const t = await setup();
-  const eventId = await createEvent(t);
-  const save = (wishText) => t.adminPost(`/admin/events/${eventId}`, {
-    name: 'Lootjes 2026', language: 'nl', cleanupWeeks: '4', themeText: '', wishOptions: wishText,
-  });
-  assert.equal((await save('Boeken? welke schrijver\nChocolade?\nThee')).statusCode, 303);
-  const stored = t.ctx.repo.getEvent(eventId).wishOptions;
-  assert.equal(stored[0].question, 'welke schrijver?');
-  const page = await t.adminGet(`/admin/events/${eventId}`);
-  const shown = 'Boeken? welke schrijver?\nChocolade?\nThee';
-  assert.ok(page.body.includes(shown));
-  assert.ok(page.body.includes('&quot;Boeken? Welke schrijver?&quot;'), 'the hint quotes its example');
-  assert.ok(page.body.includes('Alleen een vraagteken'), 'the hint explains a lone question mark');
-  await save(shown);
-  assert.deepEqual(t.ctx.repo.getEvent(eventId).wishOptions, stored);
-});
-
-test('changing only the question keeps the option id and the saved likes', async () => {
-  const t = await setup();
-  const eventId = await createEvent(t);
-  const groupId = await createGroup(t, eventId);
-  await t.adminPost(`/admin/groups/${groupId}/participants`, { text: 'Ada\nBen\nCor' });
-  const [ada] = t.ctx.repo.listParticipants(groupId);
-  const save = (wishText) => t.adminPost(`/admin/events/${eventId}`, {
-    name: 'Lootjes 2026', language: 'nl', cleanupWeeks: '4', themeText: '', wishOptions: wishText,
-  });
-  await save('Sokken? Welke maat?\nThee');
-  const [socks] = t.ctx.repo.getEvent(eventId).wishOptions;
-  saveWishes(t.ctx, ada.id, aboutBody({ q_likes: [socks.id], [`d_likes_${socks.id}`]: '42' }));
-  for (const text of ['Sokken? Welke kleur?', 'Sokken?', 'Sokken? Welke kleur?']) {
-    await save(`${text}\nThee`);
-    const [now] = t.ctx.repo.getEvent(eventId).wishOptions;
-    assert.equal(now.id, socks.id, text);
-  }
-  const { answers } = t.ctx.repo.getParticipant(ada.id).wishes;
-  assert.deepEqual(answers.likes, { ticked: [socks.id], details: { [socks.id]: '42' } });
-});
-
-test('empty theme and wish options fall back to the defaults', async () => {
+test('an empty theme falls back to the default', async () => {
   const t = await setup();
   const eventId = await createEvent(t);
   const page = await t.adminGet(`/admin/events/${eventId}`);
   assert.ok(page.body.includes('Dit jaar doen we een regift'));
-  await t.adminPost(`/admin/events/${eventId}`, {
-    name: 'Lootjes 2026', language: 'en', cleanupWeeks: '4', themeText: ' ', wishOptions: '',
-  });
+  await t.adminPost(`/admin/events/${eventId}`, { name: 'Lootjes 2026', language: 'en', cleanupWeeks: '4', themeText: ' ' });
   const event = t.ctx.repo.getEvent(eventId);
   assert.equal(event.themeText, null);
-  assert.equal(event.wishOptions, null);
   assert.equal(event.language, 'en');
+});
+
+test('a settings post with the old form fields leaves the wish form alone', async () => {
+  const t = await setup();
+  const eventId = await createEvent(t);
+  await t.adminPost(`/admin/events/${eventId}`, {
+    name: 'Lootjes 2026', language: 'nl', cleanupWeeks: '4', themeText: '', wishOptions: 'Sokken', formSections: '1', petOptions: 'Vis',
+  });
+  const event = t.ctx.repo.getEvent(eventId);
+  assert.equal(event.wishOptions, null);
+  assert.equal(event.formConfig, null);
+  assert.equal(event.themeChangedAt, null);
 });
 
 test('deleting a group and an event needs the confirmation box', async () => {
@@ -573,7 +528,7 @@ test('a printed card goes out of date when the exchange details or the theme cha
     t.clock.ms += 60_000;
   };
   const group = { name: 'Maandag', exchangeDate: '2026-12-18', autoOpenAt: '', exchangeTime: '10:30', exchangePlace: 'Studio' };
-  const event = { name: 'Lootjes 2026', language: 'nl', cleanupWeeks: '4', themeText: '', wishOptions: '' };
+  const event = { name: 'Lootjes 2026', language: 'nl', cleanupWeeks: '4', themeText: '' };
 
   print();
   await t.adminPost(`/admin/groups/${groupId}`, { ...group, name: 'Maandagochtend' });

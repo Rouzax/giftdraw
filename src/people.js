@@ -36,10 +36,34 @@ function canonical(value) {
   return value;
 }
 
+// The answers as the form can show them. A stored row may still hold an
+// answer to a removed question or a tick of a removed choice, which nobody
+// sees and a save drops without the participant changing anything, so they
+// do not count. A follow-up kept for a choice that no longer asks for one
+// is still on the giver's line, so its loss does count.
+function onForm(wishes, form) {
+  const answers = readAnswers(wishes);
+  const out = {};
+  for (const question of form.questions) {
+    const answer = answers[question.id];
+    if (answer === undefined) continue;
+    if (question.type === 'text') {
+      if (typeof answer === 'string') out[question.id] = answer;
+      continue;
+    }
+    if (typeof answer === 'string') continue;
+    const choices = new Set(question.choices.map((c) => c.id));
+    const ticked = answer.ticked.filter((id) => choices.has(id));
+    const details = Object.fromEntries(Object.entries(answer.details).filter(([id]) => choices.has(id)));
+    if (ticked.length || Object.keys(details).length) out[question.id] = { ticked, details };
+  }
+  return out;
+}
+
 // Answers are compared as read, not as stored, so a row in an older shape
 // saved again with the same answers is no change.
-function sameWishes(a, b) {
-  return JSON.stringify(canonical(readAnswers(a))) === JSON.stringify(canonical(readAnswers(b)));
+function sameWishes(a, b, form) {
+  return JSON.stringify(canonical(onForm(a, form))) === JSON.stringify(canonical(onForm(b, form)));
 }
 
 // Gives null, storing nothing, for a post from a page whose fields cannot
@@ -49,11 +73,12 @@ export function saveWishes(ctx, participantId, body) {
   return repo.tx(() => {
     const participant = repo.getParticipant(participantId);
     const event = repo.getEvent(repo.getGroup(participant.groupId).eventId);
-    const wishes = parseWishesForm(body, wishForm(event), participant.wishes);
+    const form = wishForm(event);
+    const wishes = parseWishesForm(body, form, participant.wishes);
     if (!wishes) return null;
     // A save without a change must not mark a printed card out of date or
     // mail the giver about nothing.
-    if (sameWishes(participant.wishes, wishes)) return wishes;
+    if (sameWishes(participant.wishes, wishes, form)) return wishes;
     const fields = { wishes, wishesUpdatedAt: ctx.nowIso() };
     // Saves within the window share one mail to the giver: the flag is set by
     // the first save and the scheduler sends once it is due.

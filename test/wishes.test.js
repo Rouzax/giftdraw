@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DEFAULT_LIKE_IDS, detailPrompt, PET_IDS } from '../src/questions.js';
-import { mergeOptionLabels, optionLines, wishOptions } from '../src/wishes.js';
+import { mergeOptionLabels, wishOptions } from '../src/wishes.js';
 
 const defaults = wishOptions({ wishOptions: null });
 
@@ -138,30 +138,13 @@ test('mergeOptionLabels caps a question at 80 characters and keeps one question 
   assert.equal(cut.question, `${'x'.repeat(77)}?`);
 });
 
-test('optionLines writes the options back so a re-save changes nothing', () => {
-  const text = 'Boeken? Welke schrijver?\nChocolade?\nThee\nWol?';
-  const first = mergeOptionLabels(text, defaults, 'nl');
-  const options = wishOptions({ wishOptions: first });
-  const shown = optionLines(options, 'nl');
-  assert.equal(shown, text);
-  assert.deepEqual(mergeOptionLabels(shown, options, 'nl'), first);
-});
-
-test('optionLines shows the default list with chocolate as a plain detail', () => {
-  assert.equal(optionLines(defaults, 'en').split('\n')[0], 'Chocolate?');
-  assert.equal(optionLines(defaults, 'nl').split('\n')[1], 'Thee');
-});
-
-test('older stored labels with a question mark are written without it and keep their ids', () => {
+test('older stored labels with a question mark keep their ids when written without it', () => {
   const stored = [
     { id: 'wat-ab12', label: 'Wat?', detail: false },
     { id: 'ja-cd34', label: 'Ja? Nee', detail: true, question: 'Welke?' },
   ];
   const options = wishOptions({ wishOptions: stored });
-  const shown = optionLines(options, 'nl');
-  assert.equal(shown, 'Wat\nJa Nee? Welke?');
-  const saved = mergeOptionLabels(shown, options, 'nl');
+  const saved = mergeOptionLabels('Wat\nJa Nee? Welke?', options, 'nl');
   assert.deepEqual(saved.map((o) => o.id), ['wat-ab12', 'ja-cd34']);
   assert.deepEqual(saved.map((o) => [o.detail, o.question ?? null]), [[false, null], [true, 'Welke?']]);
-  assert.equal(optionLines(wishOptions({ wishOptions: saved }), 'nl'), shown);
 });

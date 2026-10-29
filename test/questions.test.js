@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { CHOICES_MAX, QUESTIONS_MAX } from '../src/limits.js';
 import {
   BUILTIN_QUESTIONS,
+  builtinChoiceLabel,
+  cleanQuestion,
   detailPrompt,
   formValue,
   newChoiceId,
@@ -226,4 +228,19 @@ test('newChoiceId makes a slug of the label with a unique suffix', () => {
     assert.ok(!taken.has(id));
     taken.add(id);
   }
+});
+
+test('cleanQuestion makes one line ending in one question mark, clipped to 80 code points', () => {
+  assert.equal(cleanQuestion('  Welke\n  schrijver?? '), 'Welke schrijver?');
+  assert.equal(cleanQuestion('???'), null);
+  assert.equal(cleanQuestion(''), null);
+  assert.equal(cleanQuestion(undefined), null);
+  assert.equal(cleanQuestion('x'.repeat(100)), `${'x'.repeat(79)}?`);
+});
+
+test('builtinChoiceLabel gives the shipped label of a built-in choice only', () => {
+  assert.equal(builtinChoiceLabel('likes', 'tea', 'nl'), 'Thee');
+  assert.equal(builtinChoiceLabel('likes', 'tea', 'en'), 'Tea');
+  assert.equal(builtinChoiceLabel('pets', 'tea', 'nl'), null);
+  assert.equal(builtinChoiceLabel('likes', 'socks-1a2b', 'nl'), null);
 });

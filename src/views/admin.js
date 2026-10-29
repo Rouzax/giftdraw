@@ -1,10 +1,9 @@
 import { html, raw } from '../html.js';
 import { iconText } from '../icons.js';
 import { exchangeWhen, formatDate, LANGS, t } from '../i18n/index.js';
-import { HEADING_MAX, NAME_MAX, OPTIONS_MAX, PLACE_MAX, THEME_MAX } from '../limits.js';
+import { NAME_MAX, PLACE_MAX, THEME_MAX } from '../limits.js';
 import { PASTE_TEXT_MAX } from '../people.js';
 import { newFormToken } from '../submit-log.js';
-import { SECTION_IDS } from '../wishes.js';
 
 const LOCALES = { nl: 'nl-NL', en: 'en-GB' };
 const MIN_GROUP = 3;
@@ -36,7 +35,7 @@ function shortDate(lang, iso, tz) {
 
 const selected = (on) => (on ? raw(' selected') : '');
 
-function errorNotice(lang, error) {
+export function errorNotice(lang, error) {
   return error ? html`<p class="notice error" role="alert">${t(lang, error)}</p>` : '';
 }
 
@@ -100,7 +99,7 @@ ${dateInput(`${prefix}-exchange`, 'exchangeDate', t(lang, 'admin.group.exchangeD
 ${dateInput(`${prefix}-auto`, 'autoOpenAt', t(lang, 'admin.group.autoOpenAt'), values.autoOpenAt, { hint: hint('admin.group.autoOpenHint') })}`;
 }
 
-function deleteForm(lang, action, { label, warning }) {
+export function deleteForm(lang, action, { label, warning }) {
   return html`<section class="panel danger">
 <h2>${label}</h2>
 <form method="post" action="${action}" class="stack">
@@ -111,36 +110,10 @@ function deleteForm(lang, action, { label, warning }) {
 </section>`;
 }
 
-// Each section shows its built-in heading as its name and as the field's
-// placeholder, so an empty field reads as "the usual heading".
-function formSectionsBlock(lang, sections, petsValue) {
-  const items = SECTION_IDS.map((id) => {
-    const { show, heading } = sections[id];
-    const builtIn = t(lang, `wish.${id}`);
-    const pets = id === 'pets'
-      ? html`<label for="event-pets">${t(lang, 'admin.event.petOptions')}</label>
-<p class="hint" id="event-pets-hint">${t(lang, 'admin.event.petOptionsHint')} ${t(lang, 'admin.event.optionsDropHint')}</p>
-<textarea id="event-pets" name="petOptions" rows="4" maxlength="${OPTIONS_MAX}" aria-describedby="event-pets-hint">${petsValue}</textarea>`
-      : '';
-    return html`<div class="form-section">
-<h3 id="section-${id}">${builtIn}</h3>
-<label class="check"><input type="checkbox" id="show-${id}" aria-describedby="section-${id}" name="show_${id}" value="1"${show ? raw(' checked') : ''}> <span>${t(lang, 'admin.event.show')}</span></label>
-<label for="heading-${id}">${t(lang, 'admin.event.heading')}</label>
-<input id="heading-${id}" name="heading_${id}" type="text" maxlength="${HEADING_MAX}" value="${heading ?? ''}" placeholder="${builtIn}" aria-describedby="section-${id} form-sections-hint">
-${pets}
-</div>`;
-  });
-  return html`<fieldset class="form-sections">
-<legend>${t(lang, 'admin.event.form')}</legend>
-<p class="hint" id="form-sections-hint">${t(lang, 'admin.event.formHint')}</p>
-<input type="hidden" name="formSections" value="1">
-${items}
-</fieldset>`;
-}
-
+// formPanel is the question list, which shows its own done notices next
+// to the list they are about.
 export function eventView(lang, {
-  event, groups, newGroup, themeValue, optionsValue, sections, petsValue, tz, mailEnabled, error = null, groupError = null,
-  done = null,
+  event, groups, newGroup, themeValue, formPanel, tz, mailEnabled, error = null, groupError = null, done = null,
 }) {
   const title = event.name;
   const groupList = groups.length
@@ -152,7 +125,7 @@ export function eventView(lang, {
     : html`<p class="muted">${t(lang, 'admin.groups.empty')}</p>`;
   const body = html`${backLink('/admin', t(lang, 'admin.events.back'))}
 <h1>${title}</h1>
-${doneNotice(lang, done)}
+${QUESTION_DONE.has(done) ? '' : doneNotice(lang, done)}
 <section class="panel">
 <h2>${t(lang, 'admin.groups.title')}</h2>
 ${groupList}
@@ -180,13 +153,10 @@ ${languageSelect('event-language', event.language)}
 <label for="event-theme">${t(lang, 'admin.event.theme')}</label>
 <p class="hint" id="event-theme-hint">${t(lang, 'admin.event.themeHint')}</p>
 <textarea id="event-theme" name="themeText" rows="7" maxlength="${THEME_MAX}" aria-describedby="event-theme-hint">${themeValue}</textarea>
-<label for="event-options">${t(lang, 'admin.event.options')}</label>
-<p class="hint" id="event-options-hint">${t(lang, 'admin.event.optionsHint')} ${t(lang, 'admin.event.optionsDropHint')}</p>
-<textarea id="event-options" name="wishOptions" rows="9" maxlength="${OPTIONS_MAX}" aria-describedby="event-options-hint">${optionsValue}</textarea>
-${formSectionsBlock(lang, sections, petsValue)}
 <button type="submit" class="primary">${t(lang, 'admin.save')}</button>
 </form>
 </section>
+${formPanel}
 <section class="panel">
 <h2>${t(lang, 'admin.event.export')}</h2>
 <p>${t(lang, 'admin.event.exportHint')}</p>
@@ -393,7 +363,8 @@ export const GROUP_DONE = new Set([
   'failed-requeued', 'all-requeued', 'no-failure', 'mail-off', 'already-queued', 'added', 'removed', 'opened',
   'group-created',
 ]);
-export const EVENT_DONE = new Set(['event-created', 'saved', 'imported', 'already-imported']);
+export const QUESTION_DONE = new Set(['question-added', 'question-saved', 'question-removed']);
+export const EVENT_DONE = new Set(['event-created', 'saved', 'imported', 'already-imported', ...QUESTION_DONE]);
 
 // Mail still being retried goes out by itself, so only given-up mail counts.
 function resendAllPanel(lang, groupId, count, mailEnabled) {
@@ -624,7 +595,7 @@ export const PERSON_DONE = new Set([
   ...DONE_OK, 'nothing-to-remind', 'no-email', 'not-invited', 'mail-off', 'no-failure', 'already-queued',
 ]);
 
-function doneNotice(lang, done) {
+export function doneNotice(lang, done) {
   if (!done) return '';
   return html`<p class="notice ${DONE_WARN.has(done) ? 'warn' : 'done'}" role="status">${t(lang, `admin.person.done.${done}`)}</p>`;
 }

@@ -1,9 +1,7 @@
 import { LANGS, t } from './i18n/index.js';
-import { QUESTION_MAX } from './limits.js';
-import { BUILTIN_CHOICES as LISTS, newChoiceId, readFormConfig, SECTION_IDS } from './questions.js';
-import { clipText } from './text.js';
+import { BUILTIN_CHOICES as LISTS, cleanQuestion, newChoiceId, readFormConfig, SECTION_IDS } from './questions.js';
 
-export { cleanHeading, readFormConfig, SECTION_IDS } from './questions.js';
+export { readFormConfig, SECTION_IDS } from './questions.js';
 
 const isDefault = (list, id) => list.ids.includes(id);
 const defaultLabel = (list, id) => (lang) => t(lang, `${list.key}.${id}`);
@@ -56,32 +54,10 @@ export function sectionHeading(section, lang, kind = 'form') {
 }
 
 // A label can hold a question mark only if it was stored before the `?`
-// started a question. Written back as typed it would split there, so it is
-// written without, and mergeOptionLabels matches that form to the old id.
+// started a question. Written as a line it would split there, so a line
+// without it still matches the old label.
 function lineLabel(label) {
   return label.replace(/\?/g, '').replace(/\s+/g, ' ').trim();
-}
-
-// The inverse of the line format mergeOptionLabels reads, so saving the
-// textarea unchanged stores the same options.
-export function optionLines(options, lang) {
-  return options
-    .map((o) => {
-      const label = lineLabel(labelOf(o, lang));
-      if (!o.detail) return label;
-      return o.question ? `${label}? ${o.question}` : `${label}?`;
-    })
-    .join('\n');
-}
-
-// "Boeken??" or "Welke schrijver???" must not store a question of bare or
-// doubled question marks, so the ends are trimmed of them before one is added.
-const trimMarks = (text) => text.replace(/^[\s?]+/, '').replace(/[\s?]+$/, '');
-
-function parseQuestion(rest) {
-  const question = trimMarks(rest);
-  if (!question) return null;
-  return `${trimMarks(clipText(question, QUESTION_MAX - 1, 'codepoints'))}?`;
 }
 
 function labelOf(option, lang) {
@@ -94,7 +70,7 @@ const sameLabel = (a, b) => a.trim().toLowerCase() === b.trim().toLowerCase();
 // shows its translation whatever label is stored with it, so only typed
 // labels count: the list saved again after the event language changed, or
 // a stored copy of the defaults, is no change.
-export function sameOptions(a, b, kind = 'likes') {
+function sameOptions(a, b, kind = 'likes') {
   const list = LISTS[kind];
   const key = (o) => JSON.stringify([o.id, Boolean(o.detail), o.question || null, isDefault(list, o.id) ? null : labelOf(o, 'nl')]);
   return a.length === b.length && a.every((o, i) => key(o) === key(b[i]));
@@ -123,7 +99,7 @@ export function mergeOptionLabels(text, currentOptions, lang, kind = 'likes') {
     const detail = mark !== -1;
     const label = (detail ? line.slice(0, mark) : line).trim();
     if (!label) continue;
-    const question = detail ? parseQuestion(line.slice(mark + 1)) : null;
+    const question = detail ? cleanQuestion(line.slice(mark + 1)) : null;
     const match = candidates.find((c) => !used.has(c.id) && c.labels.some((l) => sameLabel(l, label)));
     const id = match ? match.id : newChoiceId(label, taken);
     used.add(id);

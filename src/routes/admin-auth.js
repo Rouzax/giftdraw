@@ -21,6 +21,7 @@ const ADMIN_PAGES = [
   /^\/admin$/,
   /^\/admin\/login$/,
   /^\/admin\/events\/\d+$/,
+  /^\/admin\/events\/\d+\/questions\/(?!new$)[^/]+$/,
   /^\/admin\/groups\/\d+(\/arrange)?$/,
   /^\/admin\/participants\/\d+(\/about|\/remove)?$/,
 ];

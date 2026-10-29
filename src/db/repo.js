@@ -1,3 +1,4 @@
+import { dropAnswers } from '../answers.js';
 import { SKIP_CODES } from '../mail/skip-codes.js';
 import { newToken } from '../tokens.js';
 
@@ -164,6 +165,9 @@ export function createRepo(db) {
   const getParticipantByToken = (token) => one('SELECT * FROM participants WHERE token = ?', token);
   const listParticipants = (groupId) => many('SELECT * FROM participants WHERE group_id = ? ORDER BY id', groupId);
   const listAllParticipants = () => many('SELECT * FROM participants ORDER BY id');
+  const listEventParticipants = (eventId) => many(
+    'SELECT p.* FROM participants p JOIN groups g ON g.id = p.group_id WHERE g.event_id = ? ORDER BY p.id', eventId,
+  );
   const updateParticipant = (id, fields) => update('participants', id, fields);
   const giverOf = (participantId) => one('SELECT * FROM participants WHERE receiver_id = ?', participantId);
 
@@ -233,6 +237,23 @@ export function createRepo(db) {
       }
       setAssignment(participant.groupId, rest, now);
       db.prepare('DELETE FROM participants WHERE id = ?').run(id);
+    });
+  }
+
+  // The organiser removed a question or some of its choices, so the
+  // participant changed nothing: wishes_updated_at stays, which keeps
+  // printed cards current and sends the giver no mail. Returns how many
+  // participants lost an answer.
+  function dropAnswersForEvent(eventId, questionId, choiceIds = null) {
+    return tx(() => {
+      let dropped = 0;
+      for (const participant of listEventParticipants(eventId)) {
+        const wishes = dropAnswers(participant.wishes, questionId, choiceIds);
+        if (!wishes) continue;
+        update('participants', participant.id, { wishes });
+        dropped += 1;
+      }
+      return dropped;
     });
   }
 
@@ -411,8 +432,8 @@ export function createRepo(db) {
     tx,
     createEvent, getEvent, listEvents, updateEvent, deleteEvent,
     createGroup, getGroup, listGroups, latestGroup, updateGroup, deleteGroup, markGroupOpened, markInvitationsSent,
-    getParticipant, getParticipantByToken, listParticipants, listAllParticipants, updateParticipant,
-    findEmailInEvent, giverOf,
+    getParticipant, getParticipantByToken, listParticipants, listAllParticipants, listEventParticipants, updateParticipant,
+    findEmailInEvent, giverOf, dropAnswersForEvent,
     addParticipantsWithAssignment, removeParticipantWithAssignment, setAssignment, getAssignment,
     enqueue, hasQueuedMail, claimDue, markSent, markFailed, requeueStale, requeueAllSending, reminderHistory, mailStatus,
     requeueLastFailed, countGivenUp, requeueGroupFailed, deleteExpiredGroups, checkpoint, ping,

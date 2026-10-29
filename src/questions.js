@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { t } from './i18n/index.js';
-import { CHOICES_MAX, HEADING_MAX, QUESTIONS_MAX } from './limits.js';
+import { CHOICES_MAX, HEADING_MAX, QUESTION_MAX, QUESTIONS_MAX } from './limits.js';
 import { clipText } from './text.js';
 
 export const BUILTIN_QUESTIONS = [
@@ -58,8 +58,29 @@ export function readFormConfig(raw) {
   return { sections, petOptions: options.length ? options : null };
 }
 
+// "Boeken??" or "Welke schrijver???" must not store a question of bare or
+// doubled question marks, so the ends are trimmed of them before one is added.
+const trimMarks = (text) => text.replace(/^[\s?]+/, '').replace(/[\s?]+$/, '');
+
+// A choice's own follow-up question: one line, at most QUESTION_MAX code
+// points, ending in exactly one question mark; null when nothing is left.
+export function cleanQuestion(value) {
+  if (typeof value !== 'string') return null;
+  const question = trimMarks(value.replace(/\s+/g, ' '));
+  if (!question) return null;
+  return `${trimMarks(clipText(question, QUESTION_MAX - 1, 'codepoints'))}?`;
+}
+
 const builtinType = (id) => BUILTIN_QUESTIONS.find((q) => q.id === id)?.type ?? null;
-const isBuiltinChoice = (questionId, id) => Boolean(BUILTIN_CHOICES[questionId]?.ids.includes(id));
+export const isBuiltinChoice = (questionId, id) => Boolean(BUILTIN_CHOICES[questionId]?.ids.includes(id));
+export const isBuiltinQuestion = (id) => builtinType(id) !== null;
+
+// The shipped label of a built-in choice in one language, or null for a
+// choice the organiser added.
+export function builtinChoiceLabel(questionId, choiceId, lang) {
+  if (!isBuiltinChoice(questionId, choiceId)) return null;
+  return t(lang, `${BUILTIN_CHOICES[questionId].key}.${choiceId}`);
+}
 
 // A built-in choice without own text keeps its shipped translations; own
 // text is shown as typed in every language.

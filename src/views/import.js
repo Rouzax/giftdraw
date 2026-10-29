@@ -4,7 +4,8 @@ import { exchangeWhen, formatDate, t } from '../i18n/index.js';
 import { IMPORT_TEXT_MAX } from '../event-file.js';
 import { assistantPrompt } from '../import-prompt.js';
 import { clipText } from '../text.js';
-import { readFormConfig, sectionHeading, SECTION_IDS, wishOptions, petOptions } from '../wishes.js';
+import { readFormConfig, SECTION_IDS } from '../questions.js';
+import { sectionHeading, wishOptions, petOptions } from '../wishes.js';
 import { backLink, formToken } from './admin.js';
 
 const GUIDE_URL = 'https://rouzax.github.io/giftdraw/guide/import/';
