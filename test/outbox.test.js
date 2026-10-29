@@ -386,3 +386,35 @@ test('an invite skipped as stale shows as the earlier invite, not as a failure',
   assert.equal(ctx.repo.mailStatus(ada.id).invite, 'sent');
   assert.equal(ctx.repo.mailStatus(ben.id).invite, null);
 });
+
+test('a sign-up mail that no longer fits by send time is given up with stale-signup', async () => {
+  const { ctx, db, mails, ada, ben, cor, event, drain } = await setup();
+  ctx.repo.updateEvent(event.id, { signupDeadline: '2026-11-20', signupSentAt: ctx.nowIso() }, ctx.nowIso());
+  // Ada answered after her reminder was queued, Cor changed his no to yes
+  // after his nudge was queued; Ben still has not answered.
+  const answered = ctx.repo.enqueue(ada.id, 'remind-signup', ctx.nowIso());
+  const fits = ctx.repo.enqueue(ben.id, 'remind-signup', ctx.nowIso());
+  const changed = ctx.repo.enqueue(cor.id, 'signup-nudge', ctx.nowIso());
+  ctx.repo.updateParticipant(ada.id, { signup: 'no', signupAt: ctx.nowIso() });
+  ctx.repo.updateParticipant(cor.id, { signup: 'yes', signupAt: ctx.nowIso() });
+  assert.deepEqual(await drain(), { sent: 1, failed: 2 });
+  assert.deepEqual(mails.map((m) => m.to), [ben.email]);
+  for (const id of [answered, changed]) {
+    assert.equal(outboxRow(db, id).status, 'gaveup');
+    assert.equal(outboxRow(db, id).error_code, 'stale-signup');
+  }
+  assert.equal(outboxRow(db, fits).status, 'sent');
+  assert.equal(ctx.repo.mailStatus(ada.id).lastFailure, null);
+});
+
+test('a queued sign-up reminder or nudge is not sent once sign-up has closed', async () => {
+  const { ctx, db, mails, ada, ben, event, drain } = await setup();
+  ctx.repo.updateEvent(event.id, { signupDeadline: '2026-11-20', signupSentAt: ctx.nowIso() }, ctx.nowIso());
+  ctx.repo.updateParticipant(ben.id, { signup: 'no', signupAt: ctx.nowIso() });
+  const reminder = ctx.repo.enqueue(ada.id, 'remind-signup', ctx.nowIso());
+  const nudge = ctx.repo.enqueue(ben.id, 'signup-nudge', ctx.nowIso());
+  ctx.repo.updateEvent(event.id, { signupClosedAt: ctx.nowIso() }, ctx.nowIso());
+  assert.deepEqual(await drain(), { sent: 0, failed: 2 });
+  assert.equal(mails.length, 0);
+  for (const id of [reminder, nudge]) assert.equal(outboxRow(db, id).error_code, 'stale-signup');
+});

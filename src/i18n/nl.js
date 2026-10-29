@@ -127,9 +127,26 @@ export default {
   'email.wishesUpdated.bodyText': '{name} heeft de wensen aangepast. Hieronder zie je wat er nu staat.',
   'email.reassigned.bodyText': 'Je lootje is veranderd. Je geeft nu een cadeautje aan {name}.',
   'email.signup.subject': 'Doe je mee met {event}?',
-  'email.signup.body': 'Doe je mee met {event}? Druk op de knop en zeg ja of nee. Dat kan tot en met {deadline}.',
-  'email.signup.bodyText': 'Doe je mee met {event}? Open de link hieronder en zeg ja of nee. Dat kan tot en met {deadline}.',
-  'email.signup.button': 'Zeg of je meedoet',
+  'email.signup.body':
+    'Doe je mee met {event}? Kies hieronder ja of nee. Je eigen pagina opent dan, en daar bevestig je je keuze. Dat kan tot en met {deadline}.',
+  'email.signup.bodyText':
+    'Doe je mee met {event}? Open hieronder de link bij je antwoord. Je eigen pagina opent dan, en daar bevestig je je keuze. Dat kan tot en met {deadline}.',
+  'email.signup.button': 'Ja, ik doe mee',
+  'email.signup.button2': 'Nee, deze keer niet',
+  'email.remindSignup.subject': 'Nog {days} dagen: doe je mee met {event}?',
+  'email.remindSignup.subjectOne': 'Nog 1 dag: doe je mee met {event}?',
+  'email.remindSignup.body':
+    'Je hebt nog niet gezegd of je meedoet met {event}. Kies hieronder ja of nee. Je eigen pagina opent dan, en daar bevestig je je keuze. Dat kan tot en met {deadline}.',
+  'email.remindSignup.bodyText':
+    'Je hebt nog niet gezegd of je meedoet met {event}. Open hieronder de link bij je antwoord. Je eigen pagina opent dan, en daar bevestig je je keuze. Dat kan tot en met {deadline}.',
+  'email.remindSignup.button': 'Ja, ik doe mee',
+  'email.remindSignup.button2': 'Nee, deze keer niet',
+  'email.signupNudge.subject': 'Weet je het zeker?',
+  'email.signupNudge.body':
+    'Je hebt gezegd dat je niet meedoet met {event}. Dat is helemaal goed. Bedenk je je toch? Dat kan nog tot en met {deadline}, op je eigen pagina.',
+  'email.signupNudge.bodyText':
+    'Je hebt gezegd dat je niet meedoet met {event}. Dat is helemaal goed. Bedenk je je toch? Dat kan nog tot en met {deadline}, via de link hieronder.',
+  'email.signupNudge.button': 'Naar mijn pagina',
 
   'card.givesTo': 'Jij geeft een cadeautje aan {name}',
   'card.wishesTitle': 'Wat {name} leuk vindt',
@@ -305,6 +322,8 @@ export default {
   'admin.mailKind.wishes-updated': 'Wensen aangepast',
   'admin.mailKind.reassigned': 'Lootje veranderd',
   'admin.mailKind.signup': 'Aanmelden',
+  'admin.mailKind.remind-signup': 'Herinnering aanmelden',
+  'admin.mailKind.signup-nudge': 'Nog eens gevraagd na nee',
   'admin.card.notPrinted': 'Niet geprint',
   'admin.card.current': 'Klopt nog',
   'admin.card.outOfDate': 'Opnieuw printen',

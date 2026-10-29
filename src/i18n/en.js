@@ -126,9 +126,26 @@ export default {
   'email.wishesUpdated.bodyText': '{name} has changed their wishes. You can see what they are now below.',
   'email.reassigned.bodyText': 'Your person has changed. You now give a present to {name}.',
   'email.signup.subject': 'Are you taking part in {event}?',
-  'email.signup.body': 'Are you taking part in {event}? Press the button and say yes or no. You can do so until the end of {deadline}.',
-  'email.signup.bodyText': 'Are you taking part in {event}? Open the link below and say yes or no. You can do so until the end of {deadline}.',
-  'email.signup.button': 'Say if you take part',
+  'email.signup.body':
+    'Are you taking part in {event}? Choose yes or no below. Your own page then opens, and there you confirm your choice. You can do so until the end of {deadline}.',
+  'email.signup.bodyText':
+    'Are you taking part in {event}? Open the link below that goes with your answer. Your own page then opens, and there you confirm your choice. You can do so until the end of {deadline}.',
+  'email.signup.button': "Yes, I'm taking part",
+  'email.signup.button2': 'No, not this time',
+  'email.remindSignup.subject': '{days} days left: are you taking part in {event}?',
+  'email.remindSignup.subjectOne': '1 day left: are you taking part in {event}?',
+  'email.remindSignup.body':
+    'You have not yet said whether you are taking part in {event}. Choose yes or no below. Your own page then opens, and there you confirm your choice. You can do so until the end of {deadline}.',
+  'email.remindSignup.bodyText':
+    'You have not yet said whether you are taking part in {event}. Open the link below that goes with your answer. Your own page then opens, and there you confirm your choice. You can do so until the end of {deadline}.',
+  'email.remindSignup.button': "Yes, I'm taking part",
+  'email.remindSignup.button2': 'No, not this time',
+  'email.signupNudge.subject': 'Are you sure?',
+  'email.signupNudge.body':
+    'You said you are not taking part in {event}. That is perfectly fine. Changed your mind? You can still say so until the end of {deadline}, on your own page.',
+  'email.signupNudge.bodyText':
+    'You said you are not taking part in {event}. That is perfectly fine. Changed your mind? You can still say so until the end of {deadline}, with the link below.',
+  'email.signupNudge.button': 'Go to my page',
 
   'card.givesTo': 'You give a present to {name}',
   'card.wishesTitle': 'What {name} likes',
@@ -304,6 +321,8 @@ export default {
   'admin.mailKind.wishes-updated': 'Wishes updated',
   'admin.mailKind.reassigned': 'Person changed',
   'admin.mailKind.signup': 'Sign-up',
+  'admin.mailKind.remind-signup': 'Sign-up reminder',
+  'admin.mailKind.signup-nudge': 'Asked again after no',
   'admin.card.notPrinted': 'Not printed',
   'admin.card.current': 'Up to date',
   'admin.card.outOfDate': 'Print again',

@@ -2,6 +2,7 @@ import { wishLines } from '../answers.js';
 import { html } from '../html.js';
 import { exchangeLine, formatDate, t, themeText } from '../i18n/index.js';
 import { endsInMark, wishForm } from '../questions.js';
+import { daysLeft } from '../signup.js';
 
 // Outbox kind -> catalogue key under email.*
 const KEYS = {
@@ -12,6 +13,8 @@ const KEYS = {
   'wishes-updated': 'wishesUpdated',
   reassigned: 'reassigned',
   signup: 'signup',
+  'remind-signup': 'remindSignup',
+  'signup-nudge': 'signupNudge',
 };
 
 export const KINDS = Object.keys(KEYS);
@@ -21,7 +24,12 @@ export const KINDS = Object.keys(KEYS);
 export const RECEIVER_KINDS = new Set(['wishes-updated', 'reassigned']);
 
 // Kinds about the sign-up, which name the date it closes.
-const DEADLINE_KINDS = new Set(['signup']);
+const DEADLINE_KINDS = new Set(['signup', 'remind-signup', 'signup-nudge']);
+
+// Kinds that ask for an answer: a button for each, with ?a= putting the
+// chosen answer first on the page. Opening the link records nothing; the
+// answer is given on the page.
+const ANSWER_KINDS = new Set(['signup', 'remind-signup']);
 
 // Mail clients drop <style> blocks and external CSS, so every rule is inline.
 // Colours match public/css/base.css.
@@ -60,20 +68,40 @@ function wishesBlock(lang, receiver, event) {
   };
 }
 
-export function renderEmail(kind, { lang, participant, receiver, event, group, link, tz }) {
+function buttonHtml(href, label, primary) {
+  const cell = primary ? `background-color:${C.accent};` : `background-color:${C.card};border:2px solid ${C.accent};`;
+  const color = primary ? '#ffffff' : C.accent;
+  return html`<tr><td align="center" style="${cell}border-radius:10px;">
+      <a href="${href}" style="display:block;padding:18px 16px;${FONT}font-size:24px;font-weight:bold;line-height:1.3;color:${color};text-decoration:none;">${label}</a>
+    </td></tr>`;
+}
+
+// now is the send time, which the days left in a sign-up reminder count from.
+export function renderEmail(kind, { lang, participant, receiver, event, group, link, tz, now }) {
   if (!KEYS[kind]) throw new Error(`unknown email kind: ${kind}`);
   // Someone invited into a group that is already open gets no separate
   // draw-open mail, so their invitation says they can draw.
   const key = kind === 'invite' && group.openedAt ? 'inviteOpen' : KEYS[kind];
   const vars = { name: RECEIVER_KINDS.has(kind) ? receiver.name : participant.name, event: event.name };
   if (DEADLINE_KINDS.has(kind)) vars.deadline = formatDate(lang, event.signupDeadline, tz);
+  if (kind === 'remind-signup') {
+    if (!(now instanceof Date)) throw new Error('remind-signup needs the send time');
+    vars.days = daysLeft(event.signupDeadline, now, tz);
+  }
+  // The catalogue has no plural forms, so the last day has its own subject.
+  const subjectKey = vars.days === 1 ? 'subjectOne' : 'subject';
   const appName = t(lang, 'app.name');
-  const subject = `${appName}: ${t(lang, `email.${key}.subject`, vars)}`;
+  const subject = `${appName}: ${t(lang, `email.${key}.${subjectKey}`, vars)}`;
   const greeting = t(lang, 'email.greeting', { name: participant.name });
   const body = t(lang, `email.${key}.body`, vars);
   // The text part has no button, so its wording points at the link.
   const bodyText = t(lang, `email.${key}.bodyText`, vars);
-  const button = t(lang, `email.${key}.button`);
+  const buttons = ANSWER_KINDS.has(kind)
+    ? [
+      { href: `${link}?a=yes`, label: t(lang, `email.${key}.button`) },
+      { href: `${link}?a=no`, label: t(lang, `email.${key}.button2`) },
+    ]
+    : [{ href: link, label: t(lang, `email.${key}.button`) }];
   const theme = themeText(event, lang);
   const date = exchangeLine(lang, group, tz);
   const linkIntro = t(lang, 'email.linkIntro');
@@ -96,11 +124,9 @@ export function renderEmail(kind, { lang, participant, receiver, event, group, l
   <p style="${TEXT}margin:0 0 16px;font-size:24px;font-weight:bold;">${greeting}</p>
   <p style="${TEXT}margin:0 0 24px;">${body}</p>
   ${wishes?.html}
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 28px;">
-    <tr><td align="center" style="background-color:${C.accent};border-radius:10px;">
-      <a href="${link}" style="display:block;padding:18px 16px;${FONT}font-size:24px;font-weight:bold;line-height:1.3;color:#ffffff;text-decoration:none;">${button}</a>
-    </td></tr>
-  </table>
+  ${buttons.map((b, i) => html`<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 ${i === buttons.length - 1 ? 28 : 16}px;">
+    ${buttonHtml(b.href, b.label, i === 0)}
+  </table>`)}
   <p style="${TEXT}margin:0 0 16px;font-weight:bold;">${date}</p>
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;">
     <tr><td style="background-color:${C.theme};border-radius:10px;padding:16px 18px;${FONT}font-size:19px;line-height:1.5;color:${C.ink};">${theme}</td></tr>
@@ -121,9 +147,10 @@ export function renderEmail(kind, { lang, participant, receiver, event, group, l
     bodyText,
     '',
     ...(wishes ? [...wishes.text, ''] : []),
-    t(lang, 'email.textLink'),
-    link,
-    '',
+    // Each answer's link under its own label, as the buttons would show.
+    ...(ANSWER_KINDS.has(kind)
+      ? buttons.flatMap((b) => [colon(b.label), b.href, ''])
+      : [t(lang, 'email.textLink'), link, '']),
     date,
     '',
     theme,

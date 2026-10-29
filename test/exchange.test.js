@@ -57,7 +57,10 @@ for (const [name, view] of Object.entries(VIEWS)) {
 
 for (const kind of KINDS) {
   test(`${kind} mail carries the time and place, escaped in html and plain in text`, () => {
-    const mail = renderEmail(kind, { lang: 'en', participant: { ...ada, language: 'en' }, receiver: ben, event, group, link: 'https://gifts.example.com/p/x', tz: TZ });
+    const mail = renderEmail(kind, {
+      lang: 'en', participant: { ...ada, language: 'en' }, receiver: ben, event, group,
+      link: 'https://gifts.example.com/p/x', tz: TZ, now: new Date('2026-11-13T08:00:00.000Z'),
+    });
     const sentence = `We give the presents on Friday 18 December at 10:30, at ${PLACE}.`;
     assert.ok(mail.html.includes(escape(sentence)));
     assert.ok(!mail.html.includes('<b>'));

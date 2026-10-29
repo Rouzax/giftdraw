@@ -12,6 +12,9 @@ const BACKOFF_MS = [1, 5, 30, 120].map((m) => m * MINUTE);
 const MAX_ATTEMPTS = BACKOFF_MS.length + 1;
 const SAFE_CODE = /^[A-Z0-9_-]{1,40}$/i;
 const REMINDER_KINDS = new Set(['remind-wishes', 'remind-draw']);
+// The answer each sign-up kind is about: the mail and its reminder ask
+// someone who has not answered, the nudge goes to someone who said no.
+const SIGNUP_ANSWER = { signup: null, 'remind-signup': null, 'signup-nudge': 'no' };
 
 // Only a short code is kept: SMTP error messages and objects quote addresses
 // and server replies, which must stay out of the database and the logs. The
@@ -52,9 +55,13 @@ function prepare(ctx, row) {
   // The same for a draw-open or invite sent again by hand after giving up:
   // someone who has drawn since must not be asked to start.
   if ((row.kind === 'draw-open' || row.kind === 'invite') && participant.drawnAt) throw new Skip('stale-mail');
-  // A sign-up mail still queued once the sign-up has closed would ask for
-  // an answer that can no longer be given.
-  if (row.kind === 'signup' && signupState(event, ctx.now(), config.tz) !== 'open') throw new Skip('stale-mail');
+  // A sign-up mail still queued once the sign-up has closed would ask for an
+  // answer that can no longer be given, and one queued before the person
+  // answered (or changed their no) would ask for what they already said.
+  if (Object.hasOwn(SIGNUP_ANSWER, row.kind)
+    && (signupState(event, ctx.now(), config.tz) !== 'open' || participant.signup !== SIGNUP_ANSWER[row.kind])) {
+    throw new Skip('stale-signup');
+  }
   // Only receiver kinds load the receiver, so a failing lookup of someone
   // else's row cannot take down a mail that never uses it.
   let receiver = null;
@@ -64,7 +71,7 @@ function prepare(ctx, row) {
   }
   const lang = participant.language;
   const link = `${config.appUrl}/p/${participant.token}`;
-  const mail = renderEmail(row.kind, { lang, participant, receiver, event, group, link, tz: config.tz });
+  const mail = renderEmail(row.kind, { lang, participant, receiver, event, group, link, tz: config.tz, now: ctx.now() });
   return { to: participant.email, ...mail };
 }
 

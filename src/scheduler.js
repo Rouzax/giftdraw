@@ -4,7 +4,7 @@ import { drainOutbox, errorCode } from './mail/outbox.js';
 import { enqueueMail, mailOn } from './people.js';
 import { wishForm } from './questions.js';
 import { dueReminder, reminderKind } from './reminders.js';
-import { closesAt, signupActive } from './signup.js';
+import { closesAt, dueSignupMail, signupActive } from './signup.js';
 import { instantAt, todayIn } from './time.js';
 
 const AUTO_OPEN_AT = '09:00';
@@ -34,6 +34,27 @@ function closeSignups(ctx, now) {
     repo.updateEvent(event.id, { signupClosedAt: now.toISOString() }, now.toISOString());
     ctx.log.info({ event_id: event.id, by: 'deadline' }, 'signup_closed');
     return true;
+  });
+}
+
+// Reminders to answer and the one nudge after a no, for events whose
+// sign-up is still running; dueSignupMail checks that it is open.
+function signupMails(ctx, now) {
+  const { repo, config } = ctx;
+  if (!mailOn(ctx)) return 0;
+  // Each row carries the participant's id so a failing row is logged by it.
+  const rows = repo.listSignupEvents().flatMap((event) =>
+    repo.listEventParticipants(event.id).map((participant) => ({ id: participant.id, participant, event })));
+  return eachRow(ctx, 'signup-mails', rows, 'participant_id', ({ participant, event }) => {
+    const due = dueSignupMail({
+      participant,
+      event,
+      history: repo.reminderHistory(participant.id, 'remind-signup'),
+      nudgeHistory: repo.reminderHistory(participant.id, 'signup-nudge'),
+      now,
+      tz: config.tz,
+    });
+    return due ? enqueueMail(ctx, participant.id, due, now.toISOString()) : false;
   });
 }
 
@@ -125,10 +146,11 @@ function cleanup(ctx, now) {
 export async function tick(ctx) {
   const started = performance.now();
   const now = ctx.now();
-  const result = { signupClosed: 0, opened: 0, reminders: 0, wishUpdates: 0, deleted: 0 };
+  const result = { signupClosed: 0, signupMails: 0, opened: 0, reminders: 0, wishUpdates: 0, deleted: 0 };
   let outcome = 'error';
   try {
     result.signupClosed = closeSignups(ctx, now);
+    result.signupMails = signupMails(ctx, now);
     result.opened = autoOpen(ctx, now);
     result.reminders = reminders(ctx, now);
     result.wishUpdates = wishUpdates(ctx, now);
@@ -141,6 +163,7 @@ export async function tick(ctx) {
     ctx.log.debug(
       {
         signup_closed: result.signupClosed,
+        signup_mails: result.signupMails,
         opened: result.opened,
         reminders: result.reminders,
         wish_updates: result.wishUpdates,

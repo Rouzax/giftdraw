@@ -420,3 +420,73 @@ test('a sign-up past its deadline is closed by the next tick, one still running 
   await tick(ctx);
   assert.equal(logLines(logs).filter((l) => l.msg === 'signup_closed').length, 1);
 });
+
+// Sign-up sent on 1 November with the deadline on Friday 20 November: the
+// reminder slots are 09:00 Amsterdam (08:00Z) on 13 and 18 November.
+async function signupSetup(clockOptions = {}) {
+  const clock = { ms: T0 };
+  const t = await makeTestApp({ clock: () => new Date(clock.ms), ...clockOptions });
+  const seeded = seedGroup(t.ctx, { names: ['Ada', 'Ben', 'Cor'], invited: false });
+  const { repo } = t.ctx;
+  const now = t.ctx.nowIso();
+  repo.updateEvent(seeded.event.id, { signupDeadline: '2026-11-20', signupSentAt: now }, now);
+  for (const p of seeded.people) repo.updateParticipant(p.id, { signupInvitedAt: now });
+  return { ...t, ...seeded, clock };
+}
+
+async function tickHourlyUntil(ctx, clock, endIso) {
+  const end = Date.parse(endIso);
+  while (clock.ms < end) {
+    clock.ms += 60 * MINUTE;
+    await tick(ctx);
+  }
+}
+
+const signupRows = (db) =>
+  db.prepare("SELECT participant_id AS id, kind, created_at AS at FROM outbox WHERE kind IN ('remind-signup', 'signup-nudge') ORDER BY id")
+    .all().map((r) => [r.id, r.kind, r.at]);
+
+test('sign-up reminders and the nudge go out once each, and reopening sends no more', async () => {
+  const { ctx, db, mails, clock, event, people } = await signupSetup();
+  const [ada, ben, cor] = people;
+  clock.ms = Date.parse('2026-11-05T12:00:00.000Z');
+  ctx.repo.updateParticipant(ben.id, { signup: 'no', signupAt: ctx.nowIso() });
+  await tickHourlyUntil(ctx, clock, '2026-11-20T23:00:00.000Z');
+  const first = '2026-11-13T08:00:00.000Z';
+  const second = '2026-11-18T08:00:00.000Z';
+  assert.deepEqual(signupRows(db).sort(), [
+    [ada.id, 'remind-signup', first], [cor.id, 'remind-signup', first],
+    [ada.id, 'remind-signup', second], [ben.id, 'signup-nudge', second], [cor.id, 'remind-signup', second],
+  ].sort());
+  assert.equal(ctx.repo.getEvent(event.id).signupClosedAt, '2026-11-20T23:00:00.000Z');
+  const subjects = mails.map((m) => m.subject);
+  assert.ok(subjects.includes('Lootjes trekken: Nog 8 dagen: doe je mee met Gifts 2026?'), subjects.join('\n'));
+  assert.ok(subjects.includes('Lootjes trekken: Nog 3 dagen: doe je mee met Gifts 2026?'), subjects.join('\n'));
+  assert.ok(subjects.includes('Lootjes trekken: Weet je het zeker?'), subjects.join('\n'));
+
+  // The organiser reopens with a new deadline ten days on; the new slots
+  // fall on 23 and 28 November, but everyone has had their reminders.
+  ctx.repo.updateEvent(event.id, { signupDeadline: '2026-11-30', signupClosedAt: null }, ctx.nowIso());
+  const before = signupRows(db).length;
+  await tickHourlyUntil(ctx, clock, '2026-11-30T23:00:00.000Z');
+  assert.equal(signupRows(db).length, before);
+});
+
+test('a tick counts the sign-up mails it queues and logs the count', async () => {
+  const { ctx, clock, logs } = await signupSetup({ configOverrides: { logLevel: 'debug' } });
+  ctx.log.level = 'debug';
+  clock.ms = Date.parse('2026-11-13T08:00:00.000Z');
+  assert.equal((await tick(ctx)).signupMails, 3);
+  const done = logLines(logs).filter((l) => l.msg === 'tick_done').at(-1);
+  assert.equal(done.signup_mails, 3);
+  clock.ms += MINUTE;
+  assert.equal((await tick(ctx)).signupMails, 0);
+});
+
+test('with mail off the tick queues no sign-up mails', async () => {
+  const { ctx, clock, db, mailer } = await signupSetup();
+  mailer.enabled = false;
+  clock.ms = Date.parse('2026-11-13T08:00:00.000Z');
+  assert.equal((await tick(ctx)).signupMails, 0);
+  assert.deepEqual(signupRows(db), []);
+});

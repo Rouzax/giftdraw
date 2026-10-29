@@ -30,27 +30,72 @@ function render(kind, lang, overrides = {}) {
     group,
     link: LINK,
     tz: 'Europe/Amsterdam',
+    // 09:00 Amsterdam on 13 November: eight days up to and with the deadline.
+    now: new Date('2026-11-13T08:00:00.000Z'),
     ...overrides,
   });
 }
 
 test('every kind is rendered', () => {
-  assert.deepEqual(KINDS, ['invite', 'draw-open', 'remind-wishes', 'remind-draw', 'wishes-updated', 'reassigned', 'signup']);
+  assert.deepEqual(KINDS, [
+    'invite', 'draw-open', 'remind-wishes', 'remind-draw', 'wishes-updated', 'reassigned',
+    'signup', 'remind-signup', 'signup-nudge',
+  ]);
 });
 
+// Kinds that ask for an answer carry a button for each; the nudge goes to
+// people who said no and only points at their page.
+const ANSWER_KINDS = ['signup', 'remind-signup'];
+const ANSWERS = {
+  nl: { yes: 'Ja, ik doe mee', no: 'Nee, deze keer niet' },
+  en: { yes: "Yes, I'm taking part", no: 'No, not this time' },
+};
 const SIGNUP = {
-  nl: { subject: 'Doe je mee met Gifts 2026?', deadline: 'tot en met vrijdag 20 november', button: 'Zeg of je meedoet' },
-  en: { subject: 'Are you taking part in Gifts 2026?', deadline: 'until the end of Friday 20 November', button: 'Say if you take part' },
+  nl: {
+    signup: 'Doe je mee met Gifts 2026?',
+    'remind-signup': 'Nog 8 dagen: doe je mee met Gifts 2026?',
+    'signup-nudge': 'Weet je het zeker?',
+    deadline: 'tot en met vrijdag 20 november',
+  },
+  en: {
+    signup: 'Are you taking part in Gifts 2026?',
+    'remind-signup': '8 days left: are you taking part in Gifts 2026?',
+    'signup-nudge': 'Are you sure?',
+    deadline: 'until the end of Friday 20 November',
+  },
 };
 
 for (const lang of ['nl', 'en']) {
-  test(`the sign-up mail in ${lang} names the event and the closing date, with one button`, () => {
-    const mail = render('signup', lang);
+  for (const kind of ANSWER_KINDS) {
+    test(`${kind} in ${lang} names the event and the closing date, with a button for each answer`, () => {
+      const mail = render(kind, lang);
+      const want = SIGNUP[lang];
+      const answers = ANSWERS[lang];
+      assert.equal(mail.subject, `${EXPECT[lang].app}: ${want[kind]}`);
+      for (const body of [mail.html, mail.text]) assert.ok(body.includes(want.deadline), body);
+      assert.ok(mail.html.includes(`href="${LINK}?a=yes"`), 'yes button');
+      assert.ok(mail.html.includes(`href="${LINK}?a=no"`), 'no button');
+      assert.ok(mail.html.indexOf(escape(answers.yes)) < mail.html.indexOf(escape(answers.no)), 'yes first');
+      assert.ok(mail.html.indexOf(escape(answers.yes)) > -1, 'yes label');
+      assert.equal(mail.html.match(/<a href=/g).length, 3, 'two buttons and the written-out link');
+      assert.ok(mail.text.includes(`${answers.yes}:\n${LINK}?a=yes`), mail.text);
+      assert.ok(mail.text.includes(`${answers.no}:\n${LINK}?a=no`), mail.text);
+    });
+  }
+
+  test(`signup-nudge in ${lang} says the door is open until the deadline, with one button`, () => {
+    const mail = render('signup-nudge', lang, { participant: { ...ada, language: lang, signup: 'no' } });
     const want = SIGNUP[lang];
-    assert.equal(mail.subject, `${EXPECT[lang].app}: ${want.subject}`);
+    assert.equal(mail.subject, `${EXPECT[lang].app}: ${want['signup-nudge']}`);
     for (const body of [mail.html, mail.text]) assert.ok(body.includes(want.deadline), body);
-    assert.ok(mail.html.includes(want.button));
     assert.equal(mail.html.match(/<a href=/g).length, 2, 'the button and the written-out link');
+    assert.ok(!mail.html.includes('?a='), 'no answer in the link');
+  });
+
+  test(`the last-day sign-up reminder in ${lang} speaks of one day`, () => {
+    const mail = render('remind-signup', lang, { now: new Date('2026-11-20T08:00:00.000Z') });
+    const want = lang === 'nl' ? 'Nog 1 dag: doe je mee met Gifts 2026?' : '1 day left: are you taking part in Gifts 2026?';
+    assert.equal(mail.subject, `${EXPECT[lang].app}: ${want}`);
   });
 }
 
@@ -66,7 +111,9 @@ for (const kind of KINDS) {
         assert.ok(body.includes(encode(want.date)), 'date');
       }
       assert.ok(mail.html.includes(`href="${LINK}"`));
-      assert.ok(mail.text.split('\n').includes(LINK), 'link on its own line');
+      const lines = mail.text.split('\n');
+      const links = ANSWER_KINDS.includes(kind) ? [`${LINK}?a=yes`, `${LINK}?a=no`] : [LINK];
+      for (const link of links) assert.ok(lines.includes(link), 'link on its own line');
       assert.ok(mail.html.includes('max-width:600px'));
       assert.ok(!/<img|url\(/i.test(mail.html), 'no images');
       for (const body of [mail.subject, mail.html, mail.text]) assert.ok(!body.includes('\u2014'), 'no em dash');
@@ -136,7 +183,8 @@ test('the plain text of every mail points at the link, never at a button', () =>
     for (const [kind, g] of [...KINDS.map((k) => [k, group]), ['invite', opened]]) {
       const { text } = render(kind, lang, { group: g });
       assert.doesNotMatch(text, /knop|button/i, `${lang} ${kind}`);
-      assert.ok(text.includes(`${lang === 'nl' ? 'Open deze link' : 'Open this link'}:\n${LINK}`), `${lang} ${kind}`);
+      const intro = ANSWER_KINDS.includes(kind) ? ANSWERS[lang].yes : lang === 'nl' ? 'Open deze link' : 'Open this link';
+      assert.ok(text.includes(`${intro}:\n${LINK}`), `${lang} ${kind}`);
     }
   }
 });

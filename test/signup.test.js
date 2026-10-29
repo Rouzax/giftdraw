@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { closesAt, signupState, signupActive, joins } from '../src/signup.js';
+import { closesAt, daysLeft, dueSignupMail, signupState, signupActive, joins } from '../src/signup.js';
 import { signupDeadlineError } from '../src/limits.js';
 import { makeTestApp, seedGroup } from './helpers.js';
 
@@ -66,4 +66,78 @@ test('the repo stores sign-up fields without moving card timestamps', async (t) 
   assert.deepEqual(repo.listSignupEvents().map((x) => x.id), [event.id]);
   repo.updateEvent(event.id, { signupClosedAt: 'c' });
   assert.deepEqual(repo.listSignupEvents(), []);
+});
+
+// Deadline Friday 20 November; 09:00 Amsterdam is 08:00Z in winter, so the
+// reminder slots are 13 November (deadline-7) and 18 November (deadline-2).
+const OPEN = { signupDeadline: '2026-11-20', signupSentAt: '2026-11-10T10:00:00.000Z', signupClosedAt: null, signupDoneAt: null };
+const ASKED = { email: 'ada@example.com', signup: null, signupAt: null, signupInvitedAt: '2026-11-10T10:00:00.000Z' };
+const NONE = { count: 0, lastAt: null };
+const ONE = { count: 1, lastAt: '2026-11-13T08:00:30.000Z' };
+const TWO = { count: 2, lastAt: '2026-11-18T08:00:30.000Z' };
+const SAID_NO = { ...ASKED, signup: 'no', signupAt: '2026-11-15T12:00:00.000Z' };
+
+const DUE = [
+  ['nothing on deadline-8', {}, '2026-11-12T08:00:00.000Z', NONE, NONE, null],
+  ['nothing at 08:59 on deadline-7', {}, '2026-11-13T07:59:00.000Z', NONE, NONE, null],
+  ['a reminder at 09:00 on deadline-7', {}, '2026-11-13T08:00:00.000Z', NONE, NONE, 'remind-signup'],
+  ['nothing again that day', {}, '2026-11-13T12:00:00.000Z', ONE, NONE, null],
+  ['a reminder at 09:00 on deadline-2', {}, '2026-11-18T08:00:00.000Z', ONE, NONE, 'remind-signup'],
+  ['nothing at 20:00', {}, '2026-11-18T19:00:00.000Z', ONE, NONE, null],
+  ['nothing on deadline-1 after both', {}, '2026-11-19T08:00:00.000Z', TWO, NONE, null],
+  ['a missed morning is caught up later that day', {}, '2026-11-13T15:00:00.000Z', NONE, NONE, 'remind-signup'],
+  ['never a third', {}, '2026-11-18T08:00:00.000Z', { count: 2, lastAt: '2026-11-13T08:00:30.000Z' }, NONE, null],
+  ['sent 4 days before: nothing for the skipped first slot',
+    { event: { signupSentAt: '2026-11-16T10:00:00.000Z' }, participant: { signupInvitedAt: '2026-11-16T10:00:00.000Z' } },
+    '2026-11-16T12:00:00.000Z', NONE, NONE, null],
+  ['sent 4 days before: one reminder at deadline-2',
+    { event: { signupSentAt: '2026-11-16T10:00:00.000Z' }, participant: { signupInvitedAt: '2026-11-16T10:00:00.000Z' } },
+    '2026-11-18T08:00:00.000Z', NONE, NONE, 'remind-signup'],
+  ['sent 4 days before: nothing after that one',
+    { event: { signupSentAt: '2026-11-16T10:00:00.000Z' }, participant: { signupInvitedAt: '2026-11-16T10:00:00.000Z' } },
+    '2026-11-19T08:00:00.000Z', { count: 1, lastAt: '2026-11-18T08:00:30.000Z' }, NONE, null],
+  ['someone added between the slots is not chased by the earlier one',
+    { participant: { signupInvitedAt: '2026-11-14T10:00:00.000Z' } }, '2026-11-15T08:00:00.000Z', NONE, NONE, null],
+  ['someone added between the slots gets the later one',
+    { participant: { signupInvitedAt: '2026-11-14T10:00:00.000Z' } }, '2026-11-18T08:00:00.000Z', NONE, NONE, 'remind-signup'],
+  ['someone added at 08:30 on a slot day is not reminded at 09:00',
+    { participant: { signupInvitedAt: '2026-11-18T07:30:00.000Z' } }, '2026-11-18T08:00:00.000Z', NONE, NONE, null],
+  ['sent at 08:30 on deadline-7: no reminder at 09:00 that day',
+    { event: { signupSentAt: '2026-11-13T07:30:00.000Z' }, participant: { signupInvitedAt: '2026-11-13T07:30:00.000Z' } },
+    '2026-11-13T08:00:00.000Z', NONE, NONE, null],
+  ['answered yes: nothing', { participant: { signup: 'yes', signupAt: '2026-11-11T10:00:00.000Z' } },
+    '2026-11-13T08:00:00.000Z', NONE, NONE, null],
+  ['answered no: no reminder', { participant: SAID_NO }, '2026-11-13T08:00:00.000Z', NONE, NONE, null],
+  ['answered no: no nudge at 08:59 on deadline-2', { participant: SAID_NO }, '2026-11-18T07:59:00.000Z', NONE, NONE, null],
+  ['answered no: a nudge at 09:00 on deadline-2', { participant: SAID_NO }, '2026-11-18T08:00:00.000Z', NONE, NONE, 'signup-nudge'],
+  ['answered no: never a second nudge', { participant: SAID_NO }, '2026-11-19T08:00:00.000Z', NONE, { count: 1, lastAt: 'x' }, null],
+  ['answered no after 09:00 on deadline-2: no nudge',
+    { participant: { ...SAID_NO, signupAt: '2026-11-18T08:30:00.000Z' } }, '2026-11-18T10:00:00.000Z', NONE, NONE, null],
+  ['closed: nothing', { event: { signupClosedAt: '2026-11-12T10:00:00.000Z' } }, '2026-11-13T08:00:00.000Z', NONE, NONE, null],
+  ['closed: no nudge', { event: { signupClosedAt: '2026-11-17T10:00:00.000Z' }, participant: SAID_NO },
+    '2026-11-18T08:00:00.000Z', NONE, NONE, null],
+  ['no email: nothing', { participant: { email: null } }, '2026-11-13T08:00:00.000Z', NONE, NONE, null],
+  ['never asked: nothing', { participant: { signupInvitedAt: null } }, '2026-11-13T08:00:00.000Z', NONE, NONE, null],
+];
+
+for (const [name, change, at, history, nudgeHistory, want] of DUE) {
+  test(`dueSignupMail: ${name}`, () => {
+    const got = dueSignupMail({
+      participant: { ...ASKED, ...change.participant },
+      event: { ...OPEN, ...change.event },
+      history,
+      nudgeHistory,
+      now: new Date(at),
+      tz: TZ,
+    });
+    assert.equal(got, want);
+  });
+}
+
+test('daysLeft counts the deadline day itself', () => {
+  assert.equal(daysLeft('2026-11-20', new Date('2026-11-13T08:00:00.000Z'), TZ), 8);
+  assert.equal(daysLeft('2026-11-20', new Date('2026-11-18T08:00:00.000Z'), TZ), 3);
+  assert.equal(daysLeft('2026-11-20', new Date('2026-11-20T22:59:00.000Z'), TZ), 1);
+  // Local midnight, not UTC: 23:30Z on the 19th is already the 20th in Amsterdam.
+  assert.equal(daysLeft('2026-11-20', new Date('2026-11-19T23:30:00.000Z'), TZ), 1);
 });

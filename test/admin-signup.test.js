@@ -332,7 +332,7 @@ test('a sign-up mail still queued when sign-up closes is not sent', async () => 
   await t.drain();
   assert.equal(t.mails.length, 0);
   const codes = t.db.prepare("SELECT DISTINCT error_code AS code FROM outbox WHERE kind = 'signup'").all().map((r) => r.code);
-  assert.deepEqual(codes, ['stale-mail']);
+  assert.deepEqual(codes, ['stale-signup']);
 });
 
 for (const closed of [false, true]) {
