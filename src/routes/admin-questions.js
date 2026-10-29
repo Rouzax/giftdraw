@@ -1,8 +1,7 @@
 import { countAnswers } from '../answers.js';
-import { LANGS, t } from '../i18n/index.js';
 import { CHOICES_MAX, HEADING_MAX, QUESTION_MAX, QUESTIONS_MAX } from '../limits.js';
 import {
-  builtinChoiceLabel, cleanHeading, cleanQuestion, FOLLOW_UPS, formValue, isBuiltinChoice, isBuiltinQuestion,
+  cleanHeading, cleanQuestion, FOLLOW_UPS, formValue, isBuiltinChoice, isBuiltinLabel, isBuiltinQuestion, isBuiltinText,
   newChoiceId, newQuestionId, sameForm, wishForm,
 } from '../questions.js';
 import { questionView } from '../views/questions.js';
@@ -76,10 +75,6 @@ function applyRowAction(draft, action) {
   return null;
 }
 
-const builtinText = (questionId, text) => LANGS.some((lang) => t(lang, `wish.${questionId}`) === text);
-const builtinLabel = (questionId, choiceId, label) =>
-  LANGS.some((lang) => builtinChoiceLabel(questionId, choiceId, lang) === label);
-
 // The question the draft describes, or the errors that keep it from being
 // saved. Typing the built-in wording or label (in any language) keeps it
 // built in, so it goes on following each reader's language.
@@ -87,7 +82,7 @@ function buildQuestion(draft, current) {
   const errors = {};
   const builtIn = isBuiltinQuestion(current.id);
   let text = cleanHeading(draft.text);
-  if (text && builtIn && builtinText(current.id, text)) text = null;
+  if (text && builtIn && isBuiltinText(current.id, text)) text = null;
   if (!text && !builtIn) errors.text = { key: 'admin.question.error.text' };
   const choices = [];
   if (current.type === 'choices') {
@@ -99,7 +94,7 @@ function buildQuestion(draft, current) {
     draft.choices.forEach((row, i) => {
       const hasBuiltin = isBuiltinChoice(current.id, row.id);
       let own = cleanHeading(row.label);
-      if (own && hasBuiltin && builtinLabel(current.id, row.id, own)) own = null;
+      if (own && hasBuiltin && isBuiltinLabel(current.id, row.id, own)) own = null;
       const question = row.follow === 'own' ? cleanQuestion(row.question) : null;
       const rowErrors = {};
       if (!own && !hasBuiltin) rowErrors.label = { key: 'admin.question.error.label' };

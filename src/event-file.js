@@ -1,18 +1,21 @@
 import { makeCycle } from './draw/cycle.js';
 import { isLang, t } from './i18n/index.js';
 import {
-  groupDatesError, HEADING_MAX, NAME_MAX, OPTIONS_MAX, PLACE_MAX, QUESTION_MAX, THEME_MAX,
+  CHOICES_MAX, groupDatesError, HEADING_MAX, NAME_MAX, OPTIONS_MAX, PLACE_MAX, QUESTION_MAX, QUESTIONS_MAX, THEME_MAX,
 } from './limits.js';
 import { normaliseEmail, PASTE_ROWS_MAX } from './people.js';
+import {
+  BUILTIN_QUESTIONS, builtinChoiceFor, cleanHeading, cleanQuestion, formValue, isBuiltinQuestion, isBuiltinText,
+  newChoiceId, newQuestionId, sameForm, SECTION_IDS, wishForm,
+} from './questions.js';
 import { unixLines } from './text.js';
-import { formConfigValue, optionsToStore, petOptions, readFormConfig, SECTION_IDS, wishOptions } from './wishes.js';
 
 // An event file describes one event to create: its settings, its groups and
 // their participants by name and email. It never holds pairs, links or
 // anything that happened since, so a file can only start something new and
 // can never be used to read or restore anyone's page.
 
-export const FILE_VERSION = 1;
+export const FILE_VERSION = 2;
 export const SCHEMA_URL = 'https://rouzax.github.io/giftdraw/import/event.schema.json';
 // Percent-encoded in the form post a character takes up to six bytes (an
 // accented letter), so this keeps the post inside the import route's body
@@ -24,9 +27,13 @@ const CLEANUP_DEFAULT = 4;
 
 // Keys each object may have. Anything else is refused rather than ignored,
 // so a misspelt "exchange_date" is reported instead of silently lost.
+// `event` is a version 1 event, with the five fixed parts of the form;
+// a version 2 event lists the form as questions instead.
 export const FILE_KEYS = {
   file: ['$schema', 'version', 'event', 'groups'],
   event: ['name', 'language', 'cleanupWeeks', 'theme', 'wishOptions', 'sections', 'petOptions'],
+  eventV2: ['name', 'language', 'cleanupWeeks', 'theme', 'questions'],
+  question: ['id', 'type', 'text', 'show', 'choices'],
   option: ['label', 'question', 'askDetails'],
   section: ['show', 'heading'],
   group: ['name', 'exchangeDate', 'exchangeTime', 'exchangePlace', 'autoOpenAt', 'participants'],
@@ -123,8 +130,63 @@ function readText(out, value, where, field, { max, required = false, multiline =
   return clean;
 }
 
-// A tick list as the event form's textarea would hold it, so the import
-// stores it exactly as typing the same list there would.
+// One choice of a tick list as {label, ask, question}, or null after
+// reporting a problem. A plain text is read as a line of the old event
+// form's list, where a question mark starts the question: "Boeken? Welke
+// schrijver". Version 1 labels never hold a question mark, as that list
+// could not store one; a version 2 label is kept as the edit page keeps it.
+function readChoiceItem(out, item, at, { labelMax, labelMeasure, keepMarks }) {
+  let option = item;
+  if (typeof item === 'string') {
+    const mark = item.indexOf('?');
+    option = mark === -1 ? { label: item }
+      : { label: item.slice(0, mark), askDetails: true, question: item.slice(mark + 1).replace(/^[\s?]+/, '') || null };
+  }
+  if (!isObject(option)) {
+    out.error(at, 'option-shape', {});
+    return null;
+  }
+  checkKeys(out, option, 'option', at);
+  const raw = readText(out, option.label, at, 'label', { max: labelMax, measure: labelMeasure, required: true });
+  const marks = keepMarks && typeof item !== 'string';
+  const label = typeof raw === 'string' && !marks ? raw.replace(/\?/g, '').replace(/\s+/g, ' ').trim() : raw;
+  if (raw && !label) out.error(at, 'required', { field: 'label' });
+  const question = readText(out, option.question, at, 'question', { max: QUESTION_MAX, measure: 'codepoints' });
+  let ask = Boolean(question);
+  if (option.askDetails !== undefined && option.askDetails !== null) {
+    if (typeof option.askDetails !== 'boolean') out.error(at, 'not-boolean', { field: 'askDetails' });
+    else ask = ask || option.askDetails;
+  }
+  if (!label || question === undefined) return null;
+  return { label, ask, question };
+}
+
+// The event form allows a repeated choice, so a downloaded template can
+// hold one; it is pointed out rather than refused.
+function warnTwice(out, items, at) {
+  const seen = new Set();
+  items.forEach((item, index) => {
+    const key = item.label.toLowerCase();
+    if (seen.has(key)) out.warn(at(index), 'option-twice', { label: item.label });
+    seen.add(key);
+  });
+}
+
+// Choices as the edit page stores them: a built-in label in any language
+// keeps its built-in id, so it follows each reader's language; wording is
+// cleaned and cut like the edit page cuts it.
+function fileChoices(questionId, items) {
+  const taken = new Set();
+  return items.map(({ label, ask, question }) => {
+    const builtIn = builtinChoiceFor(questionId, label, taken);
+    const own = builtIn ? null : cleanHeading(label);
+    const id = builtIn ?? newChoiceId(own, taken);
+    taken.add(id);
+    return { id, own, detail: ask, question: cleanQuestion(question) };
+  });
+}
+
+// A version 1 tick list, measured as the old event form's textarea held it.
 function readOptions(out, value, where, field) {
   if (value === undefined || value === null) return null;
   if (!Array.isArray(value)) {
@@ -135,54 +197,16 @@ function readOptions(out, value, where, field) {
     out.error(where, 'options-empty', { field });
     return undefined;
   }
-  const lines = [];
-  const seen = new Set();
-  let ok = true;
-  value.forEach((item, index) => {
-    const at = [...where, { option: field, n: index + 1 }];
-    // A plain text is read as a line of the event form's list, where a
-    // question mark starts the question: "Boeken? Welke schrijver".
-    let option = item;
-    if (typeof item === 'string') {
-      const mark = item.indexOf('?');
-      option = mark === -1 ? { label: item }
-        : { label: item.slice(0, mark), askDetails: true, question: item.slice(mark + 1).replace(/^[\s?]+/, '') || null };
-    }
-    if (!isObject(option)) {
-      out.error(at, 'option-shape', {});
-      ok = false;
-      return;
-    }
-    checkKeys(out, option, 'option', at);
-    // A question mark starts the question in the line format, so a label
-    // cannot hold one.
-    const raw = readText(out, option.label, at, 'label', { max: OPTIONS_MAX, required: true });
-    const label = typeof raw === 'string' ? raw.replace(/\?/g, '').replace(/\s+/g, ' ').trim() : raw;
-    if (raw && !label) out.error(at, 'required', { field: 'label' });
-    const question = readText(out, option.question, at, 'question', { max: QUESTION_MAX, measure: 'codepoints' });
-    let ask = Boolean(question);
-    if (option.askDetails !== undefined && option.askDetails !== null) {
-      if (typeof option.askDetails !== 'boolean') out.error(at, 'not-boolean', { field: 'askDetails' });
-      else ask = ask || option.askDetails;
-    }
-    if (!label || question === undefined) {
-      ok = false;
-      return;
-    }
-    // The event form allows a repeated choice, so a downloaded template can
-    // hold one; it is pointed out rather than refused.
-    const key = label.toLowerCase();
-    if (seen.has(key)) out.warn(at, 'option-twice', { label });
-    seen.add(key);
-    lines.push(ask ? `${label}?${question ? ` ${question}` : ''}` : label);
-  });
-  if (!ok) return undefined;
-  const text = lines.join('\n');
-  if (text.length > OPTIONS_MAX) {
+  const at = (index) => [...where, { option: field, n: index + 1 }];
+  const items = value.map((item, index) => readChoiceItem(out, item, at(index), { labelMax: OPTIONS_MAX }));
+  if (items.includes(null)) return undefined;
+  warnTwice(out, items, at);
+  const lines = items.map(({ label, ask, question }) => (ask ? `${label}?${question ? ` ${question}` : ''}` : label));
+  if (lines.join('\n').length > OPTIONS_MAX) {
     out.error(where, 'options-too-long', { field, max: OPTIONS_MAX });
     return undefined;
   }
-  return text;
+  return items;
 }
 
 function readSections(out, value, where) {
@@ -213,9 +237,9 @@ function readSections(out, value, where) {
     const heading = readText(out, section.heading, at, 'heading', { max: HEADING_MAX, measure: 'codepoints' });
     if (heading === undefined) ok = false;
     // A heading equal to a built-in one stays empty, so it keeps following
-    // each participant's language, as on the event form.
-    const builtIn = ['nl', 'en'].some((l) => t(l, `wish.${id}`) === heading);
-    sections[id] = { show: section.show !== false, heading: heading && !builtIn ? heading : null };
+    // each participant's language, as on the edit page.
+    const own = cleanHeading(heading);
+    sections[id] = { show: section.show !== false, heading: own && !isBuiltinText(id, own) ? own : null };
   }
   return ok ? sections : undefined;
 }
@@ -230,13 +254,127 @@ function readCleanupWeeks(out, value, where) {
   return weeks;
 }
 
-function readEvent(out, value, existingNames) {
+// The five fixed parts of a version 1 form, as questions.
+function readFormV1(out, value, where) {
+  const likes = readOptions(out, value.wishOptions, where, 'wishOptions');
+  const pets = readOptions(out, value.petOptions, where, 'petOptions');
+  const sections = readSections(out, value.sections, where);
+  if ([likes, pets, sections].includes(undefined)) return undefined;
+  const lists = { likes, pets };
+  return wishForm({}).questions.map((q) => ({
+    ...q,
+    text: sections[q.id].heading,
+    show: sections[q.id].show,
+    choices: lists[q.id] ? fileChoices(q.id, lists[q.id]) : q.choices,
+  }));
+}
+
+// A version 2 tick list: null keeps a built-in question's own choices.
+function readChoices(out, value, at, builtIn) {
+  if ((value === undefined || value === null) && builtIn) return null;
+  if (value !== undefined && value !== null && !Array.isArray(value)) {
+    out.error(at, 'not-list', { field: 'choices' });
+    return undefined;
+  }
+  if (!value?.length) {
+    out.error(at, 'choices-empty', {});
+    return undefined;
+  }
+  if (value.length > CHOICES_MAX) {
+    out.error(at, 'too-many-choices', { max: CHOICES_MAX });
+    return undefined;
+  }
+  const choiceAt = (index) => [...at, { choice: index + 1 }];
+  const items = value.map((item, index) => readChoiceItem(out, item, choiceAt(index), {
+    labelMax: HEADING_MAX, labelMeasure: 'codepoints', keepMarks: true,
+  }));
+  if (items.includes(null)) return undefined;
+  warnTwice(out, items, choiceAt);
+  return items;
+}
+
+// A question as the edit page would save it. An id names a built-in
+// question, which then keeps its type; any other question gets a new id.
+function readQuestion(out, value, at, before) {
+  if (!isObject(value)) {
+    out.error(at, 'not-object', { field: 'questions' });
+    return null;
+  }
+  checkKeys(out, value, 'question', at);
+  let ok = true;
+  const hasId = value.id !== undefined && value.id !== null;
+  const builtIn = hasId ? BUILTIN_QUESTIONS.find((q) => q.id === value.id) ?? null : null;
+  if (hasId && (!builtIn || before.some((q) => q.id === builtIn.id))) {
+    out.error(at, 'question-id', { id: String(value.id), known: SECTION_IDS.join(', ') });
+    ok = false;
+  }
+  if (value.type !== 'text' && value.type !== 'choices') {
+    out.error(at, 'question-type', {});
+    ok = false;
+  } else if (builtIn && builtIn.type !== value.type) {
+    out.error(at, 'question-id-type', { id: builtIn.id, type: builtIn.type });
+    ok = false;
+  }
+  if (value.show !== undefined && value.show !== null && typeof value.show !== 'boolean') {
+    out.error(at, 'not-boolean', { field: 'show' });
+    ok = false;
+  }
+  const typed = readText(out, value.text, at, 'text', { max: HEADING_MAX, measure: 'codepoints' });
+  if (typed === undefined) ok = false;
+  const own = cleanHeading(typed);
+  const text = own && builtIn && isBuiltinText(builtIn.id, own) ? null : own;
+  if (typed !== undefined && !text && !builtIn) {
+    out.error(at, 'question-text', {});
+    ok = false;
+  }
+  let items = null;
+  if (value.type === 'text' && value.choices !== undefined && value.choices !== null) {
+    out.error(at, 'choices-on-text', {});
+    ok = false;
+  } else if (value.type === 'choices') {
+    items = readChoices(out, value.choices, at, Boolean(builtIn));
+    if (items === undefined) ok = false;
+  }
+  if (!ok) return null;
+  const id = builtIn ? builtIn.id : newQuestionId({ questions: before });
+  let choices = [];
+  if (items) choices = fileChoices(id, items);
+  else if (builtIn && value.type === 'choices') choices = wishForm({}).questions.find((q) => q.id === id).choices;
+  return { id, type: value.type, text, show: value.show !== false, choices };
+}
+
+// Without questions a version 2 file has the built-in form.
+function readFormV2(out, value, where) {
+  if (value === undefined || value === null) return wishForm({}).questions;
+  if (!Array.isArray(value)) {
+    out.error(where, 'not-list', { field: 'questions' });
+    return undefined;
+  }
+  if (value.length === 0) {
+    out.error(where, 'questions-empty', {});
+    return undefined;
+  }
+  if (value.length > QUESTIONS_MAX) {
+    out.error(where, 'too-many-questions', { max: QUESTIONS_MAX });
+    return undefined;
+  }
+  const questions = [];
+  let ok = true;
+  value.forEach((raw, index) => {
+    const question = readQuestion(out, raw, [...where, { question: index + 1 }], questions);
+    if (question) questions.push(question);
+    else ok = false;
+  });
+  return ok ? questions : undefined;
+}
+
+function readEvent(out, value, version, existingNames) {
   const where = [{ part: 'event' }];
   if (!isObject(value)) {
     out.error([], value === undefined ? 'required' : 'not-object', { field: 'event' });
     return null;
   }
-  checkKeys(out, value, 'event', where);
+  checkKeys(out, value, version === 1 ? 'event' : 'eventV2', where);
   const name = readText(out, value.name, where, 'name', { max: NAME_MAX, required: true });
   let language = 'nl';
   if (value.language !== undefined && value.language !== null) {
@@ -245,21 +383,18 @@ function readEvent(out, value, existingNames) {
   }
   const cleanupWeeks = readCleanupWeeks(out, value.cleanupWeeks, where);
   const theme = readText(out, value.theme, where, 'theme', { max: THEME_MAX, multiline: true });
-  const likes = readOptions(out, value.wishOptions, where, 'wishOptions');
-  const pets = readOptions(out, value.petOptions, where, 'petOptions');
-  const sections = readSections(out, value.sections, where);
-  if ([name, cleanupWeeks, theme, likes, pets, sections].includes(undefined)) return null;
+  const questions = version === 1 ? readFormV1(out, value, where) : readFormV2(out, value.questions, where);
+  if ([name, cleanupWeeks, theme, questions].includes(undefined)) return null;
 
   if (existingNames.has(name.toLowerCase())) out.warn(where, 'event-exists', { name });
   const isDefaultTheme = ['nl', 'en'].some((l) => t(l, 'theme.default') === theme);
-  const store = (text, builtIn, kind) => (text === null ? null : optionsToStore(text, builtIn, language, kind) ?? null);
   return {
     name,
     language,
     cleanupWeeks,
     themeText: theme && !isDefaultTheme ? theme : null,
-    wishOptions: store(likes, wishOptions({}), 'likes'),
-    formConfig: formConfigValue({ sections, petOptions: store(pets, petOptions({}), 'pets') }),
+    wishOptions: null,
+    formConfig: formValue({ questions }),
   };
 }
 
@@ -399,9 +534,9 @@ export function readEventFile(text, { today, existingNames = new Set() }) {
   checkKeys(out, data, 'file', []);
   if (data.version === undefined) out.error([], 'version-missing', { version: FILE_VERSION });
   else if (typeof data.version === 'number' && data.version > FILE_VERSION) out.error([], 'version-newer', {});
-  else if (data.version !== FILE_VERSION) out.error([], 'version-unknown', { version: FILE_VERSION });
+  else if (data.version !== 1 && data.version !== FILE_VERSION) out.error([], 'version-unknown', { version: FILE_VERSION });
 
-  const event = readEvent(out, data.event, existingNames);
+  const event = readEvent(out, data.event, data.version === 1 ? 1 : FILE_VERSION, existingNames);
   let groups = null;
   if (!Array.isArray(data.groups)) {
     out.error([], data.groups === undefined ? 'required' : 'not-list', { field: 'groups' });
@@ -436,36 +571,45 @@ export function createEventFromPlan(ctx, plan) {
   });
 }
 
-// Labels as the event's language shows them. A stored label can hold a
-// question mark only from before the mark started a question; it is left
-// out, as the event form's textarea does.
-function fileOptions(options, lang) {
-  return options.map((o) => {
-    const label = o.label(lang).replace(/\?/g, '').replace(/\s+/g, ' ').trim();
-    if (!o.detail) return label;
-    return o.question ? { label, question: o.question } : { label, askDetails: true };
-  });
+// A choice as a line of text, "Boeken? Welke schrijver?", where that reads
+// back the same; a label with a question mark of its own needs the object.
+function fileChoice(choice, lang) {
+  const label = choice.label(lang);
+  if (label.includes('?')) {
+    if (!choice.detail) return { label };
+    return choice.question ? { label, question: choice.question } : { label, askDetails: true };
+  }
+  if (!choice.detail) return label;
+  return choice.question ? `${label}? ${choice.question}` : `${label}?`;
+}
+
+// A built-in question writes only what differs from it, so its wording and
+// default choices keep following the language after an import.
+function fileQuestion(question, builtIns, lang) {
+  const builtIn = builtIns.find((q) => q.id === question.id);
+  const out = isBuiltinQuestion(question.id) ? { id: question.id, type: question.type } : { type: question.type };
+  if (question.text) out.text = question.text;
+  if (!question.show) out.show = false;
+  const defaultChoices = builtIn && sameForm({ questions: [question] }, { questions: [{ ...question, choices: builtIn.choices }] });
+  if (question.type === 'choices' && !defaultChoices) out.choices = question.choices.map((c) => fileChoice(c, lang));
+  return out;
 }
 
 // The event as a file to start from next time: settings and groups, no
-// participants. Only what differs from the defaults is written, so a
-// default list or heading keeps following the language after an import.
+// participants. A form that is the built-in one is left out, so it keeps
+// following the language after an import.
 export function eventFile(event, groups) {
-  const config = readFormConfig(event.formConfig);
+  const form = wishForm(event);
+  const builtIns = wishForm({}).questions;
   const file = {
     $schema: SCHEMA_URL,
     version: FILE_VERSION,
     event: { name: event.name, language: event.language, cleanupWeeks: event.cleanupWeeks },
   };
   if (event.themeText) file.event.theme = unixLines(event.themeText);
-  if (event.wishOptions) file.event.wishOptions = fileOptions(wishOptions(event), event.language);
-  const sections = {};
-  for (const id of SECTION_IDS) {
-    const { show, heading } = config.sections[id];
-    if (!show || heading) sections[id] = { ...(show ? {} : { show: false }), ...(heading ? { heading } : {}) };
+  if (!sameForm(form, { questions: builtIns })) {
+    file.event.questions = form.questions.map((q) => fileQuestion(q, builtIns, event.language));
   }
-  if (Object.keys(sections).length) file.event.sections = sections;
-  if (config.petOptions) file.event.petOptions = fileOptions(petOptions(event), event.language);
   file.groups = groups.map((g) => ({
     name: g.name,
     exchangeDate: g.exchangeDate,

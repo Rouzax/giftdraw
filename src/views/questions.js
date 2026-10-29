@@ -8,7 +8,7 @@ import { backLink, deleteForm, doneNotice, formToken } from './admin.js';
 const disabled = (on) => (on ? raw(' disabled') : '');
 const counted = (lang, key, count, vars = {}) => t(lang, count === 1 ? `${key}One` : key, { count, ...vars });
 
-function kindText(lang, question) {
+export function kindText(lang, question) {
   if (question.type === 'text') return t(lang, 'admin.form.typeText');
   return counted(lang, 'admin.form.typeChoices', question.choices.length);
 }

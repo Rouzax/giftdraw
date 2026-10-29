@@ -5,6 +5,8 @@ import { validateAssignment } from '../src/draw/cycle.js';
 import { eventFile, eventFileName, FILE_KEYS, IMPORT_TEXT_MAX, readEventFile } from '../src/event-file.js';
 import { t as tr } from '../src/i18n/index.js';
 import { assistantPrompt } from '../src/import-prompt.js';
+import { CHOICES_MAX, QUESTIONS_MAX } from '../src/limits.js';
+import { isBuiltinChoice, isBuiltinQuestion, sameForm, wishForm } from '../src/questions.js';
 import { makeTestApp, textOf } from './helpers.js';
 
 const T0 = Date.parse('2026-11-01T10:00:00.000Z');
@@ -25,6 +27,37 @@ function file(overrides = {}) {
 }
 
 const codes = (list) => list.map((p) => p.code);
+
+// Own questions and choices get a fresh id on every import, so two imports
+// of one file are compared with those ids numbered by position.
+function byPosition(form) {
+  return {
+    questions: form.questions.map((q, i) => ({
+      ...q,
+      id: isBuiltinQuestion(q.id) ? q.id : `q${i}`,
+      choices: q.choices.map((c, j) => ({ ...c, id: isBuiltinChoice(q.id, c.id) ? c.id : `c${j}` })),
+    })),
+  };
+}
+const sameShape = (a, b) => sameForm(byPosition(a), byPosition(b));
+
+// The form docs/import/example.json describes.
+function assertExampleForm(event) {
+  assert.equal(event.wishOptions, null, 'the form is stored as questions only');
+  const form = wishForm(event);
+  assert.deepEqual(form.questions.map((q) => [q.id, q.show, q.text]), [
+    ['hobbies', true, null], ['likes', true, null], ['pets', false, null], ['avoid', true, null], ['other', true, 'Nog iets wat je kwijt wilt'],
+  ]);
+  const likes = form.questions[1].choices;
+  const ids = likes.map((c) => c.id);
+  assert.deepEqual(ids.slice(0, 2), ['chocolate', 'tea'], 'standard labels keep their built-in ids');
+  assert.equal(ids[3], 'plants');
+  assert.equal(ids[4], 'candles');
+  assert.match(ids[2], /^boeken-[0-9a-f]{4}$/);
+  assert.deepEqual(likes.map((c) => [c.own, c.detail, c.question]), [
+    [null, false, null], [null, false, null], ['Boeken', true, 'Welke schrijver?'], [null, true, null], [null, false, null],
+  ]);
+}
 
 async function setup() {
   const clock = { ms: T0 };
@@ -53,14 +86,7 @@ test('the documented example reads without problems', () => {
   assert.equal(plan.event.language, 'nl');
   assert.equal(plan.event.cleanupWeeks, 4);
   assert.match(plan.event.themeText, /^Neem een cadeautje mee/);
-  const ids = plan.event.wishOptions.map((o) => o.id);
-  assert.deepEqual(ids.slice(0, 2), ['chocolate', 'tea'], 'standard labels keep their built-in ids');
-  assert.equal(ids[3], 'plants');
-  assert.equal(ids[4], 'candles');
-  assert.match(ids[2], /^boeken-[0-9a-f]{4}$/);
-  assert.equal(plan.event.wishOptions[2].question, 'Welke schrijver?');
-  assert.equal(plan.event.wishOptions[3].detail, true);
-  assert.deepEqual(plan.event.formConfig, { sections: { pets: { show: false }, other: { heading: 'Nog iets wat je kwijt wilt' } } });
+  assertExampleForm(plan.event);
   assert.equal(plan.groups.length, 2);
   assert.deepEqual(plan.groups[0].participants[2], { name: 'Cor Bakker', email: null });
   assert.deepEqual(plan.groups[1].participants[0], { name: 'Eva Smit', email: null }, 'a bare name is a participant');
@@ -112,11 +138,12 @@ test('broken JSON is reported with its line and character', () => {
   assert.deepEqual(codes(read('x'.repeat(IMPORT_TEXT_MAX + 1)).errors), ['too-large']);
 });
 
-test('the version must be there and be 1', () => {
+test('the version must be there and be 1 or 2', () => {
   const { version, ...rest } = file();
   assert.equal(version, 1);
   assert.deepEqual(codes(read(rest).errors), ['version-missing']);
-  assert.deepEqual(codes(read({ ...rest, version: 2 }).errors), ['version-newer']);
+  assert.deepEqual(read({ ...rest, version: 2 }).errors, []);
+  assert.deepEqual(codes(read({ ...rest, version: 3 }).errors), ['version-newer']);
   assert.deepEqual(codes(read({ ...rest, version: '1' }).errors), ['version-unknown']);
 });
 
@@ -220,7 +247,7 @@ test('tick lists: empty, repeated or unshaped choices are refused', () => {
     'Boeken? Welke schrijver', 'Wijn?', { label: 'Kaas?', question: 'Welke soort??' }, '?? Thee'] } }));
   assert.deepEqual(marks.errors.map((e) => e.vars.field), ['label'], 'a text that is only a question has no choice');
   const lines = read(file({ event: { name: 'K', wishOptions: ['Boeken? Welke schrijver', 'Wijn?', { label: 'Kaas?', question: 'Welke soort??' }] } }));
-  assert.deepEqual(lines.plan.event.wishOptions.map((o) => [o.label, o.detail, o.question ?? null]),
+  assert.deepEqual(wishForm(lines.plan.event).questions[1].choices.map((c) => [c.label('nl'), c.detail, c.question]),
     [['Boeken', true, 'Welke schrijver?'], ['Wijn', true, null], ['Kaas', true, 'Welke soort?']], 'a text reads as a line of the event form');
 });
 
@@ -248,6 +275,220 @@ test('a file has at most so many groups and participants per group', () => {
   assert.deepEqual(codes(read(file({ groups })).errors), ['too-many-groups']);
   const people = Array.from({ length: 501 }, (_, i) => `P${i}`);
   assert.deepEqual(codes(read(file({ groups: [{ name: 'G', exchangeDate: '2026-12-14', participants: people }] })).errors), ['too-many-participants']);
+});
+
+// Version 2: the form as questions
+
+const BUILTINS = [
+  { id: 'hobbies', type: 'text' }, { id: 'likes', type: 'choices' }, { id: 'pets', type: 'choices' },
+  { id: 'avoid', type: 'text' }, { id: 'other', type: 'text' },
+];
+
+function file2(questions, event = {}) {
+  return { ...file(), version: 2, event: { name: 'Kerst', ...(questions === undefined ? {} : { questions }), ...event } };
+}
+
+const formOf = (data) => {
+  const { errors, plan } = read(data);
+  assert.deepEqual(errors, []);
+  return wishForm(plan.event);
+};
+
+test('a version 2 file adds its own questions in the order given', () => {
+  const { errors, plan } = read(file2([...BUILTINS, { type: 'text', text: 'Favoriete auto' }]));
+  assert.deepEqual(errors, []);
+  assert.equal(plan.event.wishOptions, null);
+  const form = wishForm(plan.event);
+  assert.deepEqual(form.questions.slice(0, 5).map((q) => q.id), ['hobbies', 'likes', 'pets', 'avoid', 'other']);
+  const own = form.questions[5];
+  assert.match(own.id, /^q-[0-9a-f]{4}$/);
+  assert.deepEqual([own.type, own.text, own.show], ['text', 'Favoriete auto', true]);
+  assert.ok(sameForm({ questions: form.questions.slice(0, 5) }, wishForm({})), 'built-ins by id are the built-in questions');
+});
+
+test('a version 2 file without questions has the built-in form, stored as nothing', () => {
+  const { errors, plan } = read(file2(undefined));
+  assert.deepEqual(errors, []);
+  assert.equal(plan.event.formConfig, null);
+  assert.equal(plan.event.wishOptions, null);
+  assert.equal(read(file2(BUILTINS)).plan.event.formConfig, null, 'the five built-ins as listed are the default too');
+});
+
+test('a built-in question keeps its id with own wording; the built-in wording in any language stays built in', () => {
+  const form = formOf(file2([
+    { id: 'avoid', type: 'text', text: '  Liever\nniet  ' }, { id: 'hobbies', type: 'text', text: 'Hobbies and interests', show: false },
+  ]));
+  assert.deepEqual(form.questions.map((q) => [q.id, q.text, q.show]), [['avoid', 'Liever niet', true], ['hobbies', null, false]]);
+});
+
+test('choices: text or objects, built-in labels in any language keep their built-in id', () => {
+  const form = formOf(file2([
+    { id: 'likes', type: 'choices', choices: ['Tea', 'Chocolade? Welke soort??', { label: 'Boeken', question: 'Welke schrijver' }, { label: 'Wol', askDetails: true }, 'thee'] },
+    { type: 'choices', text: 'Welke kleur?', choices: ['Rood', 'Thee'] },
+  ]));
+  const [likes, colour] = form.questions;
+  assert.deepEqual(likes.choices.map((c) => [c.id.replace(/-[0-9a-f]{4}$/, ''), c.own, c.detail, c.question]), [
+    ['tea', null, false, null], ['chocolate', null, true, 'Welke soort?'], ['boeken', 'Boeken', true, 'Welke schrijver?'],
+    ['wol', 'Wol', true, null], ['thee', 'thee', false, null],
+  ]);
+  assert.deepEqual(colour.choices.map((c) => [c.id.replace(/-[0-9a-f]{4}$/, ''), c.own]), [['rood', 'Rood'], ['thee', 'Thee']],
+    'an own question has no built-in choices');
+  const pets = formOf(file2([{ id: 'pets', type: 'choices' }])).questions[0];
+  assert.deepEqual(pets.choices.map((c) => c.id), ['dog', 'cat', 'other'], 'a built-in list without choices keeps its own');
+});
+
+test('version 2 problems are named where they are', () => {
+  const at = (n, choice) => [{ part: 'event' }, { question: n }, ...(choice ? [{ choice }] : [])];
+  const problems = (questions, event) => read(file2(questions, event)).errors.map((e) => [e.where, e.code]);
+  assert.deepEqual(problems([{ type: 'list', text: 'x' }]), [[at(1), 'question-type']]);
+  assert.deepEqual(problems([{ text: 'x' }]), [[at(1), 'question-type']]);
+  assert.deepEqual(problems([{ id: 'likes', type: 'text' }]), [[at(1), 'question-id-type']]);
+  assert.deepEqual(problems([{ type: 'text' }, { type: 'text', text: '   ' }]), [[at(1), 'question-text'], [at(2), 'question-text']]);
+  assert.deepEqual(problems([{ id: 'music', type: 'text', text: 'x' }]), [[at(1), 'question-id']]);
+  assert.deepEqual(problems([{ id: 'hobbies', type: 'text' }, { id: 'hobbies', type: 'text' }]), [[at(2), 'question-id']]);
+  assert.deepEqual(problems([{ type: 'text', text: 'x', choices: ['a'] }]), [[at(1), 'choices-on-text']]);
+  assert.deepEqual(problems([{ type: 'choices', text: 'x' }]), [[at(1), 'choices-empty']]);
+  assert.deepEqual(problems([{ id: 'likes', type: 'choices', choices: [] }]), [[at(1), 'choices-empty']]);
+  assert.deepEqual(problems([{ id: 'likes', type: 'choices', choices: ['a', 7, { label: '  ' }, '?'] }]),
+    [[at(1, 2), 'option-shape'], [at(1, 3), 'required'], [at(1, 4), 'required']]);
+  assert.deepEqual(problems([{ type: 'text', text: 'x', show: 'no', colour: 1 }]), [[at(1), 'unknown-key'], [at(1), 'not-boolean']]);
+  assert.deepEqual(problems([]), [[[{ part: 'event' }], 'questions-empty']]);
+  assert.deepEqual(problems('x'), [[[{ part: 'event' }], 'not-list']]);
+  assert.deepEqual(problems([7]), [[at(1), 'not-object']]);
+  const many = Array.from({ length: QUESTIONS_MAX + 1 }, (_, i) => ({ type: 'text', text: `Vraag ${i}` }));
+  assert.deepEqual(problems(many), [[[{ part: 'event' }], 'too-many-questions']]);
+  assert.deepEqual(problems(many.slice(1)), []);
+  const choices = Array.from({ length: CHOICES_MAX + 1 }, (_, i) => `Keuze ${i}`);
+  assert.deepEqual(problems([{ type: 'choices', text: 'x', choices }]), [[at(1), 'too-many-choices']]);
+  assert.deepEqual(problems([{ type: 'choices', text: 'x', choices: choices.slice(1) }]), []);
+  for (const key of ['wishOptions', 'petOptions', 'sections']) {
+    assert.deepEqual(problems(undefined, { [key]: null }), [[[{ part: 'event' }], 'unknown-key']], key);
+  }
+  assert.deepEqual(codes(read({ ...file(), event: { name: 'K', questions: [] } }).errors), ['unknown-key'], 'version 1 has no questions');
+});
+
+test('version 2 text past its limit is refused, as version 1 text is', () => {
+  const errors = (questions) => read(file2(questions)).errors.map((e) => [e.code, e.vars.field, e.vars.max]);
+  assert.deepEqual(errors([{ type: 'text', text: 'x'.repeat(81) }]), [['too-long', 'text', 80]]);
+  assert.deepEqual(errors([{ type: 'text', text: '😀'.repeat(80) }]), [], 'counted in code points, as the edit page does');
+  assert.deepEqual(errors([{ type: 'choices', text: 'x', choices: ['y'.repeat(81)] }]), [['too-long', 'label', 80]]);
+  assert.deepEqual(errors([{ type: 'choices', text: 'x', choices: [{ label: 'y', question: 'q'.repeat(81) }] }]), [['too-long', 'question', 80]]);
+  const [question] = formOf(file2([{ type: 'choices', text: 'x', choices: [`y? ${'q'.repeat(80)}`] }])).questions;
+  assert.equal(question.choices[0].question, `${'q'.repeat(79)}?`, 'an own follow-up is cut like the edit page cuts it');
+});
+
+test('a repeated choice in version 2 is pointed out, not refused', () => {
+  const { errors, warnings } = read(file2([{ type: 'choices', text: 'x', choices: ['Rood', 'rood'] }]));
+  assert.deepEqual(errors, []);
+  assert.deepEqual(warnings.filter((w) => w.code === 'option-twice').map((w) => w.where),
+    [[{ part: 'event' }, { question: 1 }, { choice: 2 }]]);
+});
+
+test('a version 1 file and its version 2 download give the same form', async () => {
+  const t = await setup();
+  const v1 = read(EXAMPLE).plan;
+  const id = t.ctx.repo.createEvent(v1.event, t.ctx.nowIso());
+  const exported = eventFile(t.ctx.repo.getEvent(id), []);
+  assert.equal(exported.version, 2);
+  assert.ok(!('wishOptions' in exported.event) && !('sections' in exported.event) && !('petOptions' in exported.event));
+  assert.ok(sameShape(formOf(exported), wishForm(v1.event)));
+});
+
+test('the download writes only what differs from the built-in form', () => {
+  const event = (formConfig, extra = {}) => ({ name: 'K', language: 'nl', cleanupWeeks: 4, themeText: null, wishOptions: null, formConfig, ...extra });
+  assert.ok(!('questions' in eventFile(event(null), []).event), 'the built-in form is left out');
+  const { questions } = eventFile(event({ questions: [
+    { id: 'hobbies', type: 'text', show: false },
+    { id: 'likes', type: 'choices' },
+    { id: 'pets', type: 'choices', choices: [{ id: 'dog' }, { id: 'vogel-ab12', label: 'Vogel', detail: true, question: 'Welke soort?' }, { id: 'other', detail: true }] },
+    { id: 'q-1a2b', type: 'choices', text: 'Kleur', choices: [{ id: 'rood-cd34', label: 'Rood', detail: true }] },
+    { id: 'avoid', type: 'text', text: 'Liever niet' },
+  ] }), []).event;
+  assert.deepEqual(questions, [
+    { id: 'hobbies', type: 'text', show: false },
+    { id: 'likes', type: 'choices' },
+    { id: 'pets', type: 'choices', choices: ['Hond', 'Vogel? Welke soort?', 'Ander dier?'] },
+    { type: 'choices', text: 'Kleur', choices: ['Rood?'] },
+    { id: 'avoid', type: 'text', text: 'Liever niet' },
+  ]);
+});
+
+test('an event downloaded and imported again has the same form', async () => {
+  const t = await setup();
+  const { repo } = t.ctx;
+  const formConfig = { questions: [
+    { id: 'q-1a2b', type: 'text', text: 'Favoriete auto' },
+    { id: 'likes', type: 'choices', text: 'Lekker', choices: [
+      { id: 'tea', label: '' }, { id: 'boeken-1a2b', label: 'Boeken', detail: true, question: 'Welke schrijver?' },
+      { id: 'chocolate', detail: true, question: 'Welke soort?' }, { id: 'wol-ab12', label: 'Wol? of garen', detail: false },
+    ] },
+    { id: 'pets', type: 'choices', show: false },
+    { id: 'q-3c4d', type: 'choices', text: 'Kleur', show: false, choices: [{ id: 'rood-cd34', label: 'Rood', detail: true }, { id: 'blauw-ef56', label: 'Blauw' }] },
+  ] };
+  for (const language of ['nl', 'en']) {
+    const id = repo.createEvent({ name: `K ${language}`, language, formConfig }, t.ctx.nowIso());
+    const event = repo.getEvent(id);
+    assert.ok(sameShape(formOf(eventFile(event, [])), wishForm(event)), language);
+  }
+});
+
+test('a stored built-in choice without a label of its own downloads and imports again', async () => {
+  const t = await setup();
+  const { repo } = t.ctx;
+  const id = repo.createEvent({ name: 'K', language: 'en', wishOptions: [
+    { id: 'tea', label: '', detail: false }, { id: 'wol-ab12', label: 'Wol', detail: false },
+  ] }, t.ctx.nowIso());
+  const event = repo.getEvent(id);
+  const exported = eventFile(event, []);
+  assert.deepEqual(exported.event.questions.find((q) => q.id === 'likes').choices, ['Tea', 'Wol']);
+  assert.ok(sameShape(formOf(exported), wishForm(event)));
+});
+
+test('an empty choice label in version 1 is still refused', () => {
+  for (const label of ['', '  ', '?']) {
+    assert.deepEqual(read(file({ event: { name: 'K', wishOptions: [{ label }] } })).errors.map((e) => [e.code, e.vars.field]), [['required', 'label']], label);
+  }
+});
+
+test('version 1 tick lists match built-in labels in any letter case, once each', () => {
+  const form = formOf(file({ event: { name: 'K', language: 'en', wishOptions: ['thee', 'Tea', 'Hond'], petOptions: ['Thee', 'Dog'] } }));
+  const ids = (id) => form.questions.find((q) => q.id === id).choices.map((c) => c.id.replace(/-[0-9a-f]{4}$/, ''));
+  assert.deepEqual(ids('likes'), ['tea', 'tea', 'hond']);
+  assert.match(form.questions[1].choices[1].id, /^tea-[0-9a-f]{4}$/, 'the second one is a choice of its own');
+  assert.deepEqual(ids('pets'), ['thee', 'dog'], 'a pet list never takes a like id');
+});
+
+test('a choice written as text splits at the first question mark, extra marks dropped', () => {
+  const lines = ['Boeken? Welke schrijver? Of genre?', 'Wol?? Welke kleur', 'Kaas? Welke soort ? ', 'Brood?   '];
+  for (const data of [file({ event: { name: 'K', wishOptions: lines } }), file2([{ id: 'likes', type: 'choices', choices: lines }])]) {
+    assert.deepEqual(formOf(data).questions.find((q) => q.id === 'likes').choices.map((c) => [c.own, c.detail, c.question]), [
+      ['Boeken', true, 'Welke schrijver? Of genre?'], ['Wol', true, 'Welke kleur?'], ['Kaas', true, 'Welke soort?'], ['Brood', true, null],
+    ], `version ${data.version}`);
+  }
+});
+
+test('the check page lists the questions of a version 2 file', async () => {
+  const t = await setup();
+  const text = JSON.stringify(file2([
+    { type: 'choices', text: 'Kleur', show: false, choices: ['Rood? Welke tint?', 'Blauw'] },
+    { id: 'hobbies', type: 'text' },
+  ]));
+  const nl = textOf((await t.adminPost('/admin/events/import', { text })).body);
+  assert.match(nl, /Kleur\s*Aanvinklijst, 2 keuzes\s*Verborgen/);
+  assert.match(nl, /Rood: Welke tint\?/);
+  assert.match(nl, /Blauw/);
+  assert.match(nl, /Hobby&#39;s en interesses\s*Tekstvak/);
+  const en = textOf((await t.adminPost('/admin/events/import', { text }, { cookie: `${t.adminCookie()}; giftdraw_lang=en` })).body);
+  assert.match(en, /Hobbies and interests\s*Text box/);
+  assert.match(en, /Kleur\s*Tick list, 2 choices\s*Hidden/);
+});
+
+test('version 2 problems name the question and the choice', async () => {
+  const t = await setup();
+  const text = JSON.stringify(file2([{ id: 'likes', type: 'choices', choices: ['Thee', 7] }]));
+  const res = await t.adminPost('/admin/events/import', { text });
+  assert.equal(res.statusCode, 400);
+  assert.match(textOf(res.body), /Evenement, vraag 1, keuze 2: Een keuze moet tekst zijn/);
 });
 
 // The pages
@@ -291,7 +532,11 @@ test('checking shows what will be made and creates nothing yet', async () => {
   assert.match(text, /Maandagochtend/);
   assert.match(text, /Woensdagavond/);
   assert.match(text, /Boeken: Welke schrijver\?/);
-  assert.match(text, /Kopje van &quot;Verder nog iets\?&quot;: &quot;Nog iets wat je kwijt wilt&quot;/);
+  assert.match(text, /Hobby&#39;s en interesses\s*Tekstvak/);
+  assert.match(text, /Ik houd van\.\.\.\s*Aanvinklijst, 5 keuzes/);
+  assert.match(text, /Huisdieren\s*Aanvinklijst, 3 keuzes\s*Verborgen/);
+  assert.match(text, /Nog iets wat je kwijt wilt\s*Tekstvak/);
+  assert.ok(text.indexOf('Nog iets wat je kwijt wilt') > text.indexOf('Huisdieren'), 'in the order of the form');
   assert.match(text, /4 deelnemers, 3 met e-mail/);
   assert.match(text, /Importeren verstuurt geen berichten/);
   assert.equal(t.ctx.repo.listEvents().length, 0);
@@ -307,7 +552,7 @@ test('confirming creates the event, its groups, people and pairs, and mails nobo
   const { repo } = t.ctx;
   const event = repo.getEvent(Number(match[1]));
   assert.equal(event.name, 'Kerstcadeautjes 2026');
-  assert.deepEqual(event.formConfig, { sections: { pets: { show: false }, other: { heading: 'Nog iets wat je kwijt wilt' } } });
+  assertExampleForm(event);
   const groups = repo.listGroups(event.id);
   assert.deepEqual(groups.map((g) => [g.name, g.exchangeDate, g.exchangeTime, g.autoOpenAt]),
     [['Maandagochtend', '2026-12-14', '10:00', '2026-11-30'], ['Woensdagavond', '2026-12-16', '19:30', null]]);
@@ -412,8 +657,11 @@ test('the template download holds settings and groups, never people or links', a
   }
   const exported = JSON.parse(res.body);
   const original = JSON.parse(EXAMPLE);
-  const withoutPeople = { ...original, groups: original.groups.map((g) => ({ ...g, participants: [] })) };
-  assert.deepEqual(exported, withoutPeople, 'the example comes back as it was, without people');
+  assert.equal(exported.version, 2);
+  assert.deepEqual(exported.groups, original.groups.map((g) => ({ ...g, participants: [] })), 'the groups come back as they were, without people');
+  const settings = (f) => ({ $schema: f.$schema, ...Object.fromEntries(['name', 'language', 'cleanupWeeks', 'theme'].map((k) => [k, f.event[k]])) });
+  assert.deepEqual(settings(exported), settings(original));
+  assert.ok(sameShape(wishForm(read(exported).plan.event), wishForm(read(EXAMPLE).plan.event)), 'the example form comes back as it was');
   assert.match((await t.adminGet(`/admin/events/${id}`)).body, new RegExp(`href="/admin/events/${id}/export" download`));
 });
 
@@ -436,9 +684,12 @@ test('a template imported again gives the same settings', async () => {
   assert.equal(plan.event.themeText, 'Bring something\nyou never used.');
   assert.equal(plan.event.cleanupWeeks, 6);
   const shape = (options) => options.map((o) => [o.id.replace(/-[0-9a-f]{4}$/, ''), o.detail, o.question ?? null]);
-  assert.deepEqual(shape(plan.event.wishOptions), [['tea', false, null], ['books', true, 'Which author?'], ['chocolate', true, null], ['old-label', false, null]]);
-  assert.deepEqual(plan.event.formConfig.sections, event.formConfig.sections);
-  assert.deepEqual(shape(plan.event.formConfig.petOptions), [['dog', false, null], ['bird', true, null]]);
+  const form = wishForm(plan.event);
+  const choicesOf = (id) => form.questions.find((q) => q.id === id).choices;
+  assert.deepEqual(shape(choicesOf('likes')), [['tea', false, null], ['books', true, 'Which author?'], ['chocolate', true, null], ['old-label', false, null]]);
+  const sections = (f) => f.questions.map((q) => [q.id, q.show, q.text]);
+  assert.deepEqual(sections(form), sections(wishForm(event)));
+  assert.deepEqual(shape(choicesOf('pets')), [['dog', false, null], ['bird', true, null]]);
   assert.deepEqual(plan.groups, [{ name: 'Tuesday', exchangeDate: '2026-12-15', exchangeTime: '09:30', exchangePlace: 'Hall', autoOpenAt: '2026-12-01', participants: [] }]);
 });
 

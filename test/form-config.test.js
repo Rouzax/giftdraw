@@ -4,7 +4,6 @@ import { hasWishes, parseWishesForm, wishLines } from '../src/answers.js';
 import {
   cleanHeading, detailPrompt, endsInMark, questionText, readFormConfig, SECTION_IDS, wishForm,
 } from '../src/questions.js';
-import { formConfigValue, mergeOptionLabels, petOptions } from '../src/wishes.js';
 
 const plain = wishForm({});
 const withConfig = (formConfig) => wishForm({ formConfig });
@@ -45,46 +44,13 @@ test('cleanHeading makes one line of at most 80 characters, empty is null', () =
   assert.equal(Array.from(cleanHeading(`${'a'.repeat(79)}\u{1F600}bbb`)).length, 80);
 });
 
-test('formConfigValue stores nothing for all defaults and only what differs otherwise', () => {
-  assert.equal(formConfigValue(readFormConfig(null)), null);
-  const config = readFormConfig({ sections: { pets: { show: false } } });
-  const value = formConfigValue(config);
-  assert.deepEqual(value, { sections: { pets: { show: false } } });
-  assert.deepEqual(readFormConfig(value), config);
-  const full = readFormConfig({
-    sections: { likes: { show: true, heading: 'Lekker' } },
-    petOptions: [{ id: 'dog', label: 'Hond', detail: false }],
-  });
-  assert.deepEqual(readFormConfig(JSON.parse(JSON.stringify(formConfigValue(full)))), full);
-});
-
 test('the built-in pet list is dog, cat and other with the which-animal question', () => {
-  const pets = petOptions({});
+  const pets = plain.questions.find((q) => q.id === 'pets').choices;
   assert.deepEqual(pets.map((o) => o.id), ['dog', 'cat', 'other']);
   assert.deepEqual(pets.map((o) => o.detail), [false, false, true]);
   assert.equal(pets[2].label('nl'), 'Ander dier');
   assert.equal(detailPrompt(pets[2], 'nl'), 'Welk dier?');
   assert.equal(detailPrompt(pets[2], 'en'), 'Which animal?');
-});
-
-test('pet lines keep built-in ids in any language and add custom ones with questions', () => {
-  const merged = mergeOptionLabels('Vogel? Welke soort?\nCat\nAnder dier?\nVis', petOptions({}), 'nl', 'pets');
-  assert.match(merged[0].id, /^vogel-[0-9a-f]{4}$/);
-  assert.equal(merged[0].question, 'Welke soort?');
-  assert.deepEqual(merged.slice(1, 3).map((o) => o.id), ['cat', 'other']);
-  assert.match(merged[3].id, /^vis-[0-9a-f]{4}$/);
-  assert.equal(petOptions({ formConfig: { petOptions: merged } })[1].label('nl'), 'Kat');
-  // A pet list never turns a line into a like id, nor a like list into a pet id.
-  assert.notEqual(mergeOptionLabels('Thee', [], 'nl', 'pets')[0].id, 'tea');
-  assert.notEqual(mergeOptionLabels('Hond', [], 'nl')[0].id, 'dog');
-});
-
-test('pet ids stay stable across reorder and a changed question', () => {
-  const first = mergeOptionLabels('Vogel? Welke soort?\nHond', petOptions({}), 'nl', 'pets');
-  const current = petOptions({ formConfig: { petOptions: first } });
-  const again = mergeOptionLabels('Hond\nVogel? Welke kleur?', current, 'nl', 'pets');
-  assert.deepEqual(again.map((o) => o.id), ['dog', first[0].id]);
-  assert.equal(again[1].question, 'Welke kleur?');
 });
 
 test('old stored pets and other-pet text read and render as before', () => {
@@ -94,9 +60,12 @@ test('old stored pets and other-pet text read and render as before', () => {
 });
 
 test('the other-pet field names the animal, a custom pet detail follows its label', () => {
-  const pets = mergeOptionLabels('Hond\nVogel? Welke soort?\nAnder dier?', petOptions({}), 'nl', 'pets');
+  const bird = 'vogel-ab12';
+  const pets = [
+    { id: 'dog', label: 'Hond', detail: false }, { id: bird, label: 'Vogel', detail: true, question: 'Welke soort?' },
+    { id: 'other', label: 'Ander dier', detail: true },
+  ];
   const form = withConfig({ petOptions: pets });
-  const bird = pets[1].id;
   const wishes = parseWishesForm({ questions: 'pets', d_pets_other: 'konijn', [`d_pets_${bird}`]: 'parkiet' }, form);
   assert.deepEqual(wishes.answers.pets, { ticked: [bird, 'other'], details: { [bird]: 'parkiet', other: 'konijn' } });
   assert.deepEqual(wishLines(wishes, form, 'nl'), [{ label: 'Huisdieren', value: 'Vogel (parkiet), konijn' }]);

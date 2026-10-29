@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import { t } from './i18n/index.js';
+import { LANGS, t } from './i18n/index.js';
 import { CHOICES_MAX, HEADING_MAX, QUESTION_MAX, QUESTIONS_MAX } from './limits.js';
 import { clipText } from './text.js';
 
@@ -85,6 +85,22 @@ export const isBuiltinQuestion = (id) => builtinType(id) !== null;
 export function builtinChoiceLabel(questionId, choiceId, lang) {
   if (!isBuiltinChoice(questionId, choiceId)) return null;
   return t(lang, `${BUILTIN_CHOICES[questionId].key}.${choiceId}`);
+}
+
+// Typed wording or a typed label equal to the shipped one in any language
+// is not own text, so it goes on following each reader's language.
+export const isBuiltinText = (questionId, text) => LANGS.some((lang) => t(lang, `wish.${questionId}`) === text);
+export const isBuiltinLabel = (questionId, choiceId, label) =>
+  LANGS.some((lang) => builtinChoiceLabel(questionId, choiceId, lang) === label);
+
+// The built-in choice a label names in any language and letter case, or
+// null. A built-in choice is matched once, so a repeated label becomes a
+// choice of its own.
+export function builtinChoiceFor(questionId, label, taken) {
+  const key = label.trim().toLowerCase();
+  const ids = BUILTIN_CHOICES[questionId]?.ids ?? [];
+  return ids.find((id) => !taken.has(id)
+    && LANGS.some((lang) => builtinChoiceLabel(questionId, id, lang).toLowerCase() === key)) ?? null;
 }
 
 // A built-in choice without own text keeps its shipped translations; own

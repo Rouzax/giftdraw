@@ -3,10 +3,13 @@ import assert from 'node:assert/strict';
 import { CHOICES_MAX, QUESTIONS_MAX } from '../src/limits.js';
 import {
   BUILTIN_QUESTIONS,
+  builtinChoiceFor,
   builtinChoiceLabel,
   cleanQuestion,
   detailPrompt,
   formValue,
+  isBuiltinLabel,
+  isBuiltinText,
   newChoiceId,
   newQuestionId,
   questionText,
@@ -243,4 +246,24 @@ test('builtinChoiceLabel gives the shipped label of a built-in choice only', () 
   assert.equal(builtinChoiceLabel('likes', 'tea', 'en'), 'Tea');
   assert.equal(builtinChoiceLabel('pets', 'tea', 'nl'), null);
   assert.equal(builtinChoiceLabel('likes', 'socks-1a2b', 'nl'), null);
+});
+
+test('built-in wording and labels are recognised in every language, exactly as shipped', () => {
+  assert.equal(isBuiltinText('hobbies', 'Hobbies and interests'), true);
+  assert.equal(isBuiltinText('hobbies', "Hobby's en interesses"), true);
+  assert.equal(isBuiltinText('hobbies', 'hobbies and interests'), false);
+  assert.equal(isBuiltinText('avoid', 'Hobbies and interests'), false);
+  assert.equal(isBuiltinLabel('likes', 'tea', 'Thee'), true);
+  assert.equal(isBuiltinLabel('likes', 'tea', 'Tea'), true);
+  assert.equal(isBuiltinLabel('likes', 'tea', 'tea'), false);
+  assert.equal(isBuiltinLabel('likes', 'wol-ab12', 'Wol'), false);
+});
+
+test('builtinChoiceFor finds a built-in choice by label in any language and case, once', () => {
+  assert.equal(builtinChoiceFor('likes', '  thee ', new Set()), 'tea');
+  assert.equal(builtinChoiceFor('likes', 'Tea', new Set()), 'tea');
+  assert.equal(builtinChoiceFor('likes', 'Tea', new Set(['tea'])), null);
+  assert.equal(builtinChoiceFor('pets', 'Thee', new Set()), null);
+  assert.equal(builtinChoiceFor('pets', 'Other', new Set()), 'other');
+  assert.equal(builtinChoiceFor('q-1a2b', 'Thee', new Set()), null);
 });

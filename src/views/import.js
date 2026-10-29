@@ -4,9 +4,9 @@ import { exchangeWhen, formatDate, t } from '../i18n/index.js';
 import { IMPORT_TEXT_MAX } from '../event-file.js';
 import { assistantPrompt } from '../import-prompt.js';
 import { clipText } from '../text.js';
-import { readFormConfig, SECTION_IDS } from '../questions.js';
-import { sectionHeading, wishOptions, petOptions } from '../wishes.js';
+import { questionText, wishForm } from '../questions.js';
 import { backLink, formToken } from './admin.js';
+import { kindText } from './questions.js';
 
 const GUIDE_URL = 'https://rouzax.github.io/giftdraw/guide/import/';
 // A name echoed in a location or a message is cut short: the file can hold
@@ -33,6 +33,8 @@ function whereText(lang, where) {
       return step.name ? t(lang, 'import.where.participantNamed', { n: step.participant, name: echo(step.name) })
         : t(lang, 'import.where.participant', { n: step.participant });
     }
+    if (step.question) return t(lang, 'import.where.question', { n: step.question });
+    if (step.choice) return t(lang, 'import.where.choice', { n: step.choice });
     if (step.option) return t(lang, 'import.where.option', { field: step.option, n: step.n });
     return t(lang, 'import.where.section', { id: step.section });
   }).join(', ');
@@ -91,38 +93,25 @@ ${textForm(lang, text)}
   return { title, body, scripts: ['import-file.js', 'copy-link.js'] };
 }
 
-function optionItems(lang, options, stored) {
-  if (!stored) return html`<p>${t(lang, 'import.options.standard')}</p>`;
-  return html`<ul>${options.map((o) => {
-    const label = o.label(lang);
-    return html`<li>${o.question ? `${label}: ${o.question}` : label}</li>`;
-  })}</ul>`;
-}
-
-function sectionItems(lang, event) {
-  const { sections } = readFormConfig(event.formConfig);
-  const lines = [];
-  for (const id of SECTION_IDS) {
-    const section = { id, ...sections[id] };
-    const name = t(lang, `wish.${id}`);
-    if (!section.show) lines.push(t(lang, 'import.sections.hidden', { section: name }));
-    else if (section.heading) lines.push(t(lang, 'import.sections.renamed', { section: name, heading: sectionHeading(section, lang) }));
-  }
-  if (!lines.length) return html`<p>${t(lang, 'import.sections.standard')}</p>`;
-  return html`<ul>${lines.map((line) => html`<li>${line}</li>`)}</ul>`;
+// The form in its order, worded as the event page's question list words it.
+function formItems(lang, event) {
+  return html`<ol class="import-questions">${wishForm(event).questions.map((q) => html`<li>
+<span class="question-text">${questionText(q, lang)}</span> <span class="muted">${kindText(lang, q)}</span>${q.show ? '' : html` <span class="badge">${t(lang, 'admin.form.hidden')}</span>`}
+${q.type === 'choices' ? html`<ul>${q.choices.map((c) => {
+    const label = c.label(lang);
+    return html`<li>${c.question ? `${label}: ${c.question}` : label}</li>`;
+  })}</ul>` : ''}
+</li>`)}</ol>`;
 }
 
 function eventSummary(lang, event) {
-  const config = readFormConfig(event.formConfig);
   return html`<section class="panel">
 <h2>${t(lang, 'import.event')}: ${event.name}</h2>
 <dl class="import-facts">
 <dt>${t(lang, 'admin.event.language')}</dt><dd>${t(lang, `lang.${event.language}`)}</dd>
 <dt>${t(lang, 'admin.event.cleanupWeeks')}</dt><dd>${event.cleanupWeeks}</dd>
 <dt>${t(lang, 'import.theme')}</dt><dd>${event.themeText ? html`<span class="pre-line">${event.themeText}</span>` : t(lang, 'import.theme.standard')}</dd>
-<dt>${t(lang, 'import.options')}</dt><dd>${optionItems(lang, wishOptions(event), event.wishOptions)}</dd>
-<dt>${t(lang, 'import.sections')}</dt><dd>${sectionItems(lang, event)}</dd>
-<dt>${t(lang, 'import.pets')}</dt><dd>${optionItems(lang, petOptions(event), config.petOptions)}</dd>
+<dt>${t(lang, 'admin.form.title')}</dt><dd>${formItems(lang, event)}</dd>
 </dl>
 </section>`;
 }

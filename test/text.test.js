@@ -4,8 +4,7 @@ import { field } from '../src/routes/admin-shared.js';
 import { normaliseEmail, parsePasteList } from '../src/people.js';
 import { clipText } from '../src/text.js';
 import { parseWishesForm } from '../src/answers.js';
-import { cleanHeading, wishForm } from '../src/questions.js';
-import { mergeOptionLabels } from '../src/wishes.js';
+import { cleanHeading, cleanQuestion, wishForm } from '../src/questions.js';
 import { aboutBody, makeTestApp, seedGroup } from './helpers.js';
 
 const FAMILY = '\u{1F468}‍\u{1F469}‍\u{1F467}';
@@ -51,9 +50,9 @@ test('a form field read up to its limit keeps every emoji whole', () => {
 test('a heading, a question and wish texts are cut at a whole emoji', () => {
   assertWhole(cleanHeading(`${'a'.repeat(78)}${FAMILY}`));
   assert.equal(cleanHeading(`${'a'.repeat(79)}${FLAG}`), 'a'.repeat(79));
-  const [option] = mergeOptionLabels(`Boek? ${'c'.repeat(78)}${THUMB}`, [], 'nl');
-  assertWhole(option.question);
-  assert.equal(option.question, `${'c'.repeat(78)}?`);
+  const question = cleanQuestion(`${'c'.repeat(78)}${THUMB}`);
+  assertWhole(question);
+  assert.equal(question, `${'c'.repeat(78)}?`);
   const { answers } = parseWishesForm(
     { questions: 'hobbies avoid', q_hobbies: `${'x'.repeat(998)}${OLDER}`, q_avoid: `${'y'.repeat(999)}${FLAG}` }, wishForm({}),
   );
