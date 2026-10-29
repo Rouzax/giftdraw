@@ -451,8 +451,32 @@ test('version 2 text past its limit is refused, as version 1 text is', () => {
   assert.deepEqual(errors([{ type: 'text', text: '😀'.repeat(80) }]), [], 'counted in code points, as the edit page does');
   assert.deepEqual(errors([{ type: 'choices', text: 'x', choices: ['y'.repeat(81)] }]), [['too-long', 'label', 80]]);
   assert.deepEqual(errors([{ type: 'choices', text: 'x', choices: [{ label: 'y', question: 'q'.repeat(81) }] }]), [['too-long', 'question', 80]]);
-  const [question] = formOf(file2([{ type: 'choices', text: 'x', choices: [`y? ${'q'.repeat(80)}`] }])).questions;
-  assert.equal(question.choices[0].question, `${'q'.repeat(79)}?`, 'an own follow-up is cut like the edit page cuts it');
+  const fits = read(file2([{ type: 'choices', text: 'x', choices: [`y? ${'q'.repeat(79)}?`] }]));
+  assert.deepEqual(codes(fits.warnings), [], 'eighty characters with the question mark fit');
+  assert.equal(wishForm(fits.plan.event).questions[0].choices[0].question, `${'q'.repeat(79)}?`);
+  // The edit page takes QUESTION_MAX - 1 characters and adds the mark, so
+  // a follow-up that only fits without its mark is cut the same way, and
+  // the organiser is told.
+  const cut = read(file2([{ type: 'choices', text: 'x', choices: [`y? ${'q'.repeat(80)}`] }]));
+  assert.deepEqual(cut.errors, []);
+  assert.deepEqual(cut.warnings.map((w) => [w.code, w.where, w.vars.max]),
+    [['question-cut', [{ part: 'event' }, { question: 1 }, { choice: 1 }], 80]]);
+  assert.equal(wishForm(cut.plan.event).questions[0].choices[0].question, `${'q'.repeat(79)}?`);
+  assert.deepEqual(read(file2([{ type: 'choices', text: 'x', choices: [{ label: 'y', question: '???' }] }])).warnings, [], 'nothing to cut');
+});
+
+test('a follow-up that is the built-in one in any language stays built in, so it follows the reader', () => {
+  const [likes, pets, own] = formOf(file2([
+    { id: 'likes', type: 'choices', choices: ['Chocolade? Welke smaak?', 'Wijn? anything in particular', 'Thee? Welke soort?'] },
+    { id: 'pets', type: 'choices', choices: ['Hond', 'Ander dier? which animal??'] },
+    { type: 'choices', text: 'Kleur', choices: [{ label: 'Rood', question: 'Iets in het bijzonder?' }, 'Blauw? Which flavour?'] },
+  ])).questions;
+  const shape = (q) => q.choices.map((c) => [c.id.replace(/-[0-9a-f]{4}$/, ''), c.detail, c.question]);
+  assert.deepEqual(shape(likes), [['chocolate', true, null], ['wine', true, null], ['tea', true, 'Welke soort?']]);
+  assert.deepEqual(shape(pets), [['dog', false, null], ['other', true, null]]);
+  assert.deepEqual(shape(own), [['rood', true, null], ['blauw', true, 'Which flavour?']], 'only the prompt that choice would ask itself');
+  const v1 = read({ ...file(), event: { name: 'K', wishOptions: ['Chocolade? Welke smaak?'] } });
+  assert.deepEqual(wishForm(v1.plan.event).questions[1].choices[0].question, null, 'also in a version 1 file');
 });
 
 test('a repeated choice in version 2 is pointed out, not refused', () => {

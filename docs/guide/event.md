@@ -55,7 +55,7 @@ A new event starts with five standard questions. As long as you do not type your
 | Rather not, or allergies / Liever niet, of allergieën | Text box |
 | Anything else? / Verder nog iets? | Text box |
 
-Chocolate asks "Which flavour?" once it is ticked, and the other pet asks "Which animal?". You can change, hide or remove the standard questions like any other.
+Chocolate asks "Which flavour?" once it is ticked, and the other pet asks "Which animal?". You can change, hide or remove the standard questions like any other, but hide rather than remove one you may want back: see [Hide or remove a question](#hide-or-remove-a-question).
 
 ### Change a question
 
@@ -84,7 +84,7 @@ Each choice has:
 - **Follow-up question** (*Vervolgvraag*): what the choice asks once it is ticked, in a small text field under it.
     - **None** (*Geen*): a plain tick box.
     - **General question** (*Algemene vraag*): "Anything in particular?" in each participant's language. On the standard chocolate choice it is "Which flavour?", on the standard other pet "Which animal?".
-    - **Your own question** (*Eigen vraag*): type it in **Text of your own question** (*Tekst van je eigen vraag*). It is shown exactly as typed to everyone, and ends in one question mark, added if you leave it out.
+    - **Your own question** (*Eigen vraag*): type it in **Text of your own question** (*Tekst van je eigen vraag*). It is shown exactly as typed to everyone, and ends in one question mark, added if you leave it out. Typing the general question itself, such as "Welke smaak?" on chocolate, in any language, saves it as **General question**, so it stays translated.
 - **Up** (*Omhoog*), **Down** (*Omlaag*) and **Remove** (*Weghalen*).
 
 **Add a choice** (*Keuze toevoegen*) adds an empty choice at the end. A tick list has 1 to 30 choices.
@@ -109,6 +109,8 @@ Participants see the changed form the next time they open their page. Nobody get
 **Removing** a question is for good. It is at the bottom of the question's page, under **Remove question** (*Vraag verwijderen*), which also says how many participants answered it, if anyone did. Tick **Yes, I am sure** (*Ja, ik weet het zeker*) and press **Remove question**: the question leaves the form and all answers to it are erased. This cannot be undone.
 
 The last question of a form cannot be removed. Turn off **Show** to leave it out.
+
+A removed standard question or choice cannot be brought back as it was: adding it again with the same words makes one of your own, shown exactly as typed to everyone and no longer translated. Hide a standard question rather than remove it if you may want it back.
 
 ## What changing settings does to printed cards
 

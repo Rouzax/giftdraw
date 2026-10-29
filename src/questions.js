@@ -76,6 +76,15 @@ export function cleanQuestion(value) {
   return `${trimMarks(clipText(question, QUESTION_MAX - 1, 'codepoints'))}?`;
 }
 
+// A follow-up typed as the prompt the choice asks by itself, in any
+// language, is no own question: kept as typed it would show in that one
+// language to everyone.
+const promptKey = (text) => trimMarks(text.replace(/\s+/g, ' ')).toLowerCase();
+export function isOwnPrompt(choiceId, question) {
+  const key = promptKey(question);
+  return !LANGS.some((lang) => promptKey(detailPrompt({ id: choiceId, question: null }, lang)) === key);
+}
+
 const builtinType = (id) => BUILTIN_QUESTIONS.find((q) => q.id === id)?.type ?? null;
 export const isBuiltinChoice = (questionId, id) => Boolean(BUILTIN_CHOICES[questionId]?.ids.includes(id));
 export const isBuiltinQuestion = (id) => builtinType(id) !== null;

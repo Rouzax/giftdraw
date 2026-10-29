@@ -96,6 +96,7 @@
     }
   },
   "if": {
+    "required": ["version"],
     "properties": {
       "version": {
         "const": 1
@@ -152,7 +153,7 @@
           "items": {
             "$ref": "#/$defs/question"
           },
-          "description": "The wish form participants fill in: the questions in the order they appear. Leave it out for the five usual questions (hobbies, likes, pets, avoid, other) with their usual choices. When given, the form holds exactly the questions listed here: a usual question left out of the list is not in the form. Hidden questions count towards the limit of 15."
+          "description": "The wish form participants fill in: the questions in the order they appear. Leave it out for the five standard questions (hobbies, likes, pets, avoid, other) with their standard choices. When given, the form holds exactly the questions listed here: a standard question left out of the list is not in the form. Hidden questions count towards the limit of 15."
         }
       }
     },
@@ -164,16 +165,16 @@
       "properties": {
         "id": {
           "enum": ["hobbies", "likes", "pets", "avoid", "other"],
-          "description": "Only for one of the five usual questions, each at most once: hobbies (Hobbies and interests, text), likes (I like..., choices), pets (Pets, choices), avoid (Rather not, or allergies, text), other (Anything else?, text). Its wording and its choices then follow each participant's language unless text or choices are given. Leave id out for a question of your own."
+          "description": "Only for one of the five standard questions, each at most once: hobbies (Hobbies and interests, text), likes (I like..., choices), pets (Pets, choices), avoid (Rather not, or allergies, text), other (Anything else?, text). Its wording and its choices then follow each participant's language unless text or choices are given. Leave id out for a question of your own."
         },
         "type": {
           "enum": ["text", "choices"],
-          "description": "text gives a text box; choices gives a list of tick boxes. A usual question keeps its own type."
+          "description": "text gives a text box; choices gives a list of tick boxes. A standard question keeps its own type."
         },
         "text": {
           "type": ["string", "null"],
           "maxLength": 80,
-          "description": "The question as participants read it, shown as written in every language. Required for a question of your own. For a usual question, leave it out for the usual wording in each participant's language."
+          "description": "The question as participants read it, addressed to them (\"What is your favourite colour?\"), shown as written in every language. Required for a question of your own. For a standard question, leave it out for the standard wording in each participant's language."
         },
         "show": {
           "type": "boolean",
@@ -187,7 +188,7 @@
           "items": {
             "$ref": "#/$defs/choice"
           },
-          "description": "The tick boxes of a choices question, in order. Required for a choices question of your own; for likes and pets, leave it out for the usual choices. Not allowed on a text question."
+          "description": "The tick boxes of a choices question, in order. Required for a choices question of your own; for likes and pets, leave it out for the standard choices. Not allowed on a text question."
         }
       },
       "allOf": [
@@ -277,13 +278,13 @@
         {
           "type": "string",
           "minLength": 1,
-          "description": "A choice as text. A label that matches one of the app's usual choices in Dutch or English, in any letter case (such as Thee or tea), is that usual choice and is shown in each participant's language; any other label is shown as written. Text after a question mark is a follow-up question shown once the choice is ticked, as in \"Boeken? Welke schrijver?\"; a question mark alone, as in \"Wijn?\", asks a general question. Label and question are at most 80 characters each."
+          "description": "A choice as text. Under likes or pets, a label that matches one of that question's standard choices in Dutch or English, in any letter case (such as Thee or tea under likes), is that standard choice and is shown in each participant's language; any other label is shown as written. Text after a question mark is a follow-up question shown once the choice is ticked, as in \"Boeken? Welke schrijver?\"; a question mark alone, as in \"Wijn?\", asks a general question, and \"Chocolade?\" and \"Ander dier?\" ask their own standard question. A follow-up equal to the question the choice asks by itself, in either language, is read as that standard question. Label and question are at most 80 characters each, the question's closing question mark included."
         },
         {
           "type": "object",
           "additionalProperties": false,
           "required": ["label"],
-          "description": "A choice of your own, always shown exactly as written, also when the label matches one of the usual choices. Use text instead for a usual choice.",
+          "description": "A choice of your own, always shown exactly as written, also when the label matches one of the standard choices. Use text instead for a standard choice.",
           "properties": {
             "label": {
               "type": "string",
@@ -339,7 +340,7 @@
         "sections": {
           "type": "object",
           "additionalProperties": false,
-          "description": "The parts of the wish form participants fill in. Every part is shown with its usual heading unless set otherwise here. Leave out any part you do not change.",
+          "description": "The parts of the wish form participants fill in. Every part is shown with its standard heading unless set otherwise here. Leave out any part you do not change.",
           "properties": {
             "hobbies": {
               "$ref": "#/$defs/section",
@@ -416,7 +417,7 @@
         "heading": {
           "type": ["string", "null"],
           "maxLength": 80,
-          "description": "A heading of your own, shown as written in every language. Leave it out for the usual heading in each participant's language."
+          "description": "A heading of your own, shown as written in every language. Leave it out for the standard heading in each participant's language."
         }
       }
     }

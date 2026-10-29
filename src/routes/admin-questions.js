@@ -2,7 +2,7 @@ import { countAnswers } from '../answers.js';
 import { CHOICES_MAX, HEADING_MAX, QUESTION_MAX, QUESTIONS_MAX } from '../limits.js';
 import {
   cleanHeading, cleanQuestion, FOLLOW_UPS, formValue, isBuiltinChoice, isBuiltinLabel, isBuiltinQuestion, isBuiltinText,
-  newChoiceId, newQuestionId, sameForm, wishForm,
+  isOwnPrompt, newChoiceId, newQuestionId, sameForm, wishForm,
 } from '../questions.js';
 import { questionView } from '../views/questions.js';
 import { adminLang } from './admin-auth.js';
@@ -95,17 +95,17 @@ function buildQuestion(draft, current) {
       const hasBuiltin = isBuiltinChoice(current.id, row.id);
       let own = cleanHeading(row.label);
       if (own && hasBuiltin && isBuiltinLabel(current.id, row.id, own)) own = null;
-      const question = row.follow === 'own' ? cleanQuestion(row.question) : null;
+      const typed = row.follow === 'own' ? cleanQuestion(row.question) : null;
       const rowErrors = {};
       if (!own && !hasBuiltin) rowErrors.label = { key: 'admin.question.error.label' };
-      if (row.follow === 'own' && !question) rowErrors.question = { key: 'admin.question.error.ownQuestion' };
+      if (row.follow === 'own' && !typed) rowErrors.question = { key: 'admin.question.error.ownQuestion' };
       if (Object.keys(rowErrors).length) {
         errors[`choice_${i}`] = rowErrors;
         return;
       }
       const id = row.id || newChoiceId(own, taken);
       taken.add(id);
-      choices.push({ id, own, detail: row.follow !== 'none', question });
+      choices.push({ id, own, detail: row.follow !== 'none', question: typed && isOwnPrompt(id, typed) ? typed : null });
     });
   }
   if (Object.keys(errors).length) return { errors };
@@ -237,6 +237,8 @@ export function adminQuestionRoutes(app, ctx, { render, sendError, loadEvent, re
   // An empty question list reads back as the built-in form, so the last
   // question cannot go; hiding it is the way to leave it out.
   app.post('/admin/events/:id/questions/:qid/delete', loadEvent, async (request, reply) => {
+    const again = resubmitted(request, reply);
+    if (again) return again;
     const found = findQuestion(request);
     if (!found) return sendError(reply, 404, adminLang(request));
     const { form, question } = found;
@@ -248,6 +250,6 @@ export function adminQuestionRoutes(app, ctx, { render, sendError, loadEvent, re
       return repo.dropAnswersForEvent(event.id, question.id);
     });
     request.log.info({ event_id: event.id, question_id: question.id, answers_dropped: dropped }, 'question_removed');
-    return reply.redirect(formUrl(event, 'question-removed'), 303);
+    return redirectDone(request, reply, formUrl(event, 'question-removed'));
   });
 }

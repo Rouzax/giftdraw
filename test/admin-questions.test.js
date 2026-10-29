@@ -395,6 +395,42 @@ test('the edit page says how many answered, and deleting the question removes th
   assert.equal(gone.statusCode, 404);
 });
 
+test('deleting a question twice with the same form, as after a double click, deletes it once', async () => {
+  const t = await setup();
+  const { page } = await editPage(t, 'hobbies');
+  const form = new RegExp(`<form[^>]*action="${escapeRe(`${editUrl(t, 'hobbies')}/delete`)}"[^>]*>([\\s\\S]*?)</form>`).exec(page.body);
+  const token = /name="formToken" value="([^"]+)"/.exec(form?.[1] ?? '');
+  assert.ok(token, 'the delete form carries a form token');
+  const post = { confirm: '1', formToken: token[1] };
+  const first = await t.adminPost(`${editUrl(t, 'hobbies')}/delete`, post);
+  const again = await t.adminPost(`${editUrl(t, 'hobbies')}/delete`, post);
+  assert.equal(first.statusCode, 303);
+  assert.equal(again.statusCode, 303);
+  assert.equal(again.headers.location, first.headers.location);
+  assert.deepEqual(ids(t), ['likes', 'pets', 'avoid', 'other']);
+});
+
+test('a follow-up typed as the built-in one stays built in, so it follows the reader', async () => {
+  const t = await setup();
+  const { fields } = await editPage(t, 'likes');
+  const rows = shownRows(fields);
+  const at = (id) => rows.findIndex((r) => r.id === id);
+  const res = await t.adminPost(editUrl(t, 'likes'), {
+    ...fields,
+    [`choice_${at('chocolate')}_follow`]: 'own', [`choice_${at('chocolate')}_question`]: 'which flavour',
+    [`choice_${at('wine')}_follow`]: 'own', [`choice_${at('wine')}_question`]: 'Iets in het bijzonder??',
+    [`choice_${at('tea')}_follow`]: 'own', [`choice_${at('tea')}_question`]: 'Welke smaak?',
+    action: 'save',
+  });
+  assert.equal(res.statusCode, 303);
+  const choice = (id) => question(t, 'likes').choices.find((c) => c.id === id);
+  assert.deepEqual([choice('chocolate').detail, choice('chocolate').question], [true, null]);
+  assert.deepEqual([choice('wine').detail, choice('wine').question], [true, null]);
+  assert.deepEqual([choice('tea').detail, choice('tea').question], [true, 'Welke smaak?'], 'another choice\'s prompt is own text');
+  const again = await editPage(t, 'likes');
+  assert.equal(again.fields[`choice_${at('chocolate')}_follow`], 'general');
+});
+
 test('the only question left cannot be deleted', async () => {
   const t = await setup();
   setQuestions(t, [{ id: 'other', type: 'text' }]);

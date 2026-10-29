@@ -67,7 +67,7 @@ The message, *Dit is geen geldig evenementbestand*, names a line and character. 
 
 ### Participants no longer see a question or a choice
 
-On the event page under **The form** (*Het formulier*), a hidden question is marked **Hidden** (*Verborgen*): press **Edit** (*Aanpassen*) and turn **Show** (*Tonen*) back on. Its answers come back with it. A question or choice that was removed is gone with its answers and has to be added again. See [Hide or remove a question](guide/event.md#hide-or-remove-a-question).
+On the event page under **The form** (*Het formulier*), a hidden question is marked **Hidden** (*Verborgen*): press **Edit** (*Aanpassen*) and turn **Show** (*Tonen*) back on. Its answers come back with it. A question or choice that was removed is gone with its answers and has to be added again. Added again, even a standard question or choice becomes one of your own: it is shown exactly as typed to everyone and no longer follows each participant's language. See [Hide or remove a question](guide/event.md#hide-or-remove-a-question).
 
 ### An imported group has no pairs
 

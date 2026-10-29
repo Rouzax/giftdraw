@@ -6,7 +6,7 @@ import {
 import { normaliseEmail, PASTE_ROWS_MAX } from './people.js';
 import {
   BUILTIN_QUESTIONS, builtinChoiceFor, cleanHeading, cleanQuestion, formValue, isBuiltinQuestion, isBuiltinText,
-  newChoiceId, newQuestionId, sameForm, SECTION_IDS, wishForm,
+  isOwnPrompt, newChoiceId, newQuestionId, sameForm, SECTION_IDS, wishForm,
 } from './questions.js';
 import { unixLines } from './text.js';
 
@@ -155,6 +155,12 @@ function readChoiceItem(out, item, at, { labelMax, labelMeasure, objectAsTyped =
   const label = typeof raw === 'string' && !asTyped ? raw.replace(/\?/g, '').replace(/\s+/g, ' ').trim() : raw;
   if (raw && !label) out.error(at, 'required', { field: 'label' });
   const question = readText(out, option.question, at, 'question', { max: QUESTION_MAX, measure: 'codepoints' });
+  // The edit page takes QUESTION_MAX - 1 characters and adds the mark; a
+  // follow-up that only fits without its mark is cut the same way.
+  const kept = cleanQuestion(question);
+  if (kept && kept !== `${question.replace(/^[\s?]+/, '').replace(/[\s?]+$/, '')}?`) {
+    out.warn(at, 'question-cut', { question, max: QUESTION_MAX });
+  }
   let ask = Boolean(question);
   if (option.askDetails !== undefined && option.askDetails !== null) {
     if (typeof option.askDetails !== 'boolean') out.error(at, 'not-boolean', { field: 'askDetails' });
@@ -185,7 +191,8 @@ function fileChoices(questionId, items) {
     const own = builtIn ? null : cleanHeading(label);
     const id = builtIn ?? newChoiceId(own, taken);
     taken.add(id);
-    return { id, own, detail: ask, question: cleanQuestion(question) };
+    const typed = cleanQuestion(question);
+    return { id, own, detail: ask, question: typed && isOwnPrompt(id, typed) ? typed : null };
   });
 }
 

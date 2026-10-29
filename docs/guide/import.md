@@ -45,7 +45,7 @@ When it has everything, the assistant shows a short summary in plain words. Chec
        - Hoeveel groepen er zijn, bijvoorbeeld één per les. Vraag daarna per groep: de naam, de datum waarop de cadeautjes worden geruild, en of ik een tijd en een plaats wil noemen (dat hoeft niet).
        - Per groep: wie er meedoen. Zeg erbij dat ik de namen onder elkaar mag plakken of typen, met een e-mailadres erachter als ik dat wil. E-mailadressen zijn niet nodig; ik kan ze later ook in de app toevoegen.
        - Of ik een eigen tekst voor de deelnemers wil, of de standaardtekst van de app. De standaardtekst is prima.
-       - Wat ik van de deelnemers wil weten, zodat wie een cadeautje voor iemand zoekt op een idee komt. Laat me de vijf vragen zien die de app gewoonlijk stelt (hieronder bij de regels) en vraag of ik die zo wil houden, of ik er een wil weglaten of anders wil zeggen, en of ik er een vraag bij wil.
+       - Wat ik van de deelnemers wil weten, zodat wie een cadeautje voor iemand zoekt op een idee komt. Laat me de vijf standaardvragen van de app zien (hieronder bij de regels) en vraag of ik die zo wil houden, of ik er een wil weglaten of anders wil zeggen, en of ik er een vraag bij wil.
        - Per vraag die ik erbij wil: hoe de vraag luidt, en of de deelnemers zelf iets typen of iets aanvinken uit een lijstje. Bij een lijstje: welke keuzes erin staan, en of er bij een keuze nog een vraag moet komen als die is aangevinkt, zoals "Welke soort?".
     3. Is iets niet duidelijk, zoals een datum zonder jaartal, vraag het dan. Verzin nooit namen, datums, e-mailadressen, vragen of keuzes. Weet je de datum van vandaag niet zeker, vraag die dan.
     4. Zet daarna alles in een korte samenvatting in gewone woorden, zonder code, en vraag of het klopt.
@@ -54,16 +54,18 @@ When it has everything, the assistant shows a short summary in plain words. Chec
     Regels voor het bestand (die hoef je mij niet uit te leggen):
     - Bovenaan staan precies drie velden: "version": 2, "event" en "groups".
     - "event" heeft "name" (hoogstens 100 tekens) en "language": "nl". Alleen als ik een eigen tekst wil: "theme" (hoogstens 2000 tekens).
-    - De vijf gewone vragen, met hun "id" en "type":
+    - De vijf standaardvragen, met hun "id" en "type":
       - "hobbies", "text": Hobby's en interesses.
-      - "likes", "choices": Ik houd van..., om aan te vinken: "Chocolade?" (vraagt dan "Welke smaak?"), "Thee", "Koffie", "Bad- of doucheproducten", "Kaarsen", "Boeken of puzzels", "Planten of bloemen", "Wijn".
-      - "pets", "choices": Huisdieren, om aan te vinken: "Hond", "Kat", "Ander dier?" (vraagt dan "Welk dier?").
+      - "likes", "choices": Ik houd van..., om aan te vinken: "Chocolade?", "Thee", "Koffie", "Bad- of doucheproducten", "Kaarsen", "Boeken of puzzels", "Planten of bloemen", "Wijn".
+      - "pets", "choices": Huisdieren, om aan te vinken: "Hond", "Kat", "Ander dier?".
       - "avoid", "text": Liever niet, of allergieën.
       - "other", "text": Verder nog iets?
-    - Wil ik de vijf gewone vragen zo houden, zonder vragen erbij, laat "questions" dan weg. Anders heeft "event" een lijst "questions" met alle vragen van het formulier, in de volgorde waarin deelnemers ze zien. Een gewone vraag die ik houd, staat er dus ook in; een die ik weglaat, niet.
-    - Een gewone vraag schrijf je als {"id": "hobbies", "type": "text"}. Alleen als ik hem anders wil zeggen: "text" met mijn woorden. Alleen als ik de keuzes bij "likes" of "pets" verander: "choices" met de hele nieuwe lijst, met de gewone keuzes precies zoals hierboven geschreven.
+    - Schrijf "Chocolade?" en "Ander dier?" precies zo, met alleen een vraagteken: de app vraagt dan zelf "Welke smaak?" en "Welk dier?", in de taal van elke deelnemer.
+    - Wil ik de vijf standaardvragen zo houden, zonder vragen erbij, laat "questions" dan weg. Anders heeft "event" een lijst "questions" met alle vragen van het formulier, in de volgorde waarin deelnemers ze zien. Een standaardvraag die ik houd, staat er dus ook in; een die ik weglaat, niet.
+    - Een standaardvraag schrijf je als {"id": "hobbies", "type": "text"}. Alleen als ik hem anders wil zeggen: "text" met mijn woorden. Alleen als ik de keuzes bij "likes" of "pets" verander: "choices" met de hele nieuwe lijst, met de standaardkeuzes precies zoals hierboven geschreven.
     - Een eigen vraag heeft geen "id": {"type": "text", "text": "..."} als de deelnemers zelf iets typen, of {"type": "choices", "text": "...", "choices": ["...", "..."]} voor een lijstje om aan te vinken.
     - Een keuze is een tekst, zoals "Kaarsen". Een vraag bij een keuze komt na een vraagteken: "Boeken? Welke schrijver?". Alleen een vraagteken, zoals "Wijn?", vraagt "Iets in het bijzonder?". Staat er een vraagteken in de keuze zelf, schrijf de keuze dan als {"label": "...", "question": "..."}.
+    - Schrijf elke vraag zoals de deelnemers hem lezen, tegen hen gezegd met "je": "Wat is je lievelingsauto?", niet "Wat is hun lievelingsauto?". Dat geldt ook voor een vraag bij een keuze.
     - Een vraag, een keuze en een vraag bij een keuze zijn elk hoogstens 80 tekens. Het formulier heeft hoogstens 15 vragen, een lijstje hoogstens 30 keuzes.
     - "groups" is een lijst met per groep "name", "exchangeDate" (JJJJ-MM-DD, niet in het verleden) en "participants". Alleen als ik ze noem: "exchangeTime" (UU:MM, 24 uur) en "exchangePlace" (één regel).
     - "participants" is een lijst met per persoon de naam als tekst, of {"name": "...", "email": "..."} als ik een e-mailadres geef. Geef twee mensen in één groep nooit precies dezelfde naam; vraag me dan hoe ik ze uit elkaar houd.
@@ -82,7 +84,7 @@ When it has everything, the assistant shows a short summary in plain words. Chec
        - How many groups there are, for example one per class. Then, per group: its name, the date the presents are exchanged, and whether I want to give a time and a place (I do not have to).
        - Per group: who takes part. Tell me I can paste or type the names one below the other, with an email address after a name if I like. Email addresses are not needed; I can also add them later in the app.
        - Whether I want my own text for the participants, or the app's standard text. The standard text is fine.
-       - What I want to know from the participants, so that whoever looks for a present for someone gets an idea. Show me the five questions the app usually asks (below, in the rules) and ask whether I want to keep them as they are, leave one out or word one differently, and whether I want to add a question.
+       - What I want to know from the participants, so that whoever looks for a present for someone gets an idea. Show me the app's five standard questions (below, in the rules) and ask whether I want to keep them as they are, leave one out or word one differently, and whether I want to add a question.
        - For each question I add: how it is worded, and whether participants type something themselves or tick things in a list. For a list: which choices are in it, and whether a choice should ask something more once it is ticked, such as "Which kind?".
     3. If something is unclear, such as a date without a year, ask. Never make up names, dates, email addresses, questions or choices. If you are not sure of today's date, ask me.
     4. Then put everything in a short summary in plain words, without code, and ask whether it is right.
@@ -91,16 +93,18 @@ When it has everything, the assistant shows a short summary in plain words. Chec
     Rules for the file (no need to explain them to me):
     - At the top there are exactly three fields: "version": 2, "event" and "groups".
     - "event" has "name" (at most 100 characters) and "language": "en". Only if I want my own text: "theme" (at most 2000 characters).
-    - The five usual questions, with their "id" and "type":
+    - The five standard questions, with their "id" and "type":
       - "hobbies", "text": Hobbies and interests.
-      - "likes", "choices": I like..., to tick: "Chocolate?" (which then asks "Which flavour?"), "Tea", "Coffee", "Bath or shower products", "Candles", "Books or puzzles", "Plants or flowers", "Wine".
-      - "pets", "choices": Pets, to tick: "Dog", "Cat", "Other?" (which then asks "Which animal?").
+      - "likes", "choices": I like..., to tick: "Chocolate?", "Tea", "Coffee", "Bath or shower products", "Candles", "Books or puzzles", "Plants or flowers", "Wine".
+      - "pets", "choices": Pets, to tick: "Dog", "Cat", "Other?".
       - "avoid", "text": Rather not, or allergies.
       - "other", "text": Anything else?
-    - If I keep the five usual questions as they are, with no questions added, leave out "questions". Otherwise "event" has a list "questions" with every question of the form, in the order participants see them. So a usual question I keep is in it too; one I leave out is not.
-    - Write a usual question as {"id": "hobbies", "type": "text"}. Only if I want it worded differently: "text" with my words. Only if I change the choices of "likes" or "pets": "choices" with the whole new list, with the usual choices written exactly as above.
+    - Write "Chocolate?" and "Other?" exactly like that, with only a question mark: the app then asks "Which flavour?" and "Which animal?" itself, in each participant's language.
+    - If I keep the five standard questions as they are, with no questions added, leave out "questions". Otherwise "event" has a list "questions" with every question of the form, in the order participants see them. So a standard question I keep is in it too; one I leave out is not.
+    - Write a standard question as {"id": "hobbies", "type": "text"}. Only if I want it worded differently: "text" with my words. Only if I change the choices of "likes" or "pets": "choices" with the whole new list, with the standard choices written exactly as above.
     - A question of my own has no "id": {"type": "text", "text": "..."} when participants type something themselves, or {"type": "choices", "text": "...", "choices": ["...", "..."]} for a list to tick.
     - A choice is a text, such as "Candles". A question with a choice comes after a question mark: "Books? Which author?". A question mark alone, such as "Wine?", asks "Anything in particular?". If the choice itself contains a question mark, write it as {"label": "...", "question": "..."}.
+    - Word every question the way participants read it, addressed to them as "you": "What is your favourite car?", not "What is their favourite car?". The same goes for a question with a choice.
     - A question, a choice and a question with a choice are each at most 80 characters. The form has at most 15 questions, a list at most 30 choices.
     - "groups" is a list with, per group, "name", "exchangeDate" (YYYY-MM-DD, not in the past) and "participants". Only if I mention them: "exchangeTime" (HH:MM, 24-hour) and "exchangePlace" (one line).
     - "participants" is a list with, per person, the name as text, or {"name": "...", "email": "..."} if I give an email address. Never give two people in one group exactly the same name; ask me how I tell them apart.
@@ -119,15 +123,15 @@ If you have the groups and the lists of people ready, this request makes the fil
     Regels:
     - Bovenaan staan precies drie velden: "version": 2, "event" en "groups".
     - "event" heeft "name" (verplicht, hoogstens 100 tekens) en "language": "nl". Alleen als ik erom vraag: "cleanupWeeks" (1 tot en met 52), "theme" (tekst voor de deelnemers, hoogstens 2000 tekens) en "questions" (de vragen die de deelnemers invullen).
-    - Zonder "questions" krijgt het formulier de vijf gewone vragen. Met "questions" staan er precies de vragen in die in de lijst staan, in die volgorde. Een gewone vraag: {"id": "hobbies", "type": "text"}, en zo ook "likes" en "pets" (beide "choices") en "avoid" en "other" (beide "text"). Geef een gewone vraag alleen "text" als ik hem anders wil zeggen, en alleen "choices" als ik de keuzes wil veranderen. Een eigen vraag heeft geen "id": {"type": "text", "text": "..."} of {"type": "choices", "text": "...", "choices": ["...", "..."]}. "show": false verbergt een vraag.
-    - Een keuze is een tekst, zoals "Kaarsen", of met een vraag na een vraagteken: "Boeken? Welke schrijver?". Alleen een vraagteken, zoals "Wijn?", geeft een algemene vraag. Schrijf de gewone keuzes precies zo: "Chocolade?", "Thee", "Koffie", "Bad- of doucheproducten", "Kaarsen", "Boeken of puzzels", "Planten of bloemen", "Wijn" bij "likes", en "Hond", "Kat", "Ander dier?" bij "pets". Een vraag, een keuze en een vraag bij een keuze zijn elk hoogstens 80 tekens; hoogstens 15 vragen en 30 keuzes per vraag.
+    - Zonder "questions" krijgt het formulier de vijf standaardvragen. Met "questions" staan er precies de vragen in die in de lijst staan, in die volgorde. Een standaardvraag: {"id": "hobbies", "type": "text"}, en zo ook "likes" en "pets" (beide "choices") en "avoid" en "other" (beide "text"). Geef een standaardvraag alleen "text" als ik hem anders wil zeggen, en alleen "choices" als ik de keuzes wil veranderen. Een eigen vraag heeft geen "id": {"type": "text", "text": "..."} of {"type": "choices", "text": "...", "choices": ["...", "..."]}. "show": false verbergt een vraag. Schrijf elke vraag zoals de deelnemers hem lezen, met "je": "Wat is je lievelingskleur?", niet "Wat is hun lievelingskleur?".
+    - Een keuze is een tekst, zoals "Kaarsen", of met een vraag na een vraagteken: "Boeken? Welke schrijver?". Alleen een vraagteken, zoals "Wijn?", geeft een algemene vraag. Schrijf de standaardkeuzes precies zo: "Chocolade?", "Thee", "Koffie", "Bad- of doucheproducten", "Kaarsen", "Boeken of puzzels", "Planten of bloemen", "Wijn" bij "likes", en "Hond", "Kat", "Ander dier?" bij "pets". Met alleen dat vraagteken vragen "Chocolade?" en "Ander dier?" zelf "Welke smaak?" en "Welk dier?", in de taal van elke deelnemer. Een vraag, een keuze en een vraag bij een keuze zijn elk hoogstens 80 tekens; hoogstens 15 vragen en 30 keuzes per vraag.
     - "groups" is een lijst met per groep "name", "exchangeDate" (JJJJ-MM-DD) en "participants". Alleen als ik ze noem: "exchangeTime" (UU:MM, 24 uur), "exchangePlace" (één regel) en "autoOpenAt" (JJJJ-MM-DD, niet na de ruildatum).
     - "participants" is een lijst met namen, of {"name": "...", "email": "..."} voor iemand met een e-mailadres. Verzin nooit een e-mailadres. Geef twee mensen in één groep nooit precies dezelfde naam.
     - Geen datum ligt in het verleden. Vandaag is het [datum van vandaag].
     - Gebruik de veldnamen precies zoals hier geschreven, en geen andere. De volledige beschrijving staat op https://rouzax.github.io/giftdraw/import/event.schema.json
 
     Mijn evenement:
-    [Beschrijf hier de naam, en per groep de dag, datum, tijd en plaats van het ruilen en wie erin zitten. Wil je andere vragen dan de gewone, beschrijf die ook.]
+    [Beschrijf hier de naam, en per groep de dag, datum, tijd en plaats van het ruilen en wie erin zitten. Wil je andere vragen dan de standaardvragen, beschrijf die ook.]
     ```
 
 === "English"
@@ -138,15 +142,15 @@ If you have the groups and the lists of people ready, this request makes the fil
     Rules:
     - At the top there are exactly three fields: "version": 2, "event" and "groups".
     - "event" has "name" (required, at most 100 characters) and "language": "en". Only if I ask for them: "cleanupWeeks" (1 to 52), "theme" (text for the participants, at most 2000 characters) and "questions" (the questions participants fill in).
-    - Without "questions" the form gets the five usual questions. With "questions" it has exactly the questions in the list, in that order. A usual question: {"id": "hobbies", "type": "text"}, and likewise "likes" and "pets" (both "choices") and "avoid" and "other" (both "text"). Give a usual question "text" only if I want it worded differently, and "choices" only if I want to change its choices. A question of my own has no "id": {"type": "text", "text": "..."} or {"type": "choices", "text": "...", "choices": ["...", "..."]}. "show": false hides a question.
-    - A choice is a text, such as "Candles", or with a question after a question mark: "Books? Which author?". A question mark alone, such as "Wine?", asks a general question. Write the usual choices exactly like this: "Chocolate?", "Tea", "Coffee", "Bath or shower products", "Candles", "Books or puzzles", "Plants or flowers", "Wine" for "likes", and "Dog", "Cat", "Other?" for "pets". A question, a choice and a question with a choice are each at most 80 characters; at most 15 questions and 30 choices per question.
+    - Without "questions" the form gets the five standard questions. With "questions" it has exactly the questions in the list, in that order. A standard question: {"id": "hobbies", "type": "text"}, and likewise "likes" and "pets" (both "choices") and "avoid" and "other" (both "text"). Give a standard question "text" only if I want it worded differently, and "choices" only if I want to change its choices. A question of my own has no "id": {"type": "text", "text": "..."} or {"type": "choices", "text": "...", "choices": ["...", "..."]}. "show": false hides a question. Word every question the way participants read it, with "you": "What is your favourite colour?", not "What is their favourite colour?".
+    - A choice is a text, such as "Candles", or with a question after a question mark: "Books? Which author?". A question mark alone, such as "Wine?", asks a general question. Write the standard choices exactly like this: "Chocolate?", "Tea", "Coffee", "Bath or shower products", "Candles", "Books or puzzles", "Plants or flowers", "Wine" for "likes", and "Dog", "Cat", "Other?" for "pets". With only that question mark, "Chocolate?" and "Other?" ask "Which flavour?" and "Which animal?" themselves, in each participant's language. A question, a choice and a question with a choice are each at most 80 characters; at most 15 questions and 30 choices per question.
     - "groups" is a list with, per group, "name", "exchangeDate" (YYYY-MM-DD) and "participants". Only if I mention them: "exchangeTime" (HH:MM, 24-hour), "exchangePlace" (one line) and "autoOpenAt" (YYYY-MM-DD, not after the exchange date).
     - "participants" is a list of names, or {"name": "...", "email": "..."} for someone with an email address. Never make up an email address. Never give two people in one group exactly the same name.
     - No date is in the past. Today is [today's date].
     - Use the field names exactly as written here, and no others. The full description is at https://rouzax.github.io/giftdraw/import/event.schema.json
 
     My event:
-    [Describe the name here, and per group the day, date, time and place of the exchange and who is in it. If you want other questions than the usual ones, describe them too.]
+    [Describe the name here, and per group the day, date, time and place of the exchange and who is in it. If you want other questions than the standard ones, describe them too.]
     ```
 
 Fill in today's date: assistants often do not know it, and a date in the past is refused.
@@ -186,7 +190,8 @@ Above that, **Please check** (*Kijk hier even naar*) lists things that are allow
 - an email address appears twice in a group, or also in another group (a couple sharing one address is fine);
 - two groups have the same name;
 - a choice appears more than once in one tick list;
-- in a version 1 file, a choice is longer than 80 characters and is cut short.
+- in a version 1 file, a choice is longer than 80 characters and is cut short;
+- a follow-up question of 80 characters without a question mark is cut by one character to make room for the mark, as the event page does.
 
 ## 3. Import
 
@@ -269,7 +274,7 @@ A choice is written as text, or as an object:
 - `"Kaarsen"` is a plain tick box.
 - `"Boeken? Welke schrijver?"`: the text after the question mark is a follow-up question, shown under the box once it is ticked. It is at most 80 characters, its question mark included.
 - `"Wijn?"`, with a question mark and nothing after it, asks the general question "Anything in particular?" in each participant's language.
-- Under `likes` or `pets`, a text that names one of that question's standard choices in Dutch or English, in any letter case (`Thee`, `tea`), is that standard choice: each participant sees it in their own language. Two standard choices ask their own follow-up question when written with a question mark: `"Chocolade?"` asks "Which flavour?", and `"Ander dier?"` under pets asks "Which animal?". Without the question mark they ask nothing.
+- Under `likes` or `pets`, a text that names one of that question's standard choices in Dutch or English, in any letter case (`Thee`, `tea`), is that standard choice: each participant sees it in their own language. Two standard choices ask their own follow-up question when written with a question mark: `"Chocolade?"` asks "Which flavour?", and `"Ander dier?"` under pets asks "Which animal?". Without the question mark they ask nothing. A follow-up written out as the choice's own general question, such as `"Chocolade? Welke smaak?"` or `"Wijn? Anything in particular?"`, in either language, is read as that general question, so it stays translated.
 - `{ "label": "Boeken", "question": "Welke schrijver?" }` and `{ "label": "Wijn", "askDetails": true }` work like the texts above, with one difference: an object is always a choice of your own, shown exactly as written, even when its label names a standard choice. A question mark in its label is kept. Use it for a label that has a question mark of its own; write standard choices as text.
 
 ### Version 1 files
@@ -289,6 +294,6 @@ The two versions do not mix: `questions` in a version 1 file, or `wishOptions`, 
 - A field the app does not know is refused, so a misspelt `exchange_date` is reported rather than silently ignored.
 - Spaces and line breaks inside a name, place, question or choice become single spaces, as they could not be typed in the one-line form fields. The theme keeps its line breaks.
 - A participant whose name is an email address, with no `email`, is refused: the name is missing.
-- Lengths count as the form fields count them: most emoji count as two characters, except in the questions and choices of a version 2 file, where each counts as one.
+- Lengths count as the form fields count them: most emoji count as two characters, except where each counts as one: a question's wording and its choices in a version 2 file, follow-up questions in either version, and headings in a version 1 file.
 - Email addresses are checked and stored the same way as when you paste a list. An empty `"email": ""` means no address.
 - A file can hold at most 50 groups and 150,000 characters.

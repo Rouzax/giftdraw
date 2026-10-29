@@ -103,6 +103,7 @@ export function deleteForm(lang, action, { label, warning }) {
   return html`<section class="panel danger">
 <h2>${label}</h2>
 <form method="post" action="${action}" class="stack">
+${formToken()}
 <p>${warning}</p>
 <label class="check"><input type="checkbox" name="confirm" value="1" required> <span>${t(lang, 'admin.delete.confirm')}</span></label>
 <button type="submit" class="danger with-icon">${iconText('trash-2', label)}</button>
