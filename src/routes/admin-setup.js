@@ -8,15 +8,13 @@ import {
 import { groupDatesError, NAME_MAX, PLACE_MAX, THEME_MAX } from '../limits.js';
 import { unixLines } from '../text.js';
 import { todayIn } from '../time.js';
-import { wishForm } from '../questions.js';
 import { adminLang } from './admin-auth.js';
 import { field, parseJsonField } from './admin-shared.js';
-import { EVENT_DONE, eventsView, eventView, GROUP_DONE, messageView, pasteConfirmView, QUESTION_DONE } from '../views/admin.js';
-import { formPanel } from '../views/questions.js';
-
+import { EVENT_DONE, eventsView, GROUP_DONE, messageView, pasteConfirmView } from '../views/admin.js';
 
 export function adminSetupRoutes(app, ctx, {
-  render, sendError, groupPage, loadEvent, loadGroup, deleteEvent, deleteGroup, resubmitted, redirectDone, takeFlash,
+  render, sendError, groupPage, eventPage, loadEvent, loadGroup, deleteEvent, deleteGroup, resubmitted, redirectDone,
+  takeFlash,
 }) {
   const { repo, config } = ctx;
 
@@ -49,28 +47,6 @@ export function adminSetupRoutes(app, ctx, {
     }
     const dates = groupDatesError(values, today(), current);
     return dates ? { values, error: `admin.group.error.${dates}` } : { values };
-  }
-
-  function eventPage(lang, event, extra = {}) {
-    const groups = repo.listGroups(event.id).map((group) => ({ group, size: repo.listParticipants(group.id).length }));
-    const latest = repo.latestGroup(event.id);
-    const newGroup = {
-      name: '',
-      exchangeDate: latest?.exchangeDate ?? '',
-      exchangeTime: latest?.exchangeTime ?? '',
-      exchangePlace: latest?.exchangePlace ?? '',
-      autoOpenAt: latest?.autoOpenAt && latest.autoOpenAt >= today() ? latest.autoOpenAt : '',
-    };
-    return eventView(lang, {
-      event,
-      groups,
-      newGroup,
-      themeValue: event.themeText ?? t(event.language, 'theme.default'),
-      formPanel: formPanel(lang, { event, form: wishForm(event), done: QUESTION_DONE.has(extra.done) ? extra.done : null }),
-      tz: config.tz,
-      mailEnabled: ctx.mailer.enabled,
-      ...extra,
-    });
   }
 
   app.post('/admin/events', async (request, reply) => {
@@ -213,7 +189,13 @@ export function adminSetupRoutes(app, ctx, {
 
   app.post('/admin/groups/:id/invite', loadGroup, async (request, reply) => {
     const group = request.record;
-    const { queued } = sendInvitations(ctx, group.id);
+    const { queued, refused } = sendInvitations(ctx, group.id);
+    // The dashboard of a group still signing up says why there is nothing
+    // to send.
+    if (refused) {
+      request.log.info({ group_id: group.id, reason: refused }, 'invitations_refused');
+      return render(request, reply, groupPage(adminLang(request), group), 409);
+    }
     request.log.info({ group_id: group.id, queued, mail_enabled: ctx.mailer.enabled }, 'invitations_sent');
     if (queued > 0) kickDrain(ctx);
     return reply.redirect(`/admin/groups/${group.id}`, 303);

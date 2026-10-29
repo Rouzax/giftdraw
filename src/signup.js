@@ -20,7 +20,6 @@ export function signupActive(event, now, tz) {
 }
 
 // Not answering counts as no, so only an explicit yes joins.
-export function joins(participant, state) {
-  void state;
+export function joins(participant) {
   return participant.signup === 'yes';
 }

@@ -1,6 +1,7 @@
 import { PairingError, swapReceivers, validateAssignment } from './draw/cycle.js';
 import { kickDrain } from './mail/outbox.js';
 import { enqueueMail, mailOn } from './people.js';
+import { signupActive } from './signup.js';
 import { assignmentVersion } from './status.js';
 
 const MIN_GROUP = 3;
@@ -47,6 +48,7 @@ export function openGroup(ctx, groupId) {
     // The scheduler can reach a group that was deleted in the meantime.
     if (!group) return { opened: false, reason: 'invalid' };
     if (group.openedAt) return { opened: false, reason: 'already-open' };
+    if (signupActive(repo.getEvent(group.eventId), ctx.now(), ctx.config.tz)) return { opened: false, reason: 'signup' };
     if (!group.invitationsSentAt) return { opened: false, reason: 'no-invitations' };
     const people = repo.listParticipants(groupId);
     if (people.length < MIN_GROUP) return { opened: false, reason: 'too-small' };

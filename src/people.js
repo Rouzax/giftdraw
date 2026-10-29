@@ -5,6 +5,7 @@ import { NAME_MAX } from './limits.js';
 import { kickDrain } from './mail/outbox.js';
 import { wishForm } from './questions.js';
 import { reminderKind } from './reminders.js';
+import { signupActive, signupState } from './signup.js';
 import { assignmentVersion } from './status.js';
 import { clipText, unixLines } from './text.js';
 
@@ -245,8 +246,15 @@ export function commitAddParticipants(ctx, groupId, plan) {
       if (state.open ? !state.map.has(giver) : giver !== null) return { error: 'invalid' };
     }
     const event = repo.getEvent(state.group.eventId);
+    const at = ctx.now();
+    const signup = signupState(event, at, ctx.config.tz);
+    // While sign-up is active nobody is paired: the pairs are made from the
+    // yes answers once it is done.
+    const active = signupActive(event, at, ctx.config.tz);
     const withLanguage = rows.map(({ name, email }) => ({ name, email, language: event.language }));
-    const added = repo.addParticipantsWithAssignment(groupId, withLanguage, (ids) => placeNewcomers(state, rows, ids), now);
+    const added = repo.addParticipantsWithAssignment(
+      groupId, withLanguage, (ids) => (active ? null : placeNewcomers(state, rows, ids)), now,
+    );
     const after = repo.getAssignment(groupId);
     const everyone = [...state.people.map((p) => p.id), ...added.map((p) => p.id)];
     if (after.size > 0 && !validateAssignment(after, everyone)) {
@@ -255,8 +263,14 @@ export function commitAddParticipants(ctx, groupId, plan) {
     // Once a group's invitations are out, a newcomer is invited straight
     // away. In an open group that one invitation also says they can draw,
     // so no draw-open mail follows it.
-    const invite = state.open || Boolean(state.group.invitationsSentAt);
+    const invite = !active && (state.open || Boolean(state.group.invitationsSentAt));
     let queued = 0;
+    // Someone added while sign-up is open is asked at once, like everyone
+    // else was; someone added after it closed was added to take part.
+    if (signup === 'open') queued += askToSignUp(ctx, added, now);
+    if (signup === 'closed') {
+      for (const p of added) repo.updateParticipant(p.id, { signup: 'yes', signupAt: now });
+    }
     if (invite && mailOn(ctx)) {
       for (const p of added) {
         if (!p.email) continue;
@@ -369,6 +383,9 @@ export function sendInvitations(ctx, groupId) {
   const { repo } = ctx;
   const now = ctx.nowIso();
   return repo.tx(() => {
+    const event = repo.getEvent(repo.getGroup(groupId).eventId);
+    // The invitation leads to the draw, which waits for the sign-up.
+    if (signupActive(event, ctx.now(), ctx.config.tz)) return { refused: 'signup' };
     let queued = 0;
     if (mailOn(ctx)) {
       for (const p of repo.listParticipants(groupId)) {
@@ -381,6 +398,36 @@ export function sendInvitations(ctx, groupId) {
     repo.markInvitationsSent(groupId, now);
     return { queued };
   });
+}
+
+// Marks each person with an address as asked and queues the sign-up mail;
+// with mail off nobody is marked, as with invitations. Returns the count.
+function askToSignUp(ctx, people, now) {
+  if (!mailOn(ctx)) return 0;
+  let queued = 0;
+  for (const p of people) {
+    if (!p.email || p.signupInvitedAt) continue;
+    ctx.repo.updateParticipant(p.id, { signupInvitedAt: now });
+    enqueueMail(ctx, p.id, 'signup', now);
+    queued += 1;
+  }
+  return queued;
+}
+
+// One press for the whole event. Runs in one transaction with the state
+// check, so two overlapping presses send each mail once. Returns {queued} or
+// {refused: state} when the sign-up is not waiting to be sent.
+export function sendSignup(ctx, eventId) {
+  const { repo } = ctx;
+  const now = ctx.nowIso();
+  const result = repo.tx(() => {
+    const state = signupState(repo.getEvent(eventId), ctx.now(), ctx.config.tz);
+    if (state !== 'setup') return { refused: state };
+    repo.updateEvent(eventId, { signupSentAt: now }, now);
+    return { queued: askToSignUp(ctx, repo.listEventParticipants(eventId), now) };
+  });
+  if (result.queued) kickDrain(ctx);
+  return result;
 }
 
 // The organiser's per-participant mail buttons. Each returns the outcome key

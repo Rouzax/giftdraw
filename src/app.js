@@ -13,6 +13,7 @@ import { adminPeopleRoutes } from './routes/admin-people.js';
 import { adminQuestionRoutes } from './routes/admin-questions.js';
 import { adminSetupRoutes } from './routes/admin-setup.js';
 import { adminShared } from './routes/admin-shared.js';
+import { adminSignupRoutes } from './routes/admin-signup.js';
 import { participantRoutes } from './routes/participant.js';
 import { errorPage } from './views/layout.js';
 
@@ -125,6 +126,7 @@ export async function buildApp(ctx) {
   registerAdminAuth(app, ctx, { sendPage, isAdminPath: (request) => pathMatches(request, ADMIN_PATH) });
   const shared = adminShared(ctx, { sendPage, sendError });
   adminSetupRoutes(app, ctx, shared);
+  adminSignupRoutes(app, ctx, shared);
   adminQuestionRoutes(app, ctx, shared);
   adminImportRoutes(app, ctx, shared);
   adminArrangeRoutes(app, ctx, shared);

@@ -9,7 +9,7 @@ import { makeTestApp, seedGroup, textOf } from './helpers.js';
 const TZ = 'Europe/Amsterdam';
 const DATE = '2026-12-18';
 const PLACE = 'Yogastudio <b>De Lotus</b>, Dorpsstraat 1';
-const event = { name: 'Gifts 2026', language: 'nl', themeText: null, wishOptions: null };
+const event = { name: 'Gifts 2026', language: 'nl', themeText: null, wishOptions: null, signupDeadline: '2026-11-20' };
 const group = { name: 'Monday', exchangeDate: DATE, exchangeTime: '10:30', exchangePlace: PLACE };
 const ada = { id: 1, name: 'Ada', email: 'ada@example.com', language: 'nl', wishes: null };
 const ben = { id: 2, name: 'Ben', email: 'ben@example.com', language: 'nl', wishes: null };

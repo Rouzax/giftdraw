@@ -33,9 +33,9 @@ test('signupActive covers setup, open and closed only', () => {
 });
 
 test('joins counts only yes', () => {
-  assert.equal(joins({ signup: 'yes' }, 'closed'), true);
-  assert.equal(joins({ signup: 'no' }, 'closed'), false);
-  assert.equal(joins({ signup: null }, 'closed'), false);
+  assert.equal(joins({ signup: 'yes' }), true);
+  assert.equal(joins({ signup: 'no' }), false);
+  assert.equal(joins({ signup: null }), false);
 });
 
 test('signupDeadlineError', () => {

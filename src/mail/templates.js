@@ -1,6 +1,6 @@
 import { wishLines } from '../answers.js';
 import { html } from '../html.js';
-import { exchangeLine, t, themeText } from '../i18n/index.js';
+import { exchangeLine, formatDate, t, themeText } from '../i18n/index.js';
 import { endsInMark, wishForm } from '../questions.js';
 
 // Outbox kind -> catalogue key under email.*
@@ -11,6 +11,7 @@ const KEYS = {
   'remind-draw': 'remindDraw',
   'wishes-updated': 'wishesUpdated',
   reassigned: 'reassigned',
+  signup: 'signup',
 };
 
 export const KINDS = Object.keys(KEYS);
@@ -18,6 +19,9 @@ export const KINDS = Object.keys(KEYS);
 // Kinds that name the giver's receiver; they only go to givers who have
 // already seen their result, so naming the receiver gives nothing away.
 export const RECEIVER_KINDS = new Set(['wishes-updated', 'reassigned']);
+
+// Kinds about the sign-up, which name the date it closes.
+const DEADLINE_KINDS = new Set(['signup']);
 
 // Mail clients drop <style> blocks and external CSS, so every rule is inline.
 // Colours match public/css/base.css.
@@ -61,7 +65,8 @@ export function renderEmail(kind, { lang, participant, receiver, event, group, l
   // Someone invited into a group that is already open gets no separate
   // draw-open mail, so their invitation says they can draw.
   const key = kind === 'invite' && group.openedAt ? 'inviteOpen' : KEYS[kind];
-  const vars = { name: RECEIVER_KINDS.has(kind) ? receiver.name : participant.name };
+  const vars = { name: RECEIVER_KINDS.has(kind) ? receiver.name : participant.name, event: event.name };
+  if (DEADLINE_KINDS.has(kind)) vars.deadline = formatDate(lang, event.signupDeadline, tz);
   const appName = t(lang, 'app.name');
   const subject = `${appName}: ${t(lang, `email.${key}.subject`, vars)}`;
   const greeting = t(lang, 'email.greeting', { name: participant.name });

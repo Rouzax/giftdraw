@@ -113,8 +113,53 @@ ${formToken()}
 
 // formPanel is the question list, which shows its own done notices next
 // to the list they are about.
+// The sign-up step of the whole event. Each state shows where it stands and
+// only the steps that are possible from there.
+function signupPanel(lang, { event, groups, state, tz, mailEnabled, error, value }) {
+  const action = `/admin/events/${event.id}/signup`;
+  const date = event.signupDeadline ? formatDate(lang, event.signupDeadline, tz) : null;
+  const deadlineForm = (labelKey, buttonKey, fieldValue, primary) => html`<form method="post" action="${action}" class="stack">
+${dateInput('signup-deadline', 'deadline', t(lang, labelKey), fieldValue, { required: true })}
+<button type="submit"${primary ? raw(' class="primary"') : ''}>${t(lang, buttonKey)}</button>
+</form>`;
+  const stepForm = (path, buttonKey, hintKey) => html`<form method="post" action="${action}/${path}" class="stack">
+<p class="hint">${t(lang, hintKey)}</p>
+<button type="submit">${t(lang, buttonKey)}</button>
+</form>`;
+  let steps;
+  if (state === 'off') {
+    const tooLate = groups.some(({ group }) => group.invitationsSentAt || group.openedAt);
+    steps = html`<p>${t(lang, 'admin.signup.intro')}</p>
+${tooLate ? html`<p class="muted">${t(lang, 'admin.signup.tooLate')}</p>` : deadlineForm('admin.signup.deadline', 'admin.signup.on', value, true)}`;
+  } else if (state === 'setup') {
+    steps = html`<p>${t(lang, 'admin.signup.setup', { date })}</p>
+<form method="post" action="${action}/send" class="stack">
+${formToken()}
+<p class="hint">${t(lang, mailEnabled ? 'admin.signup.sendHint' : 'admin.signup.sendHintNoMail')}</p>
+<button type="submit" class="primary with-icon">${iconText('send', t(lang, 'admin.signup.send'))}</button>
+</form>
+${deadlineForm('admin.signup.newDeadline', 'admin.signup.move', value || event.signupDeadline, false)}
+${stepForm('off', 'admin.signup.off', 'admin.signup.offHint')}`;
+  } else if (state === 'open') {
+    steps = html`<p>${t(lang, 'admin.signup.open', { date })}</p>
+${deadlineForm('admin.signup.newDeadline', 'admin.signup.move', value || event.signupDeadline, false)}
+${stepForm('close', 'admin.signup.close', 'admin.signup.closeHint')}`;
+  } else if (state === 'closed') {
+    steps = html`<p>${t(lang, 'admin.signup.closed')}</p>
+${deadlineForm('admin.signup.newDeadline', 'admin.signup.reopen', value, false)}`;
+  } else {
+    steps = html`<p>${t(lang, 'admin.signup.done')}</p>`;
+  }
+  return html`<section class="panel" id="signup">
+<h2>${t(lang, 'admin.signup.title')}</h2>
+${errorNotice(lang, error)}
+${steps}
+</section>`;
+}
+
 export function eventView(lang, {
-  event, groups, newGroup, themeValue, formPanel, tz, mailEnabled, error = null, groupError = null, done = null,
+  event, groups, newGroup, themeValue, formPanel, tz, mailEnabled, signupState = 'off', error = null, groupError = null,
+  signupError = null, signupValue = '', done = null,
 }) {
   const title = event.name;
   const groupList = groups.length
@@ -131,6 +176,7 @@ ${QUESTION_DONE.has(done) ? '' : doneNotice(lang, done)}
 <h2>${t(lang, 'admin.groups.title')}</h2>
 ${groupList}
 </section>
+${signupPanel(lang, { event, groups, state: signupState, tz, mailEnabled, error: signupError, value: signupValue })}
 <section class="panel">
 <h2>${t(lang, 'admin.groups.new')}</h2>
 ${errorNotice(lang, groupError)}
@@ -365,7 +411,10 @@ export const GROUP_DONE = new Set([
   'group-created',
 ]);
 export const QUESTION_DONE = new Set(['question-added', 'question-saved', 'question-removed']);
-export const EVENT_DONE = new Set(['event-created', 'saved', 'imported', 'already-imported', ...QUESTION_DONE]);
+export const EVENT_DONE = new Set([
+  'event-created', 'saved', 'imported', 'already-imported', 'signup-on', 'signup-off', 'signup-moved', 'signup-sent',
+  'signup-closed', 'signup-reopened', ...QUESTION_DONE,
+]);
 
 // Mail still being retried goes out by itself, so only given-up mail counts.
 function resendAllPanel(lang, groupId, count, mailEnabled) {
@@ -378,9 +427,15 @@ function resendAllPanel(lang, groupId, count, mailEnabled) {
 </div>`;
 }
 
+// Inviting and drawing wait until the event's sign-up is done, so the
+// dashboard sends the organiser there instead.
+function signupLine(lang, event) {
+  return html`<p class="notice">${t(lang, 'admin.signup.groupLine')} <a href="/admin/events/${event.id}#signup">${t(lang, 'admin.signup.groupLink')}</a></p>`;
+}
+
 export function groupView(lang, {
   event, group, rows, warnings, mailEnabled, tz, error = null, values = null, pasteError = null, pasteText = '',
-  openError = null, done = null, givenUpCount = 0,
+  openError = null, done = null, givenUpCount = 0, signupActive = false,
 }) {
   const title = group.name;
   const uninvited = rows.filter((r) => r.participant.email && !r.participant.invitedAt).length;
@@ -395,11 +450,11 @@ ${doneNotice(lang, done)}
 ${banners}
 ${summary(lang, rows, mailEnabled)}
 ${groupStatus(lang, group, tz, mailEnabled)}
-<section class="panel">
+${signupActive ? signupLine(lang, event) : html`<section class="panel">
 <h2>${t(lang, 'admin.invite.title')}</h2>
 ${invitePanelBody(lang, { group, mailEnabled, uninvited, withEmail: rows.some((r) => r.participant.email) })}
 </section>
-${drawPanel(lang, { group, rows, openError, mailEnabled })}
+${drawPanel(lang, { group, rows, openError, mailEnabled })}`}
 <section class="panel wide">
 <h2>${t(lang, 'admin.participants.title')}</h2>
 ${resendAllPanel(lang, group.id, givenUpCount, mailEnabled)}

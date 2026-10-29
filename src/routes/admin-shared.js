@@ -1,11 +1,15 @@
 import { hasWishes } from '../answers.js';
+import { t } from '../i18n/index.js';
 import { wishForm } from '../questions.js';
+import { signupActive, signupState } from '../signup.js';
 import { cardOutOfDate, groupWarnings } from '../status.js';
 import { createSubmitLog, formFingerprint } from '../submit-log.js';
 import { clipText, unixLines } from '../text.js';
+import { todayIn } from '../time.js';
 import { adminLang } from './admin-auth.js';
 import { behalfPage, printPage, renderAdminPage } from '../views/layout.js';
-import { groupView } from '../views/admin.js';
+import { eventView, groupView, QUESTION_DONE } from '../views/admin.js';
+import { formPanel } from '../views/questions.js';
 
 export const ID = /^\d{1,15}$/;
 const FLASH_COOKIE = 'giftdraw_flash';
@@ -26,8 +30,8 @@ export function parseJsonField(value, max) {
   }
 }
 
-// The page shell, the id checks and the group dashboard, shared by every
-// admin route module.
+// The page shell, the id checks and the event and group pages, shared by
+// every admin route module.
 export function adminShared(ctx, { sendPage, sendError }) {
   const { repo, config } = ctx;
   const submitLog = createSubmitLog({ now: () => ctx.now().getTime() });
@@ -106,6 +110,30 @@ export function adminShared(ctx, { sendPage, sendError }) {
     };
   }
 
+  function eventPage(lang, event, extra = {}) {
+    const today = todayIn(ctx.now(), config.tz);
+    const groups = repo.listGroups(event.id).map((group) => ({ group, size: repo.listParticipants(group.id).length }));
+    const latest = repo.latestGroup(event.id);
+    const newGroup = {
+      name: '',
+      exchangeDate: latest?.exchangeDate ?? '',
+      exchangeTime: latest?.exchangeTime ?? '',
+      exchangePlace: latest?.exchangePlace ?? '',
+      autoOpenAt: latest?.autoOpenAt && latest.autoOpenAt >= today ? latest.autoOpenAt : '',
+    };
+    return eventView(lang, {
+      event,
+      groups,
+      newGroup,
+      signupState: signupState(event, ctx.now(), config.tz),
+      themeValue: event.themeText ?? t(event.language, 'theme.default'),
+      formPanel: formPanel(lang, { event, form: wishForm(event), done: QUESTION_DONE.has(extra.done) ? extra.done : null }),
+      tz: config.tz,
+      mailEnabled: ctx.mailer.enabled,
+      ...extra,
+    });
+  }
+
   function groupPage(lang, group, extra = {}) {
     const event = repo.getEvent(group.eventId);
     const people = repo.listParticipants(group.id);
@@ -128,6 +156,7 @@ export function adminShared(ctx, { sendPage, sendError }) {
       warnings: groupWarnings(group, people.length),
       mailEnabled: ctx.mailer.enabled,
       givenUpCount: repo.countGivenUp(group.id),
+      signupActive: signupActive(event, ctx.now(), config.tz),
       tz: config.tz,
       ...extra,
     });
@@ -142,6 +171,7 @@ export function adminShared(ctx, { sendPage, sendError }) {
     renderBehalf,
     renderPrint,
     groupPage,
+    eventPage,
     loadEvent: { preHandler: load(repo.getEvent) },
     loadGroup: { preHandler: load(repo.getGroup) },
     deleteEvent: { preHandler: [replayFirst, load(repo.getEvent)] },

@@ -4,6 +4,7 @@ import { drainOutbox, errorCode } from './mail/outbox.js';
 import { enqueueMail, mailOn } from './people.js';
 import { wishForm } from './questions.js';
 import { dueReminder, reminderKind } from './reminders.js';
+import { signupActive } from './signup.js';
 import { instantAt, todayIn } from './time.js';
 
 const AUTO_OPEN_AT = '09:00';
@@ -25,7 +26,10 @@ function eachRow(ctx, step, rows, idField, fn) {
 
 function autoOpen(ctx, now) {
   const { repo, config } = ctx;
-  const groups = repo.listEvents().flatMap((event) => repo.listGroups(event.id));
+  // A group whose event is still signing up has nobody paired yet.
+  const groups = repo.listEvents()
+    .filter((event) => !signupActive(event, now, config.tz))
+    .flatMap((event) => repo.listGroups(event.id));
   const due = groups.filter((g) => !g.openedAt && g.autoOpenAt && g.invitationsSentAt);
   return eachRow(ctx, 'auto-open', due, 'group_id', (group) => {
     if (now < instantAt(group.autoOpenAt, AUTO_OPEN_AT, config.tz)) return false;

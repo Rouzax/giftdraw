@@ -5,7 +5,7 @@ import { createMailer } from '../src/mail/mailer.js';
 import { KINDS, renderEmail } from '../src/mail/templates.js';
 
 const LINK = 'https://gifts.example.com/p/abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQ';
-const event = { name: 'Gifts 2026', language: 'nl', themeText: null, wishOptions: null };
+const event = { name: 'Gifts 2026', language: 'nl', themeText: null, wishOptions: null, signupDeadline: '2026-11-20' };
 const group = { name: 'Monday', exchangeDate: '2026-12-18' };
 const ada = { id: 1, name: 'Ada', email: 'ada@example.com', language: 'nl' };
 const ben = {
@@ -35,8 +35,24 @@ function render(kind, lang, overrides = {}) {
 }
 
 test('every kind is rendered', () => {
-  assert.deepEqual(KINDS, ['invite', 'draw-open', 'remind-wishes', 'remind-draw', 'wishes-updated', 'reassigned']);
+  assert.deepEqual(KINDS, ['invite', 'draw-open', 'remind-wishes', 'remind-draw', 'wishes-updated', 'reassigned', 'signup']);
 });
+
+const SIGNUP = {
+  nl: { subject: 'Doe je mee met Gifts 2026?', deadline: 'tot en met vrijdag 20 november', button: 'Zeg of je meedoet' },
+  en: { subject: 'Are you taking part in Gifts 2026?', deadline: 'until the end of Friday 20 November', button: 'Say if you take part' },
+};
+
+for (const lang of ['nl', 'en']) {
+  test(`the sign-up mail in ${lang} names the event and the closing date, with one button`, () => {
+    const mail = render('signup', lang);
+    const want = SIGNUP[lang];
+    assert.equal(mail.subject, `${EXPECT[lang].app}: ${want.subject}`);
+    for (const body of [mail.html, mail.text]) assert.ok(body.includes(want.deadline), body);
+    assert.ok(mail.html.includes(want.button));
+    assert.equal(mail.html.match(/<a href=/g).length, 2, 'the button and the written-out link');
+  });
+}
 
 for (const kind of KINDS) {
   for (const lang of ['nl', 'en']) {

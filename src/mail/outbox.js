@@ -1,5 +1,6 @@
 import { wishForm } from '../questions.js';
 import { reminderKind } from '../reminders.js';
+import { signupState } from '../signup.js';
 import { SKIP_CODES } from './skip-codes.js';
 import { RECEIVER_KINDS, renderEmail } from './templates.js';
 
@@ -51,6 +52,9 @@ function prepare(ctx, row) {
   // The same for a draw-open or invite sent again by hand after giving up:
   // someone who has drawn since must not be asked to start.
   if ((row.kind === 'draw-open' || row.kind === 'invite') && participant.drawnAt) throw new Skip('stale-mail');
+  // A sign-up mail still queued once the sign-up has closed would ask for
+  // an answer that can no longer be given.
+  if (row.kind === 'signup' && signupState(event, ctx.now(), config.tz) !== 'open') throw new Skip('stale-mail');
   // Only receiver kinds load the receiver, so a failing lookup of someone
   // else's row cannot take down a mail that never uses it.
   let receiver = null;
