@@ -29,6 +29,7 @@ What happens:
 
 - The volume, and with it every event, group and wish, is kept.
 - On start, the app brings the database up to the new version by itself. If an update changed the database, an older image refuses to start with it (`Database schema version ... is newer than this code supports`). Back up the volume before updating if you may want to go back.
+- Version 0.4.0 stores the wish form and the wishes in a new way without changing the database itself. An older image still starts on that volume, but shows the standard form and no wishes, and anything saved there overwrites what 0.4.0 stored. To go back from 0.4.0, restore the backup you made before updating instead.
 - `docker stop` lets a mail that is being sent finish first, and mail still in the queue goes out after the restart.
 
 Pick a quiet moment, such as an evening, so nobody is drawing at the very moment the app restarts.
