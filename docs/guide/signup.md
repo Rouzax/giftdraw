@@ -11,8 +11,8 @@ Sign-up is one step for the whole event: one closing date, one send and one star
 ## Before you start
 
 - The event has its groups, each with its exchange date, and the people in them. See [Add groups and participants](groups.md). People you forget can still be added while sign-up runs.
-- No group has had its invitations sent yet (or, with email off, been marked **The links have been shared**). After that it is too late to ask, and the panel says **Sign-up is no longer possible: invitations have already been sent.** (*Aanmelden kan niet meer: er zijn al uitnodigingen verstuurd.*)
-- You know the closing date: the last day people can answer. It can be today or later, and must be before the first exchange date of the event.
+- Nobody in the event has been invited yet: no group has had its invitations sent (or, with email off, been marked **The links have been shared**), and nobody got an invitation from their own page with **Resend invitation**. After that it is too late to ask, and the event page no longer shows the Sign-up panel.
+- You know the closing date: the last day people can answer. It can be today or later, and must be before the first exchange date of the event. If a group has an automatic opening date, the closing date must also be before that day, because drawing cannot open while people are still answering.
 - With email on, everyone with an email address gets the question by mail. People without email, or everyone when email is off, need their link from you or an answer given by you; see [Answer for someone](#answer-for-someone).
 
 ## The steps
@@ -35,6 +35,8 @@ What happens:
 
 ![The sign-up panel after turning it on: Send now, a new closing date, and turning sign-up off](../images/organiser-signup-setup.webp){ .shot }
 
+A closing date on or after a group's automatic opening date is refused with **Choose a date before the day drawing opens automatically. Or move that day in the group first.** (*Kies een datum voor de dag waarop het trekken automatisch opengaat. Of verschuif eerst die dag bij de groep.*)
+
 Until you send, you can still change your mind:
 
 - **Move the date** (*Datum verplaatsen*) with a **New closing date** (*Nieuwe sluitdatum*).
@@ -48,10 +50,13 @@ With email on:
 
 - Everyone with an email address gets the sign-up mail at once, in their own language: "Are you taking part in ...?" (*Doe je mee met ...?*) with the event's name. It shows the theme, the exchange date, time and place of their group, the closing date, and two buttons: **Yes, I'm taking part** (*Ja, ik doe mee*) and **No, not this time** (*Nee, deze keer niet*).
 - People without an email address get nothing. Give them their link yourself, as in [Share a link yourself](invitations.md#share-a-link-yourself), or answer for them.
+- People whose answer you already set get nothing, now or later; see [Answer for someone](#answer-for-someone).
 
-With email off the panel says so, and the button sends nothing: it opens sign-up, so that everyone can answer on their own page. Share the links yourself, before or after pressing it.
+With email off the panel says so, and the button sends nothing: it opens sign-up. People can only answer after you press it; until then their page says **The organiser will soon ask you whether you are taking part.** (*De organisator vraagt je binnenkort of je meedoet.*) Share the links yourself, before or after pressing it.
 
 The panel then says **Sign-up is open until the end of ...** (*Aanmelden is open tot en met ...*).
+
+If the closing date has already passed before you send, **Send now** is gone and the panel says **The closing date has passed. Choose a new closing date below first, then you can send.** (*De sluitdatum is voorbij. Kies hieronder eerst een nieuwe sluitdatum, daarna kun je versturen.*) Sending then would open sign-up and close it at the same moment, so nothing is sent until you move the date.
 
 ## While sign-up is open
 
@@ -67,18 +72,18 @@ The panel on the event page shows per group how many said yes, no and not yet, a
 
 ### What the app sends by itself
 
-With email on, the app follows up on its own. Only people who got the sign-up mail can get these, and only while sign-up is open.
+With email on, the app follows up on its own, only while sign-up is open. Only people who were sent the sign-up mail can get these; someone whose answer you set before pressing **Send now** never gets one.
 
 | Mail | Who gets it | When |
 | --- | --- | --- |
-| Sign-up reminder: "8 days left: are you taking part in ...?" (*Nog 8 dagen: doe je mee met ...?*) | Everyone who has not answered. | A week before the closing date, at 09:00. |
-| Sign-up reminder: "3 days left: ..." (*Nog 3 dagen: ...*) | Everyone who still has not answered. | Two days before the closing date, at 09:00. |
+| Sign-up reminder: "8 days left to say whether you are taking part in ..." (*Nog 8 dagen om te zeggen of je meedoet aan ...*) | Everyone who has not answered. | A week before the closing date, at 09:00. |
+| Sign-up reminder: "3 days left to say ..." (*Nog 3 dagen om te zeggen ...*) | Everyone who still has not answered. | Two days before the closing date, at 09:00. |
 | "Are you sure?" (*Weet je het zeker?*) | Everyone whose answer is no at that moment. It says not taking part is perfectly fine, and that they can still change their mind. | Two days before the closing date, at 09:00. |
 
 The number of days counts the closing date itself, so with a closing date of Friday 20 November the reminders go out on Friday 13 November ("8 days left") and Wednesday 18 November ("3 days left"), and the "Are you sure?" mail also on 18 November.
 
 - Mail goes out between 09:00 and 20:00 in the app's time zone. If the app was not running at 09:00, the mail follows as soon as it runs again within that window.
-- Nobody gets a reminder on the day they were sent the sign-up mail. A reminder date that falls on or before that day is skipped, not sent late; with a closing date less than a week away, the first reminder is skipped.
+- Nobody gets a reminder or the "Are you sure?" mail on the day they were sent the sign-up mail. A date that falls on or before that day is skipped, not sent late: with a closing date a week or less after sending, the first reminder is skipped, and with two days or less, none of these mails go out.
 - Each person gets at most two sign-up reminders and at most one "Are you sure?" mail for the event, also when you move the closing date or open sign-up again.
 - Someone who says no after the "Are you sure?" moment has just made up their mind and gets nothing more.
 - A mail still waiting in the queue is dropped if it no longer fits: the person answered in the meantime, or sign-up closed.
@@ -89,7 +94,11 @@ The **Last reminder** (*Laatste herinnering*) column on the group dashboard incl
 
 Each person in the panel has **Set to yes** (*Zet op ja*) and **Set to no** (*Zet op nee*), minus the answer they already have; the same buttons are in the **Sign-up** panel on their own page. Use them for someone who told you their answer in person, or who has no email or phone. You can do this from the moment sign-up is on until you start the draw, also after sign-up has closed.
 
-An answer you set counts like their own, so it also stops the reminders, and someone you set before pressing **Send now** gets no sign-up mail. A person whose answer is no two days before the closing date gets the "Are you sure?" mail if they have an email address, also when you set that no.
+An answer you set counts like their own, so it also stops the reminders. Someone you set before pressing **Send now** gets no sign-up mail at all: no question, no reminders and no "Are you sure?" mail. A person who was sent the sign-up mail and whose answer is no two days before the closing date gets the "Are you sure?" mail, also when you set that no.
+
+### Send the sign-up mail again
+
+While sign-up runs, a person's page has no **Resend invitation** or **Send a reminder now**: invitations and reminders about wishes and drawing wait until you start the draw. While sign-up is open, the Email panel instead has **Send the sign-up mail again** (*Stuur de aanmeldmail opnieuw*) for someone with an email address who has not answered, for example after you corrected their address. It sends the sign-up mail with their current link and does not count toward the two automatic reminders. Someone who was never sent the mail is then counted as sent, so the reminders follow for them too.
 
 ### Add or remove people
 
@@ -98,11 +107,11 @@ An answer you set counts like their own, so it also stops the reminders, and som
 - **Someone added after sign-up closed** counts as yes: you added them on purpose. Set them to no if that is wrong. They get no sign-up mail; their invitation follows when you start the draw.
 - **Removing someone** works as usual from their page. There are no pairs to change yet, so the preview only says so.
 
-Nobody is paired while sign-up runs, also not people you add. A new or changed group needs an exchange date after the closing date, or it is refused with **The exchange date must be after the sign-up closing date.** (*De ruildatum moet na de sluitdatum van het aanmelden liggen.*)
+Nobody is paired while sign-up runs, also not people you add. A new or changed group needs an exchange date after the closing date, or it is refused with **The exchange date must be after the sign-up closing date.** (*De ruildatum moet na de sluitdatum van het aanmelden liggen.*) An automatic opening date, if the group has one, must also be after the closing date, or it is refused with **Drawing can only open automatically after the sign-up closing date.** (*Het trekken kan pas automatisch opengaan na de sluitdatum van het aanmelden.*)
 
 ### Move the closing date
 
-Fill in **New closing date** and press **Move the date**. The date can be today or later, and before the first exchange date. Reminders follow the new date, within the limits above.
+Fill in **New closing date** and press **Move the date**. The date can be today or later, and must be before the first exchange date and before any group's automatic opening date. Reminders follow the new date, within the limits above.
 
 ## When sign-up closes
 
@@ -116,11 +125,11 @@ After closing:
 
 ### Open sign-up again
 
-Until you start the draw, you can open sign-up again: fill in a new closing date, today or later and before the first exchange date, and press **Open again** (*Opnieuw openen*). Everyone can answer or change their answer again until the end of that date. Reminders follow the new date, but nobody gets more than two sign-up reminders or a second "Are you sure?" mail in total.
+Until you start the draw, you can open sign-up again: fill in a new closing date, today or later and before the first exchange date and any group's automatic opening date, and press **Open again** (*Opnieuw openen*). If a group's automatic opening date has already passed, change or clear it on its dashboard first. Everyone can answer or change their answer again until the end of that date. Reminders follow the new date, but nobody gets more than two sign-up reminders or a second "Are you sure?" mail in total.
 
 ## Start the draw
 
-Once sign-up has closed and the lists are right, press **Make the pairs** (*Lootjes maken*) in the panel. You first see a confirmation page, **Make the pairs with everyone taking part** (*Lootjes maken met wie meedoet*), with per group who takes part and who **Will be removed** (*Worden verwijderd*). A group with fewer than 3 people taking part is marked **At least 3 participants are needed for drawing.**
+Once sign-up has closed and the lists are right, press **Make the pairs** (*Lootjes maken*) in the panel. You first see a confirmation page, **Make the pairs with everyone taking part** (*Lootjes maken met wie meedoet*), with per group who takes part and who **Will be removed** (*Worden verwijderd*). A group with fewer than 3 people taking part is marked **At least 3 participants are needed for drawing.** A group whose automatic opening date is today or has passed is marked **Drawing in this group opens right after you make the pairs: its automatic opening day is today or has passed.** (*Het trekken gaat in deze groep meteen open als je de lootjes maakt: de dag om automatisch te openen is vandaag of al voorbij.*)
 
 ![The confirmation: per group who takes part and who will be removed, with a warning for a group under 3](../images/organiser-signup-finish.webp){ .shot }
 
@@ -133,7 +142,7 @@ What happens:
 - **The invitations go out for every group**, as if you had pressed **Send invitations** on each dashboard: with email on, everyone with an address gets the usual invitation mail. With email off nothing is sent and every group counts as **The links have been shared**; share the links yourself.
 - The panel says **Sign-up is finished.** (*Aanmelden is afgerond.*). It cannot be turned on again for this event.
 
-From here everything works as without sign-up: [check the pairs and open the draw](open.md), add late joiners (they are paired and invited straight away), and follow up. A group with pairs whose automatic opening date has already passed opens within a minute after you start the draw, because its invitations have now gone out.
+From here everything works as without sign-up: [check the pairs and open the draw](open.md), add late joiners (they are paired and invited straight away), and follow up. A group with pairs whose automatic opening date has come opens within a minute after you start the draw (from 09:00 on that day), because its invitations have now gone out.
 
 ## What sign-up does not change
 

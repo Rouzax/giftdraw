@@ -40,7 +40,7 @@ For both:
 
 ### Send a reminder yourself
 
-On a person's page, the **Email** (*E-mail*) panel has **Send a reminder now** (*Nu een herinnering sturen*). It sends the reminder that fits: to fill in wishes before drawing opens, to draw after. The hint below the button says which. It only appears when there is something to remind about and after the invitation has gone out.
+On a person's page, the **Email** (*E-mail*) panel has **Send a reminder now** (*Nu een herinnering sturen*). It sends the reminder that fits: to fill in wishes before drawing opens, to draw after. The hint below the button says which. It only appears when there is something to remind about and after the invitation has gone out, and not while the event's [sign-up](signup.md) runs.
 
 A reminder you send by hand does not count toward the two automatic ones, but the next automatic one keeps its spacing after it.
 
@@ -87,4 +87,4 @@ Some details that explain what you see:
 - An invitation or "You can draw a name now" sent again after that person has drawn is skipped, so it does not ask them to start over.
 - An invitation that reached the person earlier stays marked as sent; only the failed resend shows in the failure column.
 
-**Resend invitation** (*Uitnodiging opnieuw sturen*) on a person's page sends the invitation mail again with their current link, for example after they lost it. If one is already waiting in the queue, nothing extra is sent and the page says so.
+**Resend invitation** (*Uitnodiging opnieuw sturen*) on a person's page sends the invitation mail again with their current link, for example after they lost it. If one is already waiting in the queue, nothing extra is sent and the page says so. While the event's [sign-up](signup.md) runs, this button is not there; see [Send the sign-up mail again](signup.md#send-the-sign-up-mail-again).

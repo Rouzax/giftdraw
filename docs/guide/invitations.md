@@ -6,7 +6,7 @@ You have to do this step once per group, even when nobody in it has email: drawi
 
 !!! info "With sign-up, this step waits"
 
-    While the event's [sign-up](signup.md) runs, the dashboard shows **Sign-up is on. Inviting and drawing come after it.** instead of the Invitations panel, and nobody can be invited. When you [start the draw](signup.md#start-the-draw), the invitations go out for every group at once, so you do not press **Send invitations** yourself. Everything below applies again from then on.
+    While the event's [sign-up](signup.md) runs, the dashboard shows **Sign-up is on. Inviting and drawing come after it.** instead of the Invitations panel, and nobody can be invited, also not from a person's own page. When you [start the draw](signup.md#start-the-draw), the invitations go out for every group at once, so you do not press **Send invitations** yourself. Everything below applies again from then on.
 
 ## With email on
 

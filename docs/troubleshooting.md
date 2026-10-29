@@ -87,17 +87,29 @@ The dashboard says **Sign-up is on. Inviting and drawing come after it.** (*Aanm
 
 It appears once sign-up has closed: at the end of the closing date, or when you press **Close sign-up now** (*Aanmelden nu sluiten*). While sign-up is open, people can still change their answer.
 
-### "Sign-up is no longer possible: invitations have already been sent."
+### The Sign-up panel is missing from the event page
 
-(*Aanmelden kan niet meer: er zijn al uitnodigingen verstuurd.*) At least one group of the event has had its invitations sent, has been marked **The links have been shared**, or has opened drawing. Sign-up only works before that, because the invitation already leads to the draw. Ask around yourself instead and remove the people who do not join, as in [Someone drops out](guide/changes.md#someone-drops-out).
+Someone in the event has already been invited: a group has had its invitations sent, has been marked **The links have been shared**, or has opened drawing, or someone got an invitation from their own page with **Resend invitation**. Sign-up only works before that, because the invitation already leads to the draw. A press from a page opened earlier shows **Sign-up can no longer be turned on: invitations have already been sent.** (*Aanmelden kan niet meer aan: er zijn al uitnodigingen verstuurd.*) Ask around yourself instead and remove the people who do not join, as in [Someone drops out](guide/changes.md#someone-drops-out).
+
+### "Send now" is missing and the panel says the closing date has passed
+
+(*De sluitdatum is voorbij.*) The closing date went by before the question was sent. Fill in **New closing date**, press **Move the date**, and **Send now** is back. See [Send the question](guide/signup.md#send-the-question).
 
 ### "Choose a date before the first exchange date."
 
 (*Kies een datum voor de eerste ruildatum.*) The closing date must be before the earliest exchange date of all groups in the event, so that the answers are in before the first exchange. Choose an earlier closing date, or move that group's exchange date.
 
+### "Choose a date before the day drawing opens automatically."
+
+(*Kies een datum voor de dag waarop het trekken automatisch opengaat.*) A group has an automatic opening date on or before the closing date you chose. Choose an earlier closing date, or on that group's dashboard move its **Drawing opens automatically on** date to after the closing date, or clear it.
+
 ### A group is refused with "The exchange date must be after the sign-up closing date."
 
 (*De ruildatum moet na de sluitdatum van het aanmelden liggen.*) While sign-up runs, every group's exchange date must be after the closing date. Pick a later exchange date, or move the closing date first.
+
+### A group is refused with "Drawing can only open automatically after the sign-up closing date."
+
+(*Het trekken kan pas automatisch opengaan na de sluitdatum van het aanmelden.*) While sign-up runs, a group's automatic opening date must be after the closing date. Pick a later date, leave the field empty, or move the closing date first.
 
 ### Someone wants to join after sign-up closed
 
@@ -127,11 +139,11 @@ An invitation that reached the person earlier stays marked as sent; only the fai
 
 ### Someone did not get a reminder
 
-Reminders go only to people with an email address who received an invitation, at most two of each kind, between 09:00 and 20:00, and never on or after the exchange date. The first wishes reminder comes no sooner than 3 days after the invitation (5 days when the group has no automatic opening date), the first draw reminder 3 days after opening. With email off, or with every question of the wish form hidden, no wish reminders are sent at all. You can always send one by hand with **Send a reminder now** on their page.
+Reminders go only to people with an email address who received an invitation, at most two of each kind, between 09:00 and 20:00, and never on or after the exchange date. The first wishes reminder comes no sooner than 3 days after the invitation (5 days when the group has no automatic opening date), the first draw reminder 3 days after opening. With email off, or with every question of the wish form hidden, no wish reminders are sent at all. You can always send one by hand with **Send a reminder now** on their page, except while the event's sign-up runs: then no wish or draw reminders go out at all.
 
 ### Someone did not get a sign-up reminder
 
-Sign-up reminders go only to people with an email address who got the sign-up mail and have not answered, a week and two days before the closing date, between 09:00 and 20:00. Nobody gets one on the day they were sent the sign-up mail, so with a closing date less than a week after sending there is only the second. Each person gets at most two, also after moving the date or opening sign-up again. With email off none are sent. The "Are you sure?" mail goes once, two days before the closing date, only to people whose answer was no before 09:00 that day. See [What the app sends by itself](guide/signup.md#what-the-app-sends-by-itself).
+Sign-up reminders go only to people with an email address who were sent the sign-up mail and have not answered, a week and two days before the closing date, between 09:00 and 20:00. Someone whose answer you set before pressing **Send now** was never sent it, so gets none. Nobody gets one on the day they were sent the sign-up mail, so with a closing date a week or less after sending there is only the second, and with two days or less, none. Each person gets at most two, also after moving the date or opening sign-up again. With email off none are sent. The "Are you sure?" mail goes once, two days before the closing date, only to people who were sent the sign-up mail on an earlier day and whose answer was no before 09:00 that day. While sign-up is open you can send the question again by hand with **Send the sign-up mail again** on their page. See [What the app sends by itself](guide/signup.md#what-the-app-sends-by-itself).
 
 ### A giver did not get a "wishes updated" mail
 

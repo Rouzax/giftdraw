@@ -22,7 +22,7 @@ Only when the organiser [asks who takes part](guide/signup.md) first. Until the 
 2. **Answered.** The page says **You are taking part.** (*Je doet mee.*) or **You are not taking part this time.** (*Je doet deze keer niet mee.*), with one button to change it: **Do not take part after all** (*Toch niet meedoen*) or **Take part after all** (*Toch meedoen*). They can change it until the end of the closing date.
 3. **Closed.** After the closing date the page says **Sign-up is closed.** (*Aanmelden is gesloten.*) and whether they take part. Anyone who did not answer does not take part. To change it, they ask the organiser.
 
-Someone who opens their link before the organiser has sent the question reads **You will hear soon whether you can take part.** (*Je hoort binnenkort of je mee kunt doen.*)
+Someone who opens their link before the organiser has sent the question reads **The organiser will soon ask you whether you are taking part.** (*De organisator vraagt je binnenkort of je meedoet.*)
 
 When the organiser starts the draw, people who take part get the usual invitation and continue below. The links of people who do not take part stop working.
 
@@ -87,7 +87,7 @@ With email on, every mail has the participant's name, one big button to their pa
 | Mail | Subject (English / Dutch) | When |
 | --- | --- | --- |
 | Sign-up | Are you taking part in ...? / Doe je mee met ...? | With sign-up on, when you send the question, or when you add them while sign-up is open. |
-| Sign-up reminder | 8 days left: are you taking part in ...? / Nog 8 dagen: doe je mee met ...? (3 days in the second) | Up to two, to people who have not answered. |
+| Sign-up reminder | 8 days left to say whether you are taking part in ... / Nog 8 dagen om te zeggen of je meedoet aan ... (3 days in the second) | Up to two, to people who have not answered. |
 | Are you sure? | Are you sure? / Weet je het zeker? | At most once, to people who said no. |
 | Invitation | Tell us a little about yourself / Vertel iets over jezelf | When you send the invitations, or start the draw after sign-up. |
 | Invitation into an open group | You can draw a name straight away / Je kunt meteen een naam trekken | A newcomer added after drawing opened. |
