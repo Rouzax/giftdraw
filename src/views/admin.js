@@ -111,8 +111,6 @@ ${formToken()}
 </section>`;
 }
 
-// formPanel is the question list, which shows its own done notices next
-// to the list they are about.
 // The sign-up step of the whole event. Each state shows where it stands and
 // only the steps that are possible from there.
 function signupPanel(lang, { event, groups, state, tz, mailEnabled, error, value }) {
@@ -157,6 +155,8 @@ ${steps}
 </section>`;
 }
 
+// formPanel is the question list, which shows its own done notices next
+// to the list they are about.
 export function eventView(lang, {
   event, groups, newGroup, themeValue, formPanel, tz, mailEnabled, signupState = 'off', error = null, groupError = null,
   signupError = null, signupValue = '', done = null,
@@ -834,7 +834,8 @@ export function removeView(lang, { participant, group, plan, open, changes, mail
 <p>${t(lang, 'admin.remove.openIntro')}</p>
 ${changeList(lang, changes, mailEnabled)}`;
   } else {
-    effect = html`<p>${t(lang, plan.map ? 'admin.remove.closedPairs' : 'admin.remove.closedNoPairs')}</p>`;
+    const key = plan.signup ? 'admin.remove.signup' : plan.map ? 'admin.remove.closedPairs' : 'admin.remove.closedNoPairs';
+    effect = html`<p>${t(lang, key)}</p>`;
   }
   const body = html`${back}
 <h1>${title}</h1>

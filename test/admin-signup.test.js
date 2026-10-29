@@ -4,7 +4,7 @@ import { makeCycle, validateAssignment } from '../src/draw/cycle.js';
 import { openGroup } from '../src/drawing.js';
 import { escape } from '../src/html.js';
 import { t as tr } from '../src/i18n/index.js';
-import { sendInvitations, sendSignup } from '../src/people.js';
+import { commitRemoveParticipant, planRemoveParticipant, sendInvitations, sendSignup } from '../src/people.js';
 import { tick } from '../src/scheduler.js';
 import { signupState } from '../src/signup.js';
 import { newFormToken } from '../src/submit-log.js';
@@ -333,4 +333,66 @@ test('a sign-up mail still queued when sign-up closes is not sent', async () => 
   assert.equal(t.mails.length, 0);
   const codes = t.db.prepare("SELECT DISTINCT error_code AS code FROM outbox WHERE kind = 'signup'").all().map((r) => r.code);
   assert.deepEqual(codes, ['stale-mail']);
+});
+
+for (const closed of [false, true]) {
+  test(`removing someone while sign-up is ${closed ? 'closed' : 'in setup'} pairs nobody`, async () => {
+    const t = await setup();
+    const { eventId, groupIds: [groupId] } = await eventWithGroups(t, [4]);
+    await turnOn(t, eventId);
+    if (closed) {
+      await send(t, eventId);
+      await t.adminPost(`/admin/events/${eventId}/signup/close`);
+    }
+    const [gone] = people(t, groupId);
+    const plan = planRemoveParticipant(t.ctx, gone.id);
+    assert.equal(plan.map, null);
+    assert.deepEqual(plan.changedGivers, []);
+    const preview = await t.adminGet(`/admin/participants/${gone.id}/remove`);
+    assert.ok(preview.body.includes(escape(tr('nl', 'admin.remove.signup'))));
+    const res = await t.adminPost(`/admin/participants/${gone.id}/remove`, {
+      formToken: newFormToken(), plan: JSON.stringify({ version: plan.version, map: null }),
+    });
+    assert.equal(res.statusCode, 303, res.body);
+    assert.ok(people(t, groupId).every((p) => p.receiverId === null));
+  });
+}
+
+test('a removal plan with pairs is refused while sign-up is active', async () => {
+  const t = await setup();
+  const { eventId, groupIds: [groupId] } = await eventWithGroups(t, [4]);
+  await turnOn(t, eventId);
+  const [gone, ...rest] = people(t, groupId);
+  const { version } = planRemoveParticipant(t.ctx, gone.id);
+  const ids = rest.map((p) => p.id);
+  const map = [...makeCycle(ids)];
+  assert.deepEqual(commitRemoveParticipant(t.ctx, gone.id, { version, map }), { error: 'invalid' });
+  assert.ok(people(t, groupId).every((p) => p.receiverId === null));
+});
+
+test('a second press on turning sign-up off leads back to the event page', async () => {
+  const t = await setup();
+  const { eventId } = await eventWithGroups(t, [3]);
+  await turnOn(t, eventId);
+  await t.adminPost(`/admin/events/${eventId}/signup/off`);
+  const again = await t.adminPost(`/admin/events/${eventId}/signup/off`);
+  assert.equal(again.statusCode, 303);
+  assert.equal(again.headers.location, `/admin/events/${eventId}`);
+});
+
+test('while sign-up is active a group cannot exchange on or before the closing date', async () => {
+  const t = await setup();
+  const { eventId, groupIds: [groupId] } = await eventWithGroups(t, [3]);
+  await turnOn(t, eventId);
+  const message = escape(tr('nl', 'admin.group.error.exchangeBeforeSignup'));
+  const created = await t.adminPost(`/admin/events/${eventId}/groups`, { name: 'Dinsdag', exchangeDate: DEADLINE, autoOpenAt: '' });
+  assert.equal(created.statusCode, 400);
+  assert.ok(created.body.includes(message));
+  assert.equal(t.ctx.repo.listGroups(eventId).length, 1);
+  const edited = await t.adminPost(`/admin/groups/${groupId}`, { name: 'Maandag', exchangeDate: '2026-11-19', autoOpenAt: '' });
+  assert.equal(edited.statusCode, 400);
+  assert.ok(edited.body.includes(message));
+  assert.equal(t.ctx.repo.getGroup(groupId).exchangeDate, '2026-12-18');
+  const later = await t.adminPost(`/admin/events/${eventId}/groups`, { name: 'Woensdag', exchangeDate: '2026-11-21', autoOpenAt: '' });
+  assert.equal(later.statusCode, 303);
 });

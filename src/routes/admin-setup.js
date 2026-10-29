@@ -6,6 +6,7 @@ import {
   resendGroupFailed, sendInvitations,
 } from '../people.js';
 import { groupDatesError, NAME_MAX, PLACE_MAX, THEME_MAX } from '../limits.js';
+import { signupActive } from '../signup.js';
 import { unixLines } from '../text.js';
 import { todayIn } from '../time.js';
 import { adminLang } from './admin-auth.js';
@@ -30,8 +31,9 @@ export function adminSetupRoutes(app, ctx, {
     }
   }
 
-  // Returns {values} or {error}.
-  function readGroupForm(body, current = null) {
+  // Returns {values} or {error}. While sign-up is active every exchange
+  // must come after its closing date, as when the date was set.
+  function readGroupForm(body, event, current = null) {
     const values = {
       name: field(body, 'name', NAME_MAX).trim(),
       exchangeDate: field(body, 'exchangeDate', 10).trim(),
@@ -46,7 +48,11 @@ export function adminSetupRoutes(app, ctx, {
       return { values, error: 'admin.group.error.exchangePlace' };
     }
     const dates = groupDatesError(values, today(), current);
-    return dates ? { values, error: `admin.group.error.${dates}` } : { values };
+    if (dates) return { values, error: `admin.group.error.${dates}` };
+    if (signupActive(event, ctx.now(), config.tz) && values.exchangeDate <= event.signupDeadline) {
+      return { values, error: 'admin.group.error.exchangeBeforeSignup' };
+    }
+    return { values };
   }
 
   app.post('/admin/events', async (request, reply) => {
@@ -110,7 +116,7 @@ export function adminSetupRoutes(app, ctx, {
     const again = resubmitted(request, reply);
     if (again) return again;
     const event = request.record;
-    const { values, error } = readGroupForm(request.body);
+    const { values, error } = readGroupForm(request.body, event);
     if (error) {
       const view = eventPage(adminLang(request), event, { groupError: error, newGroup: { ...values, autoOpenAt: values.autoOpenAt ?? '' } });
       return render(request, reply, view, 400);
@@ -129,7 +135,7 @@ export function adminSetupRoutes(app, ctx, {
 
   app.post('/admin/groups/:id', loadGroup, async (request, reply) => {
     const group = request.record;
-    const { values, error } = readGroupForm(request.body, group);
+    const { values, error } = readGroupForm(request.body, repo.getEvent(group.eventId), group);
     if (error) return render(request, reply, groupPage(adminLang(request), group, { error, values }), 400);
     repo.updateGroup(group.id, values, ctx.nowIso());
     request.log.info({ group_id: group.id }, 'group_updated');

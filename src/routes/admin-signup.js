@@ -60,7 +60,10 @@ export function adminSignupRoutes(app, ctx, { render, eventPage, loadEvent, resu
   // groups are paired as they would be without sign-up.
   app.post('/admin/events/:id/signup/off', loadEvent, async (request, reply) => {
     const event = request.record;
-    if (stateOf(event) !== 'setup') return refuse(request, reply, event, 'state', 409);
+    const state = stateOf(event);
+    // A second press finds sign-up already off: what she asked for.
+    if (state === 'off') return reply.redirect(eventUrl(event), 303);
+    if (state !== 'setup') return refuse(request, reply, event, 'state', 409);
     const now = ctx.nowIso();
     const groups = repo.listGroups(event.id);
     repo.tx(() => {

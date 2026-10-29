@@ -293,6 +293,10 @@ export function commitAddParticipants(ctx, groupId, plan) {
   return result;
 }
 
+function pairingPaused(ctx, group) {
+  return signupActive(ctx.repo.getEvent(group.eventId), ctx.now(), ctx.config.tz);
+}
+
 // In an open group the dropout's giver takes over the dropout's receiver;
 // planRemoval re-inserts a giver left alone by a two-person loop, preferably
 // in front of someone who has not drawn. A closed group too small to keep an
@@ -303,6 +307,8 @@ export function planRemoveParticipant(ctx, id) {
   const state = groupState(repo, participant.groupId);
   const remaining = state.people.filter((p) => p.id !== id).map((p) => p.id);
   const base = { version: state.version, map: null, changedGivers: [] };
+  // While sign-up is active nobody is paired, whatever the group's size.
+  if (pairingPaused(ctx, state.group)) return { ...base, signup: true };
   if (remaining.length < MIN_GROUP) return state.open ? { ...base, refused: 'too-small' } : base;
   let map;
   if (state.open || validateAssignment(state.map, state.people.map((p) => p.id))) {
@@ -359,9 +365,10 @@ export function commitRemoveParticipant(ctx, id, plan) {
     if (state.version !== plan.version) return { error: 'stale' };
     const remaining = state.people.length - 1;
     if (state.open && remaining < MIN_GROUP) return { error: 'too-small' };
-    if (remaining < MIN_GROUP ? map !== null : map === null || !removalMapAllowed(state, id, map)) {
-      return { error: 'invalid' };
-    }
+    // A group without pairs, too small or waiting for sign-up, must stay
+    // without, so a map from the form cannot pair it.
+    const unpaired = remaining < MIN_GROUP || pairingPaused(ctx, state.group);
+    if (unpaired ? map !== null : map === null || !removalMapAllowed(state, id, map)) return { error: 'invalid' };
     repo.removeParticipantWithAssignment(id, map, now);
     const changed = state.people.filter((p) => p.id !== id && state.map.get(p.id) !== map?.get(p.id));
     let queued = 0;
