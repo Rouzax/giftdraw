@@ -88,6 +88,13 @@ function parseChoices(b, question, before) {
   return { ticked, details };
 }
 
+// readAnswers does not know the form, so a stored answer may be of the
+// other kind than its question asks for; such an answer cannot be kept.
+function ofKind(question, answer) {
+  if (answer === undefined) return null;
+  return (typeof answer === 'string') === (question.type === 'text') ? answer : null;
+}
+
 // The form posts the questions it showed. An answer is taken from the post
 // only if its question is shown now and was on that form: a form loaded
 // before the organiser showed or hid a question would otherwise store an
@@ -103,11 +110,12 @@ export function parseWishesForm(body, form, previous = null) {
   const before = readAnswers(previous);
   const answers = {};
   for (const question of form.questions) {
+    const kept = ofKind(question, before[question.id]);
     const answer = question.show && onPage.has(question.id)
       ? readAnswer(question.type === 'text'
         ? text(field(b, `q_${question.id}`))
-        : parseChoices(b, question, before[question.id]))
-      : before[question.id];
+        : parseChoices(b, question, kept))
+      : kept;
     if (answer) answers[question.id] = answer;
   }
   return { answers };

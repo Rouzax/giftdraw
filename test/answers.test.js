@@ -169,6 +169,14 @@ test('parseWishesForm drops answers to questions no longer in the form', () => {
   assert.deepEqual(answers, { hobbies: 'Mini' });
 });
 
+test('parseWishesForm drops a stored answer of the wrong kind instead of failing', () => {
+  const wrong = { answers: { likes: 'oops', hobbies: { ticked: ['x'], details: {} } } };
+  const posted = parseWishesForm({ questions: 'likes hobbies', d_likes_chocolate: 'puur' }, plain, wrong);
+  assert.deepEqual(posted, { answers: { likes: { ticked: ['chocolate'], details: { chocolate: 'puur' } } } });
+  const kept = parseWishesForm({ questions: '' }, plain, wrong);
+  assert.deepEqual(kept, { answers: {} });
+});
+
 const participants = [
   { wishes: v031Wishes },
   { wishes: { answers: { likes: { ticked: ['tea'], details: {} }, hobbies: 'Lezen' } } },
