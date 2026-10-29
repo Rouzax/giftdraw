@@ -1,22 +1,27 @@
 {
   "$schema": "https://rouzax.github.io/giftdraw/import/event.schema.json",
-  "version": 1,
+  "version": 2,
   "event": {
     "name": "Kerstcadeautjes 2026",
     "language": "nl",
     "cleanupWeeks": 4,
     "theme": "Neem een cadeautje mee dat je zelf hebt gekregen en niet gebruikt. Pak het mooi in!",
-    "wishOptions": [
-      "Chocolade",
-      "Thee",
-      { "label": "Boeken", "question": "Welke schrijver?" },
-      { "label": "Planten of bloemen", "askDetails": true },
-      "Kaarsen"
-    ],
-    "sections": {
-      "pets": { "show": false },
-      "other": { "heading": "Nog iets wat je kwijt wilt" }
-    }
+    "questions": [
+      { "id": "hobbies", "type": "text", "text": "Wat doe je graag?" },
+      {
+        "id": "likes",
+        "type": "choices",
+        "choices": ["Chocolade", "Thee", "Boeken? Welke schrijver?", "Planten of bloemen?", "Kaarsen"]
+      },
+      {
+        "type": "choices",
+        "text": "Welke kleuren vind je mooi?",
+        "choices": ["Rood", "Blauw", "Groen", "Een andere kleur? Welke kleur?"]
+      },
+      { "id": "pets", "type": "choices", "show": false },
+      { "id": "avoid", "type": "text" },
+      { "id": "other", "type": "text", "text": "Nog iets wat je kwijt wilt" }
+    ]
   },
   "groups": [
     {

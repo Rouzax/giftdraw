@@ -41,7 +41,7 @@ The dashboard switches a card to **Print again** (*Opnieuw printen*), and the ca
 - their person changes their wishes or is renamed;
 - they get a different person, because someone joined or dropped out;
 - the group's date, time or place changes;
-- the event's theme, choices, form parts or headings change.
+- the event's theme changes, or anything in its wish form: a question, its wording or order, whether it is shown, or its choices.
 
 The card always shows the current details, so printing it again is enough.
 

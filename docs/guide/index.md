@@ -11,7 +11,7 @@ This guide is for the organiser: the person who sets up the exchange and keeps a
 
 ## The order of things
 
-An **event** is one gift exchange, for example "Gifts 2026". It holds the shared settings: the theme text, the choices on the wish form and how long data is kept. Inside an event you make one **group** per class, team or family; each group has its own date, its own participants and its own draw.
+An **event** is one gift exchange, for example "Gifts 2026". It holds the shared settings: the theme text, the questions on the wish form and how long data is kept. Inside an event you make one **group** per class, team or family; each group has its own date, its own participants and its own draw.
 
 1. [Set up an event](event.md): name, theme, the wish form, the cleanup period. Or [import an event from a file](import.md), with its groups and participants, made with the help of an AI chat assistant.
 2. [Add groups and participants](groups.md): one group per class, with the exchange date, time and place, then paste the list of people. The app pairs everyone at once.

@@ -15,7 +15,7 @@ The **Participants** (*Deelnemers*) table has one row per person. Click a name t
 | **Email** | Their address, or *no email*. |
 | **Invited** (*Uitgenodigd*) | Email on only. The state of their invitation: Queued, Sent, Failed, retrying, or Failed. *Not yet* before you send the invitations; *Not applicable* without an address. |
 | **Link opened** (*Link geopend*) | The date they first opened their page. With email on this can include mail scanners that test links. |
-| **Wishes filled in** (*Wensen ingevuld*) | Yes once anything is filled in, in a part of the form that is shown. |
+| **Wishes filled in** (*Wensen ingevuld*) | Yes once anything is filled in, in a question of the form that is shown. |
 | **Drawn** (*Getrokken*) | The date they drew. |
 | **Gives to** (*Geeft aan*) | Their person. Keep this screen to yourself. |
 | **Last reminder** (*Laatste herinnering*) | Email on only. The date of their latest reminder. |
@@ -28,7 +28,7 @@ On a phone the table turns into a list of cards, one per person.
 
 With email on, the app reminds people by itself. Everything in this section is automatic; you do not have to do anything.
 
-- **Wishes reminder** (*"Vertel je nog iets over jezelf?"*): before drawing opens, to someone who has not filled in anything yet. It says filling in is welcome but not required. The first goes out no sooner than 5 days after the invitation, or, when the group opens by itself, 3 days before that opening date. A second follows at least 4 days later. With every part of the form hidden, none are sent.
+- **Wishes reminder** (*"Vertel je nog iets over jezelf?"*): before drawing opens, to someone who has not filled in anything yet. It says filling in is welcome but not required. The first goes out no sooner than 5 days after the invitation, or, when the group opens by itself, 3 days before that opening date. A second follows at least 4 days later. With every question of the form hidden, none are sent.
 - **Draw reminder** (*"Vergeet niet een naam te trekken"*): after drawing opens, to someone who has not drawn. The first goes out 3 days after opening, the second from a week before the exchange date, and at least 3 days after the first.
 
 For both:

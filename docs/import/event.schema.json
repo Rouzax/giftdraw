@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://rouzax.github.io/giftdraw/import/event.schema.json",
   "title": "Gift Draw event file",
-  "description": "One event to create in Gift Draw (Lootjes trekken): its settings, its groups and their participants. Importing always creates a new event. The file holds no pairs and no links; the app makes those on import. Importing sends no email. Lengths are counted as the app's form fields count them, in UTF-16 code units: most emoji count as two characters, so text full of emoji can be refused below a maxLength given here.",
+  "description": "One event to create in Gift Draw (Lootjes trekken): its settings, its wish form, its groups and their participants. Importing always creates a new event. The file holds no pairs and no links; the app makes those on import. Importing sends no email. Write version 2; files with version 1 are still read, with the event described under $defs/eventV1. Lengths are counted as the app's form fields count them, in UTF-16 code units: most emoji count as two characters, so text full of emoji can be refused below a maxLength given here. Wording of questions and choices is the exception: it is counted in characters, as JSON Schema counts maxLength.",
   "type": "object",
   "additionalProperties": false,
   "required": ["version", "event", "groups"],
@@ -12,58 +12,12 @@
       "description": "Optional link to this schema."
     },
     "version": {
-      "const": 1,
-      "description": "The file format version. Always 1."
+      "enum": [2, 1],
+      "description": "The file format version: 2. Version 1 files are still read; they describe the event as in $defs/eventV1."
     },
     "event": {
       "type": "object",
-      "additionalProperties": false,
-      "required": ["name"],
-      "properties": {
-        "name": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 100,
-          "description": "The event's name, for the organiser, such as \"Christmas 2026\"."
-        },
-        "language": {
-          "enum": ["nl", "en"],
-          "default": "nl",
-          "description": "The language participants start in: nl (Dutch) or en (English). Each participant can switch."
-        },
-        "cleanupWeeks": {
-          "type": "integer",
-          "minimum": 1,
-          "maximum": 52,
-          "default": 4,
-          "description": "Weeks after a group's exchange date after which that group and all its data are erased."
-        },
-        "theme": {
-          "type": "string",
-          "maxLength": 2000,
-          "description": "The text participants read at the top of their page, such as the rules of the exchange. Line breaks are kept. Leave it out for the app's standard text."
-        },
-        "wishOptions": {
-          "$ref": "#/$defs/options",
-          "description": "The choices participants can tick under \"I like...\", in order. Leave it out for the standard list. A label that matches a standard choice (such as Thee/Tea) is shown translated in each participant's language; other labels are shown as written."
-        },
-        "sections": {
-          "type": "object",
-          "additionalProperties": false,
-          "description": "The parts of the wish form participants fill in. Every part is shown with its usual heading unless set otherwise here. Leave out any part you do not change.",
-          "properties": {
-            "hobbies": { "$ref": "#/$defs/section", "description": "Hobbies (free text)." },
-            "likes": { "$ref": "#/$defs/section", "description": "I like... (the wishOptions tick list)." },
-            "pets": { "$ref": "#/$defs/section", "description": "Pets (the petOptions tick list)." },
-            "avoid": { "$ref": "#/$defs/section", "description": "Rather not, such as allergies (free text)." },
-            "other": { "$ref": "#/$defs/section", "description": "Anything else (free text)." }
-          }
-        },
-        "petOptions": {
-          "$ref": "#/$defs/options",
-          "description": "The choices under \"Pets\", in order. Leave it out for the standard list (dog, cat, other)."
-        }
-      }
+      "description": "The event's settings and its wish form: $defs/event in version 2, $defs/eventV1 in version 1."
     },
     "groups": {
       "type": "array",
@@ -141,7 +95,281 @@
       }
     }
   },
+  "if": {
+    "properties": {
+      "version": {
+        "const": 1
+      }
+    }
+  },
+  "then": {
+    "properties": {
+      "event": {
+        "$ref": "#/$defs/eventV1"
+      }
+    }
+  },
+  "else": {
+    "properties": {
+      "event": {
+        "$ref": "#/$defs/event"
+      }
+    }
+  },
   "$defs": {
+    "event": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100,
+          "description": "The event's name, for the organiser, such as \"Christmas 2026\"."
+        },
+        "language": {
+          "enum": ["nl", "en"],
+          "default": "nl",
+          "description": "The language participants start in: nl (Dutch) or en (English). Each participant can switch."
+        },
+        "cleanupWeeks": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 52,
+          "default": 4,
+          "description": "Weeks after a group's exchange date after which that group and all its data are erased."
+        },
+        "theme": {
+          "type": "string",
+          "maxLength": 2000,
+          "description": "The text participants read at the top of their page, such as the rules of the exchange. Line breaks are kept. Leave it out for the app's standard text."
+        },
+        "questions": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 15,
+          "items": {
+            "$ref": "#/$defs/question"
+          },
+          "description": "The wish form participants fill in: the questions in the order they appear. Leave it out for the five usual questions (hobbies, likes, pets, avoid, other) with their usual choices. When given, the form holds exactly the questions listed here: a usual question left out of the list is not in the form. Hidden questions count towards the limit of 15."
+        }
+      }
+    },
+    "question": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "description": "One question of the wish form.",
+      "properties": {
+        "id": {
+          "enum": ["hobbies", "likes", "pets", "avoid", "other"],
+          "description": "Only for one of the five usual questions, each at most once: hobbies (Hobbies and interests, text), likes (I like..., choices), pets (Pets, choices), avoid (Rather not, or allergies, text), other (Anything else?, text). Its wording and its choices then follow each participant's language unless text or choices are given. Leave id out for a question of your own."
+        },
+        "type": {
+          "enum": ["text", "choices"],
+          "description": "text gives a text box; choices gives a list of tick boxes. A usual question keeps its own type."
+        },
+        "text": {
+          "type": ["string", "null"],
+          "maxLength": 80,
+          "description": "The question as participants read it, shown as written in every language. Required for a question of your own. For a usual question, leave it out for the usual wording in each participant's language."
+        },
+        "show": {
+          "type": "boolean",
+          "default": true,
+          "description": "false hides the question. It stays in the form, so it can be shown again later."
+        },
+        "choices": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 30,
+          "items": {
+            "$ref": "#/$defs/choice"
+          },
+          "description": "The tick boxes of a choices question, in order. Required for a choices question of your own; for likes and pets, leave it out for the usual choices. Not allowed on a text question."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "required": ["id"],
+            "properties": {
+              "id": {
+                "enum": ["hobbies", "avoid", "other"]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "type": {
+                "const": "text"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": ["id"],
+            "properties": {
+              "id": {
+                "enum": ["likes", "pets"]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "type": {
+                "const": "choices"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "not": {
+              "required": ["id"]
+            }
+          },
+          "then": {
+            "required": ["text"],
+            "properties": {
+              "text": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "text"
+              }
+            }
+          },
+          "then": {
+            "not": {
+              "required": ["choices"]
+            }
+          }
+        },
+        {
+          "if": {
+            "not": {
+              "required": ["id"]
+            },
+            "properties": {
+              "type": {
+                "const": "choices"
+              }
+            }
+          },
+          "then": {
+            "required": ["choices"]
+          }
+        }
+      ]
+    },
+    "choice": {
+      "oneOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "description": "A choice as text. A label that matches one of the app's usual choices in Dutch or English, in any letter case (such as Thee or tea), is that usual choice and is shown in each participant's language; any other label is shown as written. Text after a question mark is a follow-up question shown once the choice is ticked, as in \"Boeken? Welke schrijver?\"; a question mark alone, as in \"Wijn?\", asks a general question. Label and question are at most 80 characters each."
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["label"],
+          "description": "A choice of your own, always shown exactly as written, also when the label matches one of the usual choices. Use text instead for a usual choice.",
+          "properties": {
+            "label": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80,
+              "description": "The choice as participants see it. A question mark in it is kept."
+            },
+            "question": {
+              "type": "string",
+              "maxLength": 80,
+              "description": "A follow-up question shown in a text field under the choice once it is ticked, such as \"Welke schrijver?\". Shown as written in every language."
+            },
+            "askDetails": {
+              "type": "boolean",
+              "description": "true gives the choice a text field with a general question, when there is no question of your own."
+            }
+          }
+        }
+      ]
+    },
+    "eventV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100,
+          "description": "The event's name, for the organiser, such as \"Christmas 2026\"."
+        },
+        "language": {
+          "enum": ["nl", "en"],
+          "default": "nl",
+          "description": "The language participants start in: nl (Dutch) or en (English). Each participant can switch."
+        },
+        "cleanupWeeks": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 52,
+          "default": 4,
+          "description": "Weeks after a group's exchange date after which that group and all its data are erased."
+        },
+        "theme": {
+          "type": "string",
+          "maxLength": 2000,
+          "description": "The text participants read at the top of their page, such as the rules of the exchange. Line breaks are kept. Leave it out for the app's standard text."
+        },
+        "wishOptions": {
+          "$ref": "#/$defs/options",
+          "description": "The choices participants can tick under \"I like...\", in order. Leave it out for the standard list. A label that matches a standard choice (such as Thee/Tea) is shown translated in each participant's language; other labels are shown as written."
+        },
+        "sections": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "The parts of the wish form participants fill in. Every part is shown with its usual heading unless set otherwise here. Leave out any part you do not change.",
+          "properties": {
+            "hobbies": {
+              "$ref": "#/$defs/section",
+              "description": "Hobbies (free text)."
+            },
+            "likes": {
+              "$ref": "#/$defs/section",
+              "description": "I like... (the wishOptions tick list)."
+            },
+            "pets": {
+              "$ref": "#/$defs/section",
+              "description": "Pets (the petOptions tick list)."
+            },
+            "avoid": {
+              "$ref": "#/$defs/section",
+              "description": "Rather not, such as allergies (free text)."
+            },
+            "other": {
+              "$ref": "#/$defs/section",
+              "description": "Anything else (free text)."
+            }
+          }
+        },
+        "petOptions": {
+          "$ref": "#/$defs/options",
+          "description": "The choices under \"Pets\", in order. Leave it out for the standard list (dog, cat, other)."
+        }
+      },
+      "description": "A version 1 event, from before the wish form was a list of questions: the form is set with wishOptions, sections and petOptions instead of questions. Still read; new files use version 2."
+    },
     "options": {
       "type": "array",
       "minItems": 1,

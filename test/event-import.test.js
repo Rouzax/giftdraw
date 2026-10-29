@@ -2,11 +2,13 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { validateAssignment } from '../src/draw/cycle.js';
-import { eventFile, eventFileName, FILE_KEYS, IMPORT_TEXT_MAX, readEventFile } from '../src/event-file.js';
+import {
+  eventFile, eventFileName, FILE_KEYS, FILE_VERSION, IMPORT_TEXT_MAX, readEventFile,
+} from '../src/event-file.js';
 import { t as tr } from '../src/i18n/index.js';
 import { assistantPrompt } from '../src/import-prompt.js';
 import { CHOICES_MAX, QUESTIONS_MAX } from '../src/limits.js';
-import { isBuiltinChoice, isBuiltinQuestion, sameForm, wishForm } from '../src/questions.js';
+import { isBuiltinChoice, isBuiltinQuestion, sameForm, SECTION_IDS, wishForm } from '../src/questions.js';
 import { makeTestApp, textOf } from './helpers.js';
 
 const T0 = Date.parse('2026-11-01T10:00:00.000Z');
@@ -41,8 +43,22 @@ function byPosition(form) {
 }
 const sameShape = (a, b) => sameForm(byPosition(a), byPosition(b));
 
-// The form docs/import/example.json describes.
-function assertExampleForm(event) {
+// The documented version 1 example, from before forms were lists of
+// questions. Version 1 files are still read.
+const EXAMPLE_V1 = JSON.stringify({
+  version: 1,
+  event: {
+    name: 'Kerstcadeautjes 2026',
+    language: 'nl',
+    theme: 'Neem een cadeautje mee dat je zelf hebt gekregen en niet gebruikt.',
+    wishOptions: ['Chocolade', 'Thee', { label: 'Boeken', question: 'Welke schrijver?' }, { label: 'Planten of bloemen', askDetails: true }, 'Kaarsen'],
+    sections: { pets: { show: false }, other: { heading: 'Nog iets wat je kwijt wilt' } },
+  },
+  groups: [{ name: 'Maandagochtend', exchangeDate: '2026-12-14', participants: ['Ada', 'Ben', 'Cor'] }],
+});
+
+// The form EXAMPLE_V1 describes.
+function assertV1ExampleForm(event) {
   assert.equal(event.wishOptions, null, 'the form is stored as questions only');
   const form = wishForm(event);
   assert.deepEqual(form.questions.map((q) => [q.id, q.show, q.text]), [
@@ -56,6 +72,32 @@ function assertExampleForm(event) {
   assert.match(ids[2], /^boeken-[0-9a-f]{4}$/);
   assert.deepEqual(likes.map((c) => [c.own, c.detail, c.question]), [
     [null, false, null], [null, false, null], ['Boeken', true, 'Welke schrijver?'], [null, true, null], [null, false, null],
+  ]);
+}
+
+// The form docs/import/example.json describes.
+function assertExampleForm(event) {
+  assert.equal(event.wishOptions, null, 'the form is stored as questions only');
+  const form = wishForm(event);
+  assert.deepEqual(form.questions.map((q) => [isBuiltinQuestion(q.id) ? q.id : 'own', q.type, q.show, q.text]), [
+    ['hobbies', 'text', true, 'Wat doe je graag?'],
+    ['likes', 'choices', true, null],
+    ['own', 'choices', true, 'Welke kleuren vind je mooi?'],
+    ['pets', 'choices', false, null],
+    ['avoid', 'text', true, null],
+    ['other', 'text', true, 'Nog iets wat je kwijt wilt'],
+  ]);
+  const likes = form.questions[1].choices;
+  const ids = likes.map((c) => c.id);
+  assert.deepEqual(ids.slice(0, 2), ['chocolate', 'tea'], 'standard labels keep their built-in ids');
+  assert.equal(ids[3], 'plants');
+  assert.equal(ids[4], 'candles');
+  assert.match(ids[2], /^boeken-[0-9a-f]{4}$/);
+  assert.deepEqual(likes.map((c) => [c.own, c.detail, c.question]), [
+    [null, false, null], [null, false, null], ['Boeken', true, 'Welke schrijver?'], [null, true, null], [null, false, null],
+  ]);
+  assert.deepEqual(form.questions[2].choices.map((c) => [c.own, c.detail, c.question]), [
+    ['Rood', false, null], ['Blauw', false, null], ['Groen', false, null], ['Een andere kleur', true, 'Welke kleur?'],
   ]);
 }
 
@@ -78,7 +120,8 @@ function confirmForm(body) {
 
 // The file
 
-test('the documented example reads without problems', () => {
+test('the documented example is a current file and reads without problems', () => {
+  assert.equal(JSON.parse(EXAMPLE).version, FILE_VERSION);
   const { errors, warnings, plan } = read(EXAMPLE);
   assert.deepEqual(errors, []);
   assert.deepEqual(warnings, []);
@@ -96,13 +139,21 @@ test('the documented example reads without problems', () => {
 test('the schema allows exactly the fields the import reads', () => {
   const props = (node) => Object.keys(node.properties).sort();
   const group = SCHEMA.properties.groups.items;
+  const { $defs } = SCHEMA;
   assert.deepEqual(props(SCHEMA), [...FILE_KEYS.file].sort());
-  assert.deepEqual(props(SCHEMA.properties.event), [...FILE_KEYS.event].sort());
+  assert.deepEqual(SCHEMA.properties.version.enum, [FILE_VERSION, 1]);
+  assert.deepEqual(SCHEMA.else.properties.event, { $ref: '#/$defs/event' }, 'a current file has the current event');
+  assert.deepEqual(SCHEMA.then.properties.event, { $ref: '#/$defs/eventV1' });
+  assert.deepEqual(props($defs.event), [...FILE_KEYS.event].sort());
+  assert.deepEqual(props($defs.question), [...FILE_KEYS.question].sort());
+  assert.deepEqual(props($defs.choice.oneOf[1]), [...FILE_KEYS.option].sort());
+  assert.deepEqual($defs.question.properties.id.enum, SECTION_IDS);
+  assert.deepEqual(props($defs.eventV1), [...FILE_KEYS.eventV1].sort());
+  assert.deepEqual(props($defs.options.items.oneOf[1]), [...FILE_KEYS.option].sort());
+  assert.deepEqual(props($defs.section), [...FILE_KEYS.section].sort());
+  assert.deepEqual(props($defs.eventV1.properties.sections), [...SECTION_IDS].sort());
   assert.deepEqual(props(group), [...FILE_KEYS.group].sort());
   assert.deepEqual(props(group.properties.participants.items.oneOf[1]), [...FILE_KEYS.participant].sort());
-  assert.deepEqual(props(SCHEMA.$defs.options.items.oneOf[1]), [...FILE_KEYS.option].sort());
-  assert.deepEqual(props(SCHEMA.$defs.section), [...FILE_KEYS.section].sort());
-  assert.deepEqual(props(SCHEMA.properties.event.properties.sections), ['avoid', 'hobbies', 'likes', 'other', 'pets']);
 });
 
 test('a file wrapped in a chat answer, a code fence or a byte order mark is still read', () => {
@@ -413,7 +464,8 @@ test('a repeated choice in version 2 is pointed out, not refused', () => {
 
 test('a version 1 file and its version 2 download give the same form', async () => {
   const t = await setup();
-  const v1 = read(EXAMPLE).plan;
+  const v1 = read(EXAMPLE_V1).plan;
+  assertV1ExampleForm(v1.event);
   const id = t.ctx.repo.createEvent(v1.event, t.ctx.nowIso());
   const exported = eventFile(t.ctx.repo.getEvent(id), []);
   assert.equal(exported.version, 2);
@@ -582,8 +634,10 @@ test('checking shows what will be made and creates nothing yet', async () => {
   assert.match(text, /Maandagochtend/);
   assert.match(text, /Woensdagavond/);
   assert.match(text, /Boeken: Welke schrijver\?/);
-  assert.match(text, /Hobby&#39;s en interesses\s*Tekstvak/);
+  assert.match(text, /Wat doe je graag\?\s*Tekstvak/);
   assert.match(text, /Ik houd van\.\.\.\s*Aanvinklijst, 5 keuzes/);
+  assert.match(text, /Welke kleuren vind je mooi\?\s*Aanvinklijst, 4 keuzes/);
+  assert.match(text, /Een andere kleur: Welke kleur\?/);
   assert.match(text, /Huisdieren\s*Aanvinklijst, 3 keuzes\s*Verborgen/);
   assert.match(text, /Nog iets wat je kwijt wilt\s*Tekstvak/);
   assert.ok(text.indexOf('Nog iets wat je kwijt wilt') > text.indexOf('Huisdieren'), 'in the order of the form');
@@ -707,11 +761,8 @@ test('the template download holds settings and groups, never people or links', a
   }
   const exported = JSON.parse(res.body);
   const original = JSON.parse(EXAMPLE);
-  assert.equal(exported.version, 2);
-  assert.deepEqual(exported.groups, original.groups.map((g) => ({ ...g, participants: [] })), 'the groups come back as they were, without people');
-  const settings = (f) => ({ $schema: f.$schema, ...Object.fromEntries(['name', 'language', 'cleanupWeeks', 'theme'].map((k) => [k, f.event[k]])) });
-  assert.deepEqual(settings(exported), settings(original));
-  assert.ok(sameShape(wishForm(read(exported).plan.event), wishForm(read(EXAMPLE).plan.event)), 'the example form comes back as it was');
+  const withoutPeople = { ...original, groups: original.groups.map((g) => ({ ...g, participants: [] })) };
+  assert.deepEqual(exported, withoutPeople, 'the example comes back as it was, without people');
   assert.match((await t.adminGet(`/admin/events/${id}`)).body, new RegExp(`href="/admin/events/${id}/export" download`));
 });
 

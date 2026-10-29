@@ -27,12 +27,12 @@ const CLEANUP_DEFAULT = 4;
 
 // Keys each object may have. Anything else is refused rather than ignored,
 // so a misspelt "exchange_date" is reported instead of silently lost.
-// `event` is a version 1 event, with the five fixed parts of the form;
-// a version 2 event lists the form as questions instead.
+// `event` lists the form as questions; `eventV1` is a version 1 event,
+// with the five fixed parts of the form.
 export const FILE_KEYS = {
   file: ['$schema', 'version', 'event', 'groups'],
-  event: ['name', 'language', 'cleanupWeeks', 'theme', 'wishOptions', 'sections', 'petOptions'],
-  eventV2: ['name', 'language', 'cleanupWeeks', 'theme', 'questions'],
+  event: ['name', 'language', 'cleanupWeeks', 'theme', 'questions'],
+  eventV1: ['name', 'language', 'cleanupWeeks', 'theme', 'wishOptions', 'sections', 'petOptions'],
   question: ['id', 'type', 'text', 'show', 'choices'],
   option: ['label', 'question', 'askDetails'],
   section: ['show', 'heading'],
@@ -382,7 +382,7 @@ function readEvent(out, value, version, existingNames) {
     out.error([], value === undefined ? 'required' : 'not-object', { field: 'event' });
     return null;
   }
-  checkKeys(out, value, version === 1 ? 'event' : 'eventV2', where);
+  checkKeys(out, value, version === 1 ? 'eventV1' : 'event', where);
   const name = readText(out, value.name, where, 'name', { max: NAME_MAX, required: true });
   let language = 'nl';
   if (value.language !== undefined && value.language !== null) {

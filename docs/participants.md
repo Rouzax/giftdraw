@@ -17,7 +17,7 @@ The page is in the participant's language. A button at the bottom switches betwe
 </div>
 
 1. **Welcome.** A greeting with their name, the theme, and the exchange date with time and place. One button: **Tell us a little about yourself** (*Vertel iets over jezelf*).
-2. **About me** (*Over mij*). The wish form, with the parts and choices you set for the event. Everything is optional; the page says so at the top. Ticking a choice that has a question shows a small text field under it. **Save** (*Opslaan*) stores the answers.
+2. **About me** (*Over mij*). The wish form, with the questions and choices you set for the event. Everything is optional; the page says so at the top. Ticking a choice that has a question shows a small text field under it. **Save** (*Opslaan*) stores the answers.
 3. **Thank you** (*Dank je wel*). The page says drawing opens soon and that they will get an email. Someone without email, or everyone when email is off, reads that the organiser will let them know. **Change my answers** (*Mijn antwoorden aanpassen*) opens the form again.
 
 ## Drawing
@@ -40,11 +40,11 @@ Pressing it plays a short animation of about three seconds: the bowl shakes, a s
 
 ![The result: "Jij geeft een cadeautje aan Bep", the theme and date](images/participant-result.webp){ .shot width="240" }
 
-![Further down: what Bep likes](images/participant-result-wishes.webp){ .shot width="240" }
+![Further down: what Bep likes, one line per answered question](images/participant-result-wishes.webp){ .shot width="240" }
 
 </div>
 
-The result page shows who they give a present to, the theme, the exchange date with time and place, and **What ... likes** (*Wat ... leuk vindt*): the answers of their person, one line per part of the form. If their person has not filled in anything yet, it says so; a "wishes updated" mail follows if they do later.
+The result page shows who they give a present to, the theme, the exchange date with time and place, and **What ... likes** (*Wat ... leuk vindt*): the answers of their person, one line per answered question in the order of the form. A standard question is labelled with its short name, such as *Houdt van*; a question with your own wording is labelled with that wording. Hidden questions are left out. If their person has not filled in anything yet, it says so; a "wishes updated" mail follows if they do later.
 
 Opening the link again later shows the same result, so the link works as a reminder up to the exchange. Below the wishes, **Change my own answers** (*Mijn eigen antwoorden aanpassen*) leads back to their own form, or **Tell us what you like** (*Vertel wat jij leuk vindt*) if they have not filled in anything.
 

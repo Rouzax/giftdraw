@@ -61,6 +61,14 @@ Something on the card changed since it was printed: their person's wishes or nam
 
 The message, *Dit is geen geldig evenementbestand*, names a line and character. Usually the assistant's answer was cut off, or only part of it was copied: the text must run from the first `{` to the last `}`. Ask the assistant for the whole file again, with only the JSON. A message about a missing `"version"` or an unknown field means the assistant did not follow the format; paste the list of problems into the chat and ask it to fix the file. See [Import an event from a file](guide/import.md).
 
+### An imported file says "wishOptions" or "sections" is not a known field
+
+(*"wishOptions" is geen bekend veld. Kijk de spelling na.*) The file says `"version": 2` but sets the wish form the version 1 way, with `wishOptions`, `petOptions` or `sections`. This happens when an assistant mixes an old request with a new one, or when someone changes only the version number of an old file. Either put `"version": 1` back, or ask the assistant to write the form as `questions`, using the request from [Import an event from a file](guide/import.md#1-have-the-file-written). The two versions are compared under [Version 1 files](guide/import.md#version-1-files).
+
+### Participants no longer see a question or a choice
+
+On the event page under **The form** (*Het formulier*), a hidden question is marked **Hidden** (*Verborgen*): press **Edit** (*Aanpassen*) and turn **Show** (*Tonen*) back on. Its answers come back with it. A question or choice that was removed is gone with its answers and has to be added again. See [Hide or remove a question](guide/event.md#hide-or-remove-a-question).
+
 ### An imported group has no pairs
 
 A group gets its pairs once it has at least 3 participants. The check page warns about smaller groups. Add people on the group page and the pairs are made at once.
@@ -82,7 +90,7 @@ An invitation that reached the person earlier stays marked as sent; only the fai
 
 ### Someone did not get a reminder
 
-Reminders go only to people with an email address who received an invitation, at most two of each kind, between 09:00 and 20:00, and never on or after the exchange date. The first wishes reminder comes no sooner than 3 days after the invitation (5 days when the group has no automatic opening date), the first draw reminder 3 days after opening. With email off, or with every part of the wish form hidden, no wish reminders are sent at all. You can always send one by hand with **Send a reminder now** on their page.
+Reminders go only to people with an email address who received an invitation, at most two of each kind, between 09:00 and 20:00, and never on or after the exchange date. The first wishes reminder comes no sooner than 3 days after the invitation (5 days when the group has no automatic opening date), the first draw reminder 3 days after opening. With email off, or with every question of the wish form hidden, no wish reminders are sent at all. You can always send one by hand with **Send a reminder now** on their page.
 
 ### A giver did not get a "wishes updated" mail
 

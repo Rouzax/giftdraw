@@ -30,6 +30,9 @@ suits any club, family or team.
 - A whole event, with its groups and participants, can be imported from one
   file that an AI chat assistant writes from your own description; any event
   downloads as a template for next year.
+- The organiser chooses what participants are asked: keep, reword or hide
+  the standard questions, and add questions of their own with a text box or
+  a list to tick.
 - The organiser can fill in wishes, draw together on their own screen and
   print an A5 card for someone without email or a phone.
 - Email is optional: with an SMTP server the app sends invitations,
