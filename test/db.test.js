@@ -87,3 +87,23 @@ test('a connection waits for a lock instead of failing at once', () => {
   assert.ok(db.prepare('PRAGMA busy_timeout').get().timeout >= 1000);
   db.close();
 });
+
+test('migration 3 adds the sign-up columns to a version 2 database and keeps its rows', () => {
+  const db = new DatabaseSync(':memory:');
+  applyMigrations(db, migrations.slice(0, 2));
+  db.prepare("INSERT INTO events (name, language, created_at) VALUES ('Gifts', 'nl', '2026-01-01')").run();
+  db.prepare("INSERT INTO groups (event_id, name, exchange_date, created_at) VALUES (1, 'A', '2026-12-18', '2026-01-01')").run();
+  db.prepare("INSERT INTO participants (group_id, name, language, token, created_at) VALUES (1, 'Ann', 'nl', 't1', '2026-01-01')").run();
+  applyMigrations(db, migrations);
+  assert.equal(userVersion(db), 3);
+  const names = (table) => db.prepare(`PRAGMA table_info(${table})`).all().map((c) => c.name);
+  for (const c of ['signup_deadline', 'signup_sent_at', 'signup_closed_at', 'signup_done_at']) {
+    assert.ok(names('events').includes(c), c);
+  }
+  for (const c of ['signup', 'signup_at', 'signup_invited_at']) assert.ok(names('participants').includes(c), c);
+  const row = db.prepare('SELECT name, signup, signup_at FROM participants').get();
+  assert.deepEqual({ ...row }, { name: 'Ann', signup: null, signup_at: null });
+  assert.throws(() => db.prepare("UPDATE participants SET signup = 'maybe'").run());
+  db.prepare("UPDATE participants SET signup = 'yes'").run();
+  db.close();
+});

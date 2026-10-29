@@ -40,3 +40,13 @@ export function groupDatesError(values, today, current = null) {
   }
   return null;
 }
+
+// Returns the reason a sign-up deadline is refused, or null. Answers must be
+// in before the first exchange; with no groups yet only the date rules apply.
+export function signupDeadlineError(deadline, today, groups) {
+  if (!isDate(deadline)) return 'signup-date';
+  if (deadline < today) return 'signup-past';
+  const first = groups.map((g) => g.exchangeDate).sort()[0];
+  if (first !== undefined && deadline >= first) return 'signup-after-exchange';
+  return null;
+}

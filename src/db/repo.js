@@ -36,11 +36,13 @@ function toJson(value) {
 // are deliberately absent from participants: they change only through
 // setAssignment so the change timestamp can never drift from the pairing.
 const UPDATABLE = {
-  events: new Set(['name', 'language', 'cleanupWeeks', 'themeText', 'wishOptions', 'formConfig']),
+  events: new Set(['name', 'language', 'cleanupWeeks', 'themeText', 'wishOptions', 'formConfig',
+    'signupDeadline', 'signupSentAt', 'signupClosedAt', 'signupDoneAt',
+  ]),
   groups: new Set(['name', 'exchangeDate', 'exchangeTime', 'exchangePlace', 'autoOpenAt']),
   participants: new Set([
     'name', 'email', 'language', 'token', 'wishes', 'wishesUpdatedAt', 'invitedAt',
-    'visitedAt', 'drawnAt', 'printedAt', 'notifyGiverDueAt',
+    'visitedAt', 'drawnAt', 'printedAt', 'notifyGiverDueAt', 'signup', 'signupAt', 'signupInvitedAt',
   ]),
 };
 
@@ -127,6 +129,12 @@ export function createRepo(db) {
 
   const getEvent = (id) => one('SELECT * FROM events WHERE id = ?', id);
   const listEvents = () => many('SELECT * FROM events ORDER BY id');
+  // Events whose sign-up the scheduler may still have to close or remind.
+  const listSignupEvents = () =>
+    many(`SELECT * FROM events
+          WHERE signup_deadline IS NOT NULL AND signup_sent_at IS NOT NULL
+            AND signup_closed_at IS NULL AND signup_done_at IS NULL
+          ORDER BY id`);
   // theme_changed_at stands for any change to the event's text on the card.
   const updateEvent = (id, fields, now) =>
     changedAt('events', id, fields, ['themeText', 'wishOptions', 'formConfig'], 'theme_changed_at', now);
@@ -430,7 +438,7 @@ export function createRepo(db) {
 
   return {
     tx,
-    createEvent, getEvent, listEvents, updateEvent, deleteEvent,
+    createEvent, getEvent, listEvents, listSignupEvents, updateEvent, deleteEvent,
     createGroup, getGroup, listGroups, latestGroup, updateGroup, deleteGroup, markGroupOpened, markInvitationsSent,
     getParticipant, getParticipantByToken, listParticipants, listAllParticipants, listEventParticipants, updateParticipant,
     findEmailInEvent, giverOf, dropAnswersForEvent,

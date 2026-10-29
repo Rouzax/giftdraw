@@ -67,4 +67,13 @@ export const migrations = [
   `,
   // Wish form sections and the pet list; NULL means every default.
   'ALTER TABLE events ADD COLUMN form_config TEXT;',
+  `
+  ALTER TABLE events ADD COLUMN signup_deadline TEXT;
+  ALTER TABLE events ADD COLUMN signup_sent_at TEXT;
+  ALTER TABLE events ADD COLUMN signup_closed_at TEXT;
+  ALTER TABLE events ADD COLUMN signup_done_at TEXT;
+  ALTER TABLE participants ADD COLUMN signup TEXT CHECK (signup IN ('yes', 'no'));
+  ALTER TABLE participants ADD COLUMN signup_at TEXT;
+  ALTER TABLE participants ADD COLUMN signup_invited_at TEXT;
+  `,
 ];

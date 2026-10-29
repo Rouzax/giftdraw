@@ -38,6 +38,10 @@ test('event round trip', () => {
     themeChangedAt: null,
     createdAt: T0,
     formConfig: null,
+    signupDeadline: null,
+    signupSentAt: null,
+    signupClosedAt: null,
+    signupDoneAt: null,
   });
   const options = [{ id: 'book', label: 'A book', detail: null }];
   repo.updateEvent(eventId, { name: 'Friends', cleanupWeeks: 6, themeText: null }, T1);
