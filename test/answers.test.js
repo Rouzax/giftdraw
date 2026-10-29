@@ -216,6 +216,8 @@ test('countAnswers counts old and new rows by question and by ticked choice', ()
   assert.equal(countAnswers(participants, 'likes', ['wine', 'wol-ab12']), 2);
   assert.equal(countAnswers(participants, 'likes', ['coffee']), 0);
   assert.equal(countAnswers(participants, 'q-none'), 0);
+  const untickedDetail = [{ wishes: { answers: { likes: { ticked: [], details: { chocolate: 'Puur' } } } } }];
+  assert.equal(countAnswers(untickedDetail, 'likes', ['chocolate']), 1, 'a follow-up without its tick counts too');
 });
 
 test('dropAnswers removes a whole question', () => {

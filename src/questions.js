@@ -62,8 +62,13 @@ export function readFormConfig(raw) {
 // doubled question marks, so the ends are trimmed of them before one is added.
 const trimMarks = (text) => text.replace(/^[\s?]+/, '').replace(/[\s?]+$/, '');
 
+// What a choice asks after it is ticked: nothing, the built-in prompt, or
+// the organiser's own question.
+export const FOLLOW_UPS = ['none', 'general', 'own'];
+
 // A choice's own follow-up question: one line, at most QUESTION_MAX code
 // points, ending in exactly one question mark; null when nothing is left.
+// The mark is added after the clip, so the field allows QUESTION_MAX - 1.
 export function cleanQuestion(value) {
   if (typeof value !== 'string') return null;
   const question = trimMarks(value.replace(/\s+/g, ' '));

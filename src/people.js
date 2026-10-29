@@ -37,10 +37,8 @@ function canonical(value) {
 }
 
 // The answers as the form can show them. A stored row may still hold an
-// answer to a removed question or a tick of a removed choice, which nobody
-// sees and a save drops without the participant changing anything, so they
-// do not count. A follow-up kept for a choice that no longer asks for one
-// is still on the giver's line, so its loss does count.
+// answer to a removed question, a tick of a removed choice or a follow-up
+// the organiser switched off; nobody sees those, so they do not count.
 function onForm(wishes, form) {
   const answers = readAnswers(wishes);
   const out = {};
@@ -53,8 +51,9 @@ function onForm(wishes, form) {
     }
     if (typeof answer === 'string') continue;
     const choices = new Set(question.choices.map((c) => c.id));
+    const asks = new Set(question.choices.filter((c) => c.detail).map((c) => c.id));
     const ticked = answer.ticked.filter((id) => choices.has(id));
-    const details = Object.fromEntries(Object.entries(answer.details).filter(([id]) => choices.has(id)));
+    const details = Object.fromEntries(Object.entries(answer.details).filter(([id]) => asks.has(id)));
     if (ticked.length || Object.keys(details).length) out[question.id] = { ticked, details };
   }
   return out;

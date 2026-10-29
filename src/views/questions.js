@@ -2,7 +2,7 @@ import { html, raw } from '../html.js';
 import { icon, iconText } from '../icons.js';
 import { t } from '../i18n/index.js';
 import { HEADING_MAX, QUESTION_MAX, QUESTIONS_MAX } from '../limits.js';
-import { builtinChoiceLabel, detailPrompt, isBuiltinQuestion, questionText } from '../questions.js';
+import { builtinChoiceLabel, detailPrompt, FOLLOW_UPS, isBuiltinQuestion, questionText } from '../questions.js';
 import { backLink, deleteForm, doneNotice, formToken } from './admin.js';
 
 const disabled = (on) => (on ? raw(' disabled') : '');
@@ -65,8 +65,6 @@ function described(id, { hint = false, error = null } = {}) {
   return html`${by}${error ? raw(' aria-invalid="true"') : ''}`;
 }
 
-const FOLLOW_UPS = ['none', 'general', 'own'];
-
 function followOption(lang, value, row) {
   const label = value === 'general'
     ? t(lang, 'admin.question.followGeneral', { prompt: detailPrompt({ id: row.id, question: null }, lang) })
@@ -81,7 +79,7 @@ function rowButton(lang, action, iconName, textKey, labelKey, number, off = fals
 // One choice as a stack of fields, so it reads top to bottom on a phone.
 // The row buttons submit the whole draft; formnovalidate lets them through
 // while a required field is still empty.
-function choiceRow(lang, questionId, row, i, count, error) {
+function choiceRow(lang, questionId, row, i, count, { label: error = null, question: questionError = null } = {}) {
   const id = `choice-${i}`;
   const number = i + 1;
   const builtIn = row.id ? builtinChoiceLabel(questionId, row.id, lang) : null;
@@ -93,7 +91,8 @@ ${fieldError(lang, `${id}-label`, error)}
 <label for="${id}-follow">${t(lang, 'admin.question.follow')}</label>
 <select id="${id}-follow" name="choice_${i}_follow">${FOLLOW_UPS.map((value) => followOption(lang, value, row))}</select>
 <label for="${id}-question">${t(lang, 'admin.question.ownQuestion')}</label>
-<input id="${id}-question" name="choice_${i}_question" type="text" maxlength="${QUESTION_MAX}" value="${row.question}">
+${fieldError(lang, `${id}-question`, questionError)}
+<input id="${id}-question" name="choice_${i}_question" type="text" maxlength="${QUESTION_MAX - 1}" value="${row.question}"${described(`${id}-question`, { error: questionError })}>
 <div class="choice-actions">
 ${rowButton(lang, `up:${i}`, 'arrow-up', 'admin.question.up', 'admin.question.choiceUp', number, i === 0)}
 ${rowButton(lang, `down:${i}`, 'arrow-down', 'admin.question.down', 'admin.question.choiceDown', number, i === count - 1)}

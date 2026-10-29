@@ -76,7 +76,14 @@ function parseChoices(b, question, before) {
   const ticked = pickIds(field(b, `q_${question.id}`), new Set(question.choices.map((c) => c.id)));
   const details = {};
   for (const choice of question.choices) {
-    if (!choice.detail) continue;
+    if (!choice.detail) {
+      // A follow-up the organiser switched off is not on the page; it is
+      // kept, like an answer to a hidden question, so switching it on again
+      // brings it back.
+      const kept = before?.details[choice.id];
+      if (kept && ticked.includes(choice.id)) details[choice.id] = kept;
+      continue;
+    }
     const detail = text(field(b, `d_${question.id}_${choice.id}`));
     if (!detail) continue;
     if (!ticked.includes(choice.id)) {
@@ -136,7 +143,7 @@ function choicesLine(question, answer, lang) {
   return answer.ticked
     .filter((id) => byId.has(id))
     .map((id) => {
-      const detail = answer.details[id];
+      const detail = byId.get(id).detail ? answer.details[id] : undefined;
       if (question.id === 'pets' && id === 'other' && detail) return detail;
       // Every label as written, built-in or typed, so a line never mixes
       // "thee" with "Boeken".
@@ -170,7 +177,9 @@ export function countAnswers(participants, questionId, choiceIds = null) {
   return participants.filter((p) => {
     const answer = answerTo(p.wishes, questionId);
     if (!answer || !choiceIds) return Boolean(answer);
-    return typeof answer !== 'string' && answer.ticked.some((id) => choiceIds.includes(id));
+    // A follow-up typed without its tick goes with the choice too.
+    const hits = (id) => choiceIds.includes(id);
+    return typeof answer !== 'string' && (answer.ticked.some(hits) || Object.keys(answer.details).some(hits));
   }).length;
 }
 

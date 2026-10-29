@@ -190,6 +190,7 @@ export default {
   'admin.question.deleteLast': 'This is the only question, so it cannot be removed. Turn off Show to leave it out.',
   'admin.question.error.text': 'Type the question.',
   'admin.question.error.label': 'Type the text of this choice, or remove it.',
+  'admin.question.error.ownQuestion': 'Type your own question, or pick another follow-up question.',
   'admin.question.error.noChoices': 'A tick list needs at least one choice.',
   'admin.question.error.tooManyChoices': 'A tick list has at most {max} choices.',
   'admin.groups.title': 'Groups',

@@ -191,6 +191,7 @@ export default {
   'admin.question.deleteLast': 'Dit is de enige vraag, dus je kunt hem niet verwijderen. Zet Tonen uit om hem weg te laten.',
   'admin.question.error.text': 'Typ de vraag.',
   'admin.question.error.label': 'Typ de tekst van deze keuze, of haal de keuze weg.',
+  'admin.question.error.ownQuestion': 'Typ je eigen vraag, of kies een andere vervolgvraag.',
   'admin.question.error.noChoices': 'Een aanvinklijst heeft minstens één keuze.',
   'admin.question.error.tooManyChoices': 'Een aanvinklijst heeft hoogstens {max} keuzes.',
   'admin.groups.title': 'Groepen',

@@ -35,7 +35,7 @@ function shortDate(lang, iso, tz) {
 
 const selected = (on) => (on ? raw(' selected') : '');
 
-export function errorNotice(lang, error) {
+function errorNotice(lang, error) {
   return error ? html`<p class="notice error" role="alert">${t(lang, error)}</p>` : '';
 }
 

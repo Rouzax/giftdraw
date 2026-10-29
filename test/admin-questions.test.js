@@ -590,3 +590,62 @@ test('switching the organiser language on an edit page comes back to it', async 
   assert.equal((await back(`${editUrl(t, 'likes')}/move`)).headers.location, editUrl(t, 'likes'));
   assert.equal((await back(`/admin/events/${t.eventId}/questions/new`)).headers.location, `/admin/events/${t.eventId}`);
 });
+
+test('a follow-up switched to none is not shown or counted, and comes back when switched on again', async () => {
+  const t = await setup();
+  const giver = t.people.find((p) => p.receiverId === t.ada.id);
+  drawFor(t.ctx, giver.id);
+  saveWishes(t.ctx, t.ada.id, aboutBody({ q_likes: ['chocolate', 'tea'], d_likes_chocolate: 'Puur' }));
+  t.ctx.repo.updateParticipant(t.ada.id, { notifyGiverDueAt: null });
+  const before = t.ctx.repo.getParticipant(t.ada.id);
+  const giverPage = async () => textOf((await t.app.inject({ method: 'GET', url: `/p/${giver.token}` })).body);
+  assert.ok((await giverPage()).includes('Puur'));
+
+  assert.equal((await saveShown(t, 'likes', { choice_0_follow: 'none' })).statusCode, 303);
+  assert.equal((await giverPage()).includes('Puur'), false, 'the giver no longer sees it');
+  const card = await t.adminGet(`/admin/participants/${giver.id}/card`);
+  assert.equal(card.body.includes('Puur'), false, 'nor on the card');
+
+  t.clock.ms += 60_000;
+  await t.post(`/p/${t.ada.token}/about`, aboutBody({ q_likes: ['chocolate', 'tea'] }));
+  let after = t.ctx.repo.getParticipant(t.ada.id);
+  assert.equal(after.wishesUpdatedAt, before.wishesUpdatedAt, 'an unchanged save is no change');
+  assert.equal(after.notifyGiverDueAt, null);
+  await t.post(`/p/${t.ada.token}/about`, aboutBody({ q_likes: ['chocolate', 'tea'], q_hobbies: 'Lezen' }));
+  after = t.ctx.repo.getParticipant(t.ada.id);
+  assert.deepEqual(after.wishes.answers.likes.details, { chocolate: 'Puur' }, 'the text is kept');
+
+  await saveShown(t, 'likes', { choice_0_follow: 'general' });
+  assert.ok((await giverPage()).includes('Puur'), 'switched on again, it is back');
+});
+
+test('an own follow-up without its question gives a field error and stores nothing', async () => {
+  const t = await setup();
+  const res = await saveShown(t, 'likes', { choice_1_follow: 'own', choice_1_question: ' ?? ' });
+  assert.equal(res.statusCode, 400);
+  assert.ok(textOf(res.body).includes(tr('nl', 'admin.question.error.ownQuestion')));
+  assert.match(res.body, /id="choice-1-question"[^>]*aria-invalid="true"/);
+  assert.equal(event(t).formConfig, null);
+});
+
+test('an own follow-up as long as the field allows is stored whole', async () => {
+  const t = await setup();
+  const { page } = await editPage(t, 'likes');
+  const max = Number(/id="choice-0-question"[^>]*maxlength="(\d+)"/.exec(page.body)[1]);
+  const typed = 'x'.repeat(max);
+  await saveShown(t, 'likes', { choice_1_follow: 'own', choice_1_question: typed });
+  const stored = question(t, 'likes').choices.find((c) => c.id === 'tea').question;
+  assert.equal(stored, `${typed}?`);
+  assert.equal(Array.from(stored).length, 80);
+});
+
+test('removing a choice counts a follow-up typed without its tick', async () => {
+  const t = await setup();
+  t.ctx.repo.updateParticipant(t.ada.id, { wishes: { answers: { likes: { ticked: [], details: { chocolate: 'Puur' } } } } });
+  const { fields } = await editPage(t, 'likes');
+  const removed = await t.adminPost(editUrl(t, 'likes'), { ...fields, action: 'remove:0' });
+  const res = await t.adminPost(editUrl(t, 'likes'), { ...shownFields(removed.body, editUrl(t, 'likes')), action: 'save' });
+  assert.equal(res.statusCode, 200);
+  assert.ok(textOf(res.body).includes(tr('nl', 'admin.question.dropBodyOne', { choices: 'Chocolade' })));
+  assert.equal(event(t).formConfig, null);
+});

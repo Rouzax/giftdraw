@@ -2,15 +2,14 @@ import { countAnswers } from '../answers.js';
 import { LANGS, t } from '../i18n/index.js';
 import { CHOICES_MAX, HEADING_MAX, QUESTION_MAX, QUESTIONS_MAX } from '../limits.js';
 import {
-  builtinChoiceLabel, cleanHeading, cleanQuestion, formValue, isBuiltinChoice, isBuiltinQuestion, newChoiceId,
-  newQuestionId, sameForm, wishForm,
+  builtinChoiceLabel, cleanHeading, cleanQuestion, FOLLOW_UPS, formValue, isBuiltinChoice, isBuiltinQuestion,
+  newChoiceId, newQuestionId, sameForm, wishForm,
 } from '../questions.js';
 import { questionView } from '../views/questions.js';
 import { adminLang } from './admin-auth.js';
 import { field } from './admin-shared.js';
 
 const TYPES = new Set(['text', 'choices']);
-const FOLLOW_UPS = new Set(['none', 'general', 'own']);
 const ROW_ACTION = /^(up|down|remove):(\d{1,3})$/;
 // Fields are read past their maxlength, so a clipped value is cut by the
 // same code-point rule as on save rather than mid-character.
@@ -52,7 +51,7 @@ function readDraft(body, question) {
     draft.choices.push({
       id,
       label: field(body, `choice_${i}_label`, HEADING_MAX * READ_MAX),
-      follow: FOLLOW_UPS.has(follow) ? follow : 'none',
+      follow: FOLLOW_UPS.includes(follow) ? follow : 'none',
       question: field(body, `choice_${i}_question`, QUESTION_MAX * READ_MAX),
     });
   }
@@ -101,13 +100,16 @@ function buildQuestion(draft, current) {
       const hasBuiltin = isBuiltinChoice(current.id, row.id);
       let own = cleanHeading(row.label);
       if (own && hasBuiltin && builtinLabel(current.id, row.id, own)) own = null;
-      if (!own && !hasBuiltin) {
-        errors[`choice_${i}`] = { key: 'admin.question.error.label' };
+      const question = row.follow === 'own' ? cleanQuestion(row.question) : null;
+      const rowErrors = {};
+      if (!own && !hasBuiltin) rowErrors.label = { key: 'admin.question.error.label' };
+      if (row.follow === 'own' && !question) rowErrors.question = { key: 'admin.question.error.ownQuestion' };
+      if (Object.keys(rowErrors).length) {
+        errors[`choice_${i}`] = rowErrors;
         return;
       }
       const id = row.id || newChoiceId(own, taken);
       taken.add(id);
-      const question = row.follow === 'own' ? cleanQuestion(row.question) : null;
       choices.push({ id, own, detail: row.follow !== 'none', question });
     });
   }
