@@ -698,3 +698,68 @@ test('removing a choice counts a follow-up typed without its tick', async () => 
   assert.ok(textOf(res.body).includes(tr('nl', 'admin.question.dropBodyOne', { choices: 'Chocolade' })));
   assert.equal(event(t).formConfig, null);
 });
+
+// The old event form limited a tick list only by its total text, so a
+// v0.3.1 list can hold more choices than the edit page lets anyone add.
+function storeLongV031(t) {
+  const likes = Array.from({ length: 35 }, (_, i) => ({ id: `keuze-${i + 1}-aa00`, label: `Keuze ${i + 1}`, detail: false }));
+  t.db.prepare('UPDATE events SET wish_options = ?, theme_changed_at = ? WHERE id = ?')
+    .run(JSON.stringify(likes), '2026-10-01T10:00:00.000Z', t.eventId);
+}
+
+async function tickedLongChoice(t) {
+  storeLongV031(t);
+  const giver = t.people.find((p) => p.receiverId === t.ada.id);
+  drawFor(t.ctx, giver.id);
+  saveWishes(t.ctx, t.ada.id, aboutBody({ q_likes: ['keuze-33-aa00'] }));
+  t.ctx.repo.updateParticipant(t.ada.id, { notifyGiverDueAt: null });
+  return async () => textOf((await t.app.inject({ method: 'GET', url: `/p/${giver.token}` })).body);
+}
+
+test('an old tick list past the choice limit keeps every choice when another question is saved', async () => {
+  const t = await setup();
+  const giverPage = await tickedLongChoice(t);
+  assert.ok((await giverPage()).includes('Keuze 33'));
+
+  assert.equal((await saveShown(t, 'avoid', { text: 'Liever niet' })).statusCode, 303);
+  assert.ok(Array.isArray(event(t).formConfig.questions), 'stored in the new shape');
+  assert.equal(question(t, 'likes').choices.length, 35);
+  assert.deepEqual(answers(t, t.ada).likes.ticked, ['keuze-33-aa00']);
+  assert.ok((await giverPage()).includes('Keuze 33'), 'the giver still sees the tick');
+
+  // Saved again unchanged, the new shape reads the same and stores nothing.
+  const stored = event(t);
+  assert.equal((await saveShown(t, 'avoid')).statusCode, 303);
+  assert.deepEqual(event(t).formConfig, stored.formConfig);
+  assert.equal(event(t).themeChangedAt, stored.themeChangedAt);
+});
+
+test('the edit page shows every choice of an old long list and saves once at most the limit remain', async () => {
+  const t = await setup();
+  await tickedLongChoice(t);
+  let { page, fields } = await editPage(t, 'likes');
+  assert.equal(shownRows(fields).length, 35);
+  assert.ok(textOf(page.body).includes('Keuze 35'));
+
+  let res = await t.adminPost(editUrl(t, 'likes'), { ...fields, action: 'save' });
+  assert.equal(res.statusCode, 400);
+  assert.ok(textOf(res.body).includes(tr('nl', 'admin.question.error.tooManyChoices', { max: 30 })));
+  assert.equal(event(t).formConfig, null, 'nothing stored');
+  assert.equal(event(t).themeChangedAt, '2026-10-01T10:00:00.000Z');
+
+  // The last five rows go one press at a time, the ticked 33rd among them.
+  for (let i = 0; i < 5; i += 1) {
+    res = await t.adminPost(editUrl(t, 'likes'), { ...fields, action: 'remove:30' });
+    assert.equal(res.statusCode, 200);
+    fields = shownFields(res.body, editUrl(t, 'likes'));
+    assert.equal(shownRows(fields).length, 34 - i);
+  }
+  assert.deepEqual(shownRows(fields).map((r) => r.label), Array.from({ length: 30 }, (_, i) => `Keuze ${i + 1}`));
+  res = await t.adminPost(editUrl(t, 'likes'), { ...fields, action: 'save' });
+  assert.equal(res.statusCode, 200);
+  assert.ok(res.body.includes('name="confirmDrop"'), 'the ticked choice asks first');
+  res = await t.adminPost(editUrl(t, 'likes'), { ...fields, confirmDrop: '1', action: 'save' });
+  assert.equal(res.statusCode, 303, res.body);
+  assert.equal(question(t, 'likes').choices.length, 30);
+  assert.deepEqual(answers(t, t.ada).likes?.ticked ?? [], []);
+});
