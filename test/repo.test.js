@@ -341,17 +341,18 @@ test('requeueStale returns old sending rows to pending', () => {
   assert.deepEqual(repo.claimDue(T2, 10).map((r) => r.id), [id]);
 });
 
-test('reminderHistory counts automatic rows that went or may go out, and dates the latest of any', () => {
+test('reminderHistory counts automatic rows, failed ones too, but not skipped ones, and dates the latest of any', () => {
   const { repo, groupId } = setup();
   const [ada] = repo.addParticipantsWithAssignment(groupId, people('Ada'), () => null, T0);
   repo.enqueue(ada.id, 'remind-wishes', T0);
   const failed = repo.enqueue(ada.id, 'remind-wishes', T1);
+  const skipped = repo.enqueue(ada.id, 'remind-wishes', T1);
   repo.enqueue(ada.id, 'remind-wishes', T2, { manual: true });
   repo.enqueue(ada.id, 'remind-draw', T2);
-  repo.claimDue(T1, 1);
-  repo.claimDue(T1, 1);
+  repo.claimDue(T1, 3);
   repo.markFailed(failed, 'error', null, T1);
-  assert.deepEqual(repo.reminderHistory(ada.id, 'remind-wishes'), { count: 1, lastAt: T2 });
+  repo.markFailed(skipped, 'stale-reminder', null, T1);
+  assert.deepEqual(repo.reminderHistory(ada.id, 'remind-wishes'), { count: 2, lastAt: T2 });
   assert.deepEqual(repo.reminderHistory(ada.id, 'remind-draw'), { count: 1, lastAt: T2 });
   assert.deepEqual(repo.reminderHistory(ada.id, 'invite'), { count: 0, lastAt: null });
   assert.equal(repo.mailStatus(ada.id).lastReminderAt, T2);

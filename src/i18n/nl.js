@@ -654,6 +654,7 @@ export default {
     '"{field}" is een lege lijst. Laat het weg voor de standaardlijst, of zet dat onderdeel van het formulier uit onder "sections".',
   'import.error.option-shape': 'Een keuze moet tekst zijn, of een "label" hebben.',
   'import.error.options-too-long': 'De lijst "{field}" is te lang: maximaal {max} tekens bij elkaar.',
+  'import.error.options-too-many': 'De lijst "{field}" heeft te veel keuzes: maximaal {max}.',
   'import.error.unknown-section': '"{key}" is geen onderdeel van het formulier. De onderdelen zijn: {known}.',
   'import.error.questions-empty': '"questions" is een lege lijst. Laat het weg voor de standaardvragen.',
   'import.error.too-many-questions': 'Het formulier heeft maximaal {max} vragen.',

@@ -293,7 +293,9 @@ test('tick lists: empty, repeated or unshaped choices are refused', () => {
   assert.deepEqual(codes(read(file({ event: { name: 'K', wishOptions: [{ label: 'Boeken', question: 'q'.repeat(81) }] } })).errors), ['too-long']);
   assert.deepEqual(codes(read(file({ event: { name: 'K', wishOptions: ['x'.repeat(3000), 'y'.repeat(1001)] } })).errors), ['options-too-long']);
   const many = Array.from({ length: CHOICES_MAX + 1 }, (_, i) => `Keuze ${i}`);
-  assert.deepEqual(codes(read(file({ event: { name: 'K', petOptions: many } })).errors), ['too-many-choices']);
+  const both = read(file({ event: { name: 'K', wishOptions: many, petOptions: many } })).errors;
+  assert.deepEqual(both.map((e) => [e.code, e.vars.field]), [['options-too-many', 'wishOptions'], ['options-too-many', 'petOptions']]);
+  assert.notEqual(...both.map((e) => tr('en', `import.error.${e.code}`, e.vars)), 'each message names its list');
   assert.deepEqual(read(file({ event: { name: 'K', petOptions: many.slice(1) } })).errors, []);
   assert.deepEqual(codes(read(file({ event: { name: 'K', sections: { music: { show: false } } } })).errors), ['unknown-section']);
   assert.deepEqual(codes(read(file({ event: { name: 'K', sections: { pets: { show: 'no' } } } })).errors), ['not-boolean']);
@@ -578,6 +580,25 @@ test('a renamed built-in choice keeps its built-in follow-up after a download', 
     const prompts = (form) => asked({ ...form, lang: language });
     assert.deepEqual(prompts(formOf(exported)), prompts(wishForm(event)), language);
   }
+});
+
+// A label with a question mark, or one that reads as a built-in choice,
+// is written as an object; the built-in follow-up goes with it.
+test('a renamed built-in choice written as an object keeps its built-in follow-up', async () => {
+  const t = await setup();
+  const { repo } = t.ctx;
+  const formConfig = { questions: [
+    { id: 'likes', type: 'choices', choices: [{ id: 'chocolate', label: 'Bonbons?!', detail: true }] },
+    { id: 'pets', type: 'choices', choices: [{ id: 'other', label: 'Cat', detail: true }] },
+  ] };
+  const event = repo.getEvent(repo.createEvent({ name: 'K', language: 'nl', formConfig }, t.ctx.nowIso()));
+  const exported = eventFile(event, []);
+  const choices = (form, id) => form.event.questions.find((q) => q.id === id).choices;
+  assert.deepEqual(choices(exported, 'likes'), [{ label: 'Bonbons?!', question: tr('nl', 'wish.detail.chocolate') }]);
+  assert.deepEqual(choices(exported, 'pets'), [{ label: 'Cat', question: tr('nl', 'wish.petsOther') }]);
+  const imported = formOf(exported);
+  const asked = (form) => form.questions.flatMap((q) => q.choices.map((c) => [c.label('nl'), detailPrompt(c, 'nl')]));
+  assert.deepEqual(asked(imported), asked(wishForm(event)));
 });
 
 test('in version 2 a choice written as text takes a built-in label leniently, an object is taken as typed', () => {
