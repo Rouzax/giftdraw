@@ -6,6 +6,7 @@ Gift Draw keeps as little as it can, and erases it on its own a few weeks after 
 
 - Names, optional email addresses and the chosen language of participants.
 - Their wishes, and who gives to whom.
+- With sign-up on, their yes or no and when it was given. People who do not take part are erased when you start the draw.
 - When someone opened their link, drew, was invited, reminded or had a card printed.
 - The mail queue: which mail went to whom and whether it failed, with a short error code. Mail text is not stored; it is built when the mail is sent.
 - The event and group settings.

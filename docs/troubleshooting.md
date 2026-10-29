@@ -51,7 +51,7 @@ Send the invitations first (with email off: press **The links have been shared**
 
 ### Drawing did not open on its automatic date
 
-It only opens once the invitations were sent. The dashboard then shows **Drawing only opens once the invitations have been sent.** Send them; drawing opens within a minute because the date has passed. Also check that the app was running: the opening happens at 09:00 or, if the app was down then, as soon as it is back.
+It only opens once the invitations were sent. The dashboard then shows **Drawing only opens once the invitations have been sent.** Send them; drawing opens within a minute because the date has passed. Also check that the app was running: the opening happens at 09:00 or, if the app was down then, as soon as it is back. While the event's sign-up is on, no group opens by itself; it can once you have [started the draw](guide/signup.md#start-the-draw).
 
 ### A card says "Print again"
 
@@ -71,7 +71,44 @@ On the event page under **The form** (*Het formulier*), a hidden question is mar
 
 ### An imported group has no pairs
 
-A group gets its pairs once it has at least 3 participants. The check page warns about smaller groups. Add people on the group page and the pairs are made at once.
+A group gets its pairs once it has at least 3 participants. The check page warns about smaller groups. Add people on the group page and the pairs are made at once. If the event's sign-up is on, see the next item.
+
+## Sign-up
+
+### Everyone shows "Not paired yet", also in groups of 3 or more
+
+(*Nog niet ingedeeld*) The event's sign-up is on. Nobody is paired until you start the draw, because only the people who said yes take part. When sign-up has closed, press **Make the pairs** (*Lootjes maken*) in the Sign-up panel on the event page. See [Start the draw](guide/signup.md#start-the-draw).
+
+### The Invitations and Drawing panels are missing from the group dashboard
+
+The dashboard says **Sign-up is on. Inviting and drawing come after it.** (*Aanmelden staat aan. Uitnodigen en trekken komen daarna.*) Sending invitations and opening drawing wait until you start the draw, which sends the invitations for every group itself. Before sign-up was sent you can still press **Turn off sign-up** instead, and everyone takes part.
+
+### The "Make the pairs" button is missing
+
+It appears once sign-up has closed: at the end of the closing date, or when you press **Close sign-up now** (*Aanmelden nu sluiten*). While sign-up is open, people can still change their answer.
+
+### "Sign-up is no longer possible: invitations have already been sent."
+
+(*Aanmelden kan niet meer: er zijn al uitnodigingen verstuurd.*) At least one group of the event has had its invitations sent, has been marked **The links have been shared**, or has opened drawing. Sign-up only works before that, because the invitation already leads to the draw. Ask around yourself instead and remove the people who do not join, as in [Someone drops out](guide/changes.md#someone-drops-out).
+
+### "Choose a date before the first exchange date."
+
+(*Kies een datum voor de eerste ruildatum.*) The closing date must be before the earliest exchange date of all groups in the event, so that the answers are in before the first exchange. Choose an earlier closing date, or move that group's exchange date.
+
+### A group is refused with "The exchange date must be after the sign-up closing date."
+
+(*De ruildatum moet na de sluitdatum van het aanmelden liggen.*) While sign-up runs, every group's exchange date must be after the closing date. Pick a later exchange date, or move the closing date first.
+
+### Someone wants to join after sign-up closed
+
+Their page says **Sign-up is closed.** and asks them to contact you.
+
+- **Before you start the draw**: press **Set to yes** next to their name in the Sign-up panel, or open sign-up again with a new closing date so everyone can still answer.
+- **After you start the draw**: if they had not said yes, they were removed. Add them to their group again as in [Someone joins late](guide/changes.md#someone-joins-late). They get a new link and, with email on, their invitation straight away.
+
+### A group has no pairs after starting the draw
+
+Fewer than 3 people in it take part, so it could not be paired. The confirmation page warned about it. Add people to the group: from 3 people on it is paired at once, and with email on the newcomers get their invitation straight away.
 
 ## Mail
 
@@ -92,6 +129,10 @@ An invitation that reached the person earlier stays marked as sent; only the fai
 
 Reminders go only to people with an email address who received an invitation, at most two of each kind, between 09:00 and 20:00, and never on or after the exchange date. The first wishes reminder comes no sooner than 3 days after the invitation (5 days when the group has no automatic opening date), the first draw reminder 3 days after opening. With email off, or with every question of the wish form hidden, no wish reminders are sent at all. You can always send one by hand with **Send a reminder now** on their page.
 
+### Someone did not get a sign-up reminder
+
+Sign-up reminders go only to people with an email address who got the sign-up mail and have not answered, a week and two days before the closing date, between 09:00 and 20:00. Nobody gets one on the day they were sent the sign-up mail, so with a closing date less than a week after sending there is only the second. Each person gets at most two, also after moving the date or opening sign-up again. With email off none are sent. The "Are you sure?" mail goes once, two days before the closing date, only to people whose answer was no before 09:00 that day. See [What the app sends by itself](guide/signup.md#what-the-app-sends-by-itself).
+
 ### A giver did not get a "wishes updated" mail
 
 That mail goes only to a giver who has already drawn and has email, about 15 minutes after the first change, and not from the exchange date on. A giver who has not drawn yet sees the new wishes when they draw.
@@ -100,7 +141,7 @@ That mail goes only to a giver who has already drawn and has email, about 15 min
 
 ### A participant sees "This page does not exist. Please check the link."
 
-(*Deze pagina bestaat niet. Kijk of de link klopt.*) The link is cut off, mistyped, or you made a new link for them since. Copy the current link from their page, or resend the invitation. A participant removed from the group gets the same page.
+(*Deze pagina bestaat niet. Kijk of de link klopt.*) The link is cut off, mistyped, or you made a new link for them since. Copy the current link from their page, or resend the invitation. A participant removed from the group gets the same page, including people removed because they did not take part after sign-up.
 
 ### A participant sees "Too much at once. Please try again in a minute."
 

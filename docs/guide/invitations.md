@@ -4,6 +4,10 @@ Every participant has a personal link, such as `https://gifts.example.com/p/` fo
 
 You have to do this step once per group, even when nobody in it has email: drawing can only open after it.
 
+!!! info "With sign-up, this step waits"
+
+    While the event's [sign-up](signup.md) runs, the dashboard shows **Sign-up is on. Inviting and drawing come after it.** instead of the Invitations panel, and nobody can be invited. When you [start the draw](signup.md#start-the-draw), the invitations go out for every group at once, so you do not press **Send invitations** yourself. Everything below applies again from then on.
+
 ## With email on
 
 On the group dashboard, the **Invitations** (*Uitnodigingen*) panel says how many participants with email have no invitation yet. Press **Send invitations** (*Uitnodigingen versturen*).

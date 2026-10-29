@@ -14,12 +14,13 @@ This guide is for the organiser: the person who sets up the exchange and keeps a
 An **event** is one gift exchange, for example "Gifts 2026". It holds the shared settings: the theme text, the questions on the wish form and how long data is kept. Inside an event you make one **group** per class, team or family; each group has its own date, its own participants and its own draw.
 
 1. [Set up an event](event.md): name, theme, the wish form, the cleanup period. Or [import an event from a file](import.md), with its groups and participants, made with the help of an AI chat assistant.
-2. [Add groups and participants](groups.md): one group per class, with the exchange date, time and place, then paste the list of people. The app pairs everyone at once.
-3. [Send the invitations](invitations.md): everyone with email gets their personal link. With email off you share the links yourself.
-4. [Check pairs and open the draw](open.md): swap pairs if you want, then open drawing, or let it open by itself on a date.
-5. [Help someone in person](in-person.md): fill in wishes, draw together on your screen and print a card for someone without email or a phone.
-6. [Changes after opening](changes.md): someone joins late or drops out.
-7. [Follow up](follow-up.md): see who has drawn, send a reminder, fix a failed mail.
+2. [Add groups and participants](groups.md): one group per class, with the exchange date, time and place, then paste the list of people. The app pairs everyone at once, unless sign-up is on.
+3. Optional: [ask who takes part](signup.md). Everyone answers yes or no on their own page before a closing date, and only the people who said yes are paired. Starting the draw afterwards also sends the invitations. Skip this step when you already know who joins.
+4. [Send the invitations](invitations.md): everyone with email gets their personal link. With email off you share the links yourself.
+5. [Check pairs and open the draw](open.md): swap pairs if you want, then open drawing, or let it open by itself on a date.
+6. [Help someone in person](in-person.md): fill in wishes, draw together on your screen and print a card for someone without email or a phone.
+7. [Changes after opening](changes.md): someone joins late or drops out.
+8. [Follow up](follow-up.md): see who has drawn, send a reminder, fix a failed mail.
 
 Participants see only their own page; [What participants see](../participants.md) walks through it.
 

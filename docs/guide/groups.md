@@ -11,7 +11,7 @@ On the event page, fill in **New group** (*Nieuwe groep*) and press **Create gro
 | Field | Required | What it does |
 | --- | --- | --- |
 | **Group name** (*Naam van de groep*) | yes | For example "Maandagochtend stoelyoga". At most 100 characters. Participants do not see it. |
-| **Date the presents are exchanged** (*Datum waarop de cadeautjes worden geruild*) | yes | Shown to participants. Reminders stop on this date, and cleanup counts from it. It cannot be in the past. |
+| **Date the presents are exchanged** (*Datum waarop de cadeautjes worden geruild*) | yes | Shown to participants. Reminders stop on this date, and cleanup counts from it. It cannot be in the past. While sign-up runs it must be after the sign-up closing date. |
 | **Time of the exchange** (*Tijd van het ruilen*) | no | For example `10:30`. |
 | **Place of the exchange** (*Plaats van het ruilen*) | no | One line, at most 200 characters, for example "Yogastudio De Lotus, Dorpsstraat 1". |
 | **Drawing opens automatically on** (*Trekken gaat automatisch open op*) | no | On this date drawing opens by itself at 09:00, but only if the invitations were sent by then. It must be on or before the exchange date. See [Open the draw](open.md#let-it-open-by-itself). |
@@ -53,13 +53,14 @@ When every line is fine, the people are added straight away and the dashboard sa
 
 ## How pairing works
 
-The app pairs everyone the moment they are added. It arranges the whole group in one big circle: Ada gives to Bep, Bep to Cor, and so on, until the last person gives to Ada. So nobody gets themselves and no two people simply swap presents. People added later are slotted into the circle.
+The app pairs everyone the moment they are added, unless the event's [sign-up](signup.md) is on. It arranges the whole group in one big circle: Ada gives to Bep, Bep to Cor, and so on, until the last person gives to Ada. So nobody gets themselves and no two people simply swap presents. People added later are slotted into the circle.
 
 - A group needs **at least 3 people** before there are pairs. Until then the dashboard shows **Not paired yet** (*Nog niet ingedeeld*) and a warning.
 - With **exactly 3**, anyone who has drawn can work out every pair, because a circle of three can only be arranged one way. The dashboard warns about this; it is allowed, but the surprise is smaller.
+- **While sign-up runs, nobody is paired**, whatever the group's size, and the dashboard shows **Not paired yet** for everyone. The pairs are made from the people who said yes when you [start the draw](signup.md#start-the-draw).
 - Drawing does not decide anything: it reveals the pair that was already set. You can look at the pairs and swap them before people draw; see [Check pairs and open the draw](open.md).
 
-Participants start with the event's default language. If the invitations of the group have already been sent, newcomers with an email address get their invitation straight away.
+Participants start with the event's default language. If the invitations of the group have already been sent, newcomers with an email address get their invitation straight away. While sign-up is open they get the sign-up mail instead; see [Add or remove people](signup.md#add-or-remove-people).
 
 ## Change or delete a group
 
@@ -68,4 +69,4 @@ At the bottom of the dashboard:
 - **Edit group** (*Groep aanpassen*) has the same fields as the new group form. Changing the date, time or place marks printed cards of the group as out of date. Dates that have passed may stay as they are, so you can still rename a group after its exchange.
 - **Delete group** (*Groep verwijderen*) erases the group with all its participants, wishes and pairs at once, after you tick **Yes, I am sure**. This cannot be undone.
 
-Next: [send the invitations](invitations.md).
+Next: [ask who takes part](signup.md) if you want to, or [send the invitations](invitations.md).

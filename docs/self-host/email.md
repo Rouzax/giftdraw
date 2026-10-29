@@ -36,12 +36,15 @@ Sending through a regular mailbox provider often needs an app password rather th
 
 | Mail | Sent when |
 | --- | --- |
-| Invitation | You press **Send invitations**, and when you add someone with email to a group whose invitations already went out. |
+| Invitation | You press **Send invitations**, or start the draw after sign-up, and when you add someone with email to a group whose invitations already went out. |
 | You can draw a name now | The group opens, by the button or on its automatic date. A newcomer in an open group gets one invitation that says they can draw straight away instead. |
 | Wishes reminder | At most two, before drawing opens, to people who filled in nothing. |
 | Draw reminder | At most two, after drawing opens, to people who have not drawn. |
 | Wishes updated | Someone changes their wishes after their giver has drawn; about 15 minutes after the first change, bundled. |
 | Your person has changed | A giver who had drawn gets a new person because someone joined or dropped out. |
+| Sign-up | Only with [sign-up](../guide/signup.md) on: you press **Send now**, and when you add someone with email while sign-up is open. |
+| Sign-up reminder | At most two, a week and two days before the sign-up closing date, to people who have not answered. |
+| Are you sure? | At most one, two days before the sign-up closing date, to people whose answer is no. |
 
 Reminders only go out between 09:00 and 20:00 in the app's time zone (`TZ`) and never on or after the exchange date. The full timing is in [Follow up](../guide/follow-up.md#reminders); what each mail looks like is in [What participants see](../participants.md#the-mails).
 

@@ -4,6 +4,28 @@ A participant only ever sees their own page, reached through their personal link
 
 The page is in the participant's language. A button at the bottom switches between Nederlands and English; on the wish form, switching first saves what was typed so far, so nothing has to be typed again.
 
+## Signing up
+
+Only when the organiser [asks who takes part](guide/signup.md) first. Until the organiser starts the draw, the page shows this step instead of everything below.
+
+<div class="phones" markdown>
+
+![The question: "Doe je mee met Lootjes trekken 2026?", the theme, the date and place, the closing date, and the buttons "Ja, ik doe mee" and "Nee, deze keer niet"](images/participant-signup.webp){ .shot width="240" }
+
+![After answering yes: "Je doet mee." and the button "Toch niet meedoen"](images/participant-signup-answered.webp){ .shot width="240" }
+
+![After the closing date: "Aanmelden is gesloten. Je doet deze keer niet mee." and a note to ask the organiser](images/participant-signup-closed.webp){ .shot width="240" }
+
+</div>
+
+1. **The question.** With email on, the sign-up mail has a yes button and a no button. Either opens their page, with the chosen answer as the first button. Opening the page does not answer yet: they confirm by pressing **Yes, I'm taking part** (*Ja, ik doe mee*) or **No, not this time** (*Nee, deze keer niet*). The page shows the theme, the exchange date with time and place, and until when they can answer.
+2. **Answered.** The page says **You are taking part.** (*Je doet mee.*) or **You are not taking part this time.** (*Je doet deze keer niet mee.*), with one button to change it: **Do not take part after all** (*Toch niet meedoen*) or **Take part after all** (*Toch meedoen*). They can change it until the end of the closing date.
+3. **Closed.** After the closing date the page says **Sign-up is closed.** (*Aanmelden is gesloten.*) and whether they take part. Anyone who did not answer does not take part. To change it, they ask the organiser.
+
+Someone who opens their link before the organiser has sent the question reads **You will hear soon whether you can take part.** (*Je hoort binnenkort of je mee kunt doen.*)
+
+When the organiser starts the draw, people who take part get the usual invitation and continue below. The links of people who do not take part stop working.
+
 ## Before drawing opens
 
 <div class="phones" markdown>
@@ -50,7 +72,7 @@ Opening the link again later shows the same result, so the link works as a remin
 
 ## The mails
 
-With email on, every mail has the participant's name, one big button to their page, the exchange date, the theme, and the link written out for mail programs that hide buttons. Each ends with the note that the link is just for them and should not be forwarded. Every subject starts with the app's name, "Gift Draw" or "Lootjes trekken".
+With email on, every mail has the participant's name, one big button to their page, the exchange date, the theme, and the link written out for mail programs that hide buttons. Each ends with the note that the link is just for them and should not be forwarded. Every subject starts with the app's name, "Gift Draw" or "Lootjes trekken". The sign-up mail and its reminders have two buttons, yes and no, instead of one.
 
 <div class="phones" markdown>
 
@@ -64,7 +86,10 @@ With email on, every mail has the participant's name, one big button to their pa
 
 | Mail | Subject (English / Dutch) | When |
 | --- | --- | --- |
-| Invitation | Tell us a little about yourself / Vertel iets over jezelf | When you send the invitations. |
+| Sign-up | Are you taking part in ...? / Doe je mee met ...? | With sign-up on, when you send the question, or when you add them while sign-up is open. |
+| Sign-up reminder | 8 days left: are you taking part in ...? / Nog 8 dagen: doe je mee met ...? (3 days in the second) | Up to two, to people who have not answered. |
+| Are you sure? | Are you sure? / Weet je het zeker? | At most once, to people who said no. |
+| Invitation | Tell us a little about yourself / Vertel iets over jezelf | When you send the invitations, or start the draw after sign-up. |
 | Invitation into an open group | You can draw a name straight away / Je kunt meteen een naam trekken | A newcomer added after drawing opened. |
 | Drawing is open | You can draw a name now / Je kunt nu een naam trekken | When the group opens. |
 | Wishes reminder | Would you tell us a little about yourself? / Vertel je nog iets over jezelf? | Up to two, before drawing opens. |
@@ -72,7 +97,7 @@ With email on, every mail has the participant's name, one big button to their pa
 | Wishes updated | ... has changed their wishes / ... heeft de wensen aangepast | Their person changed their wishes after they drew. |
 | Person changed | Your person has changed / Je lootje is veranderd | Someone joined or dropped out and they give to someone else now. |
 
-[Follow up](guide/follow-up.md) explains the timing of each.
+[Follow up](guide/follow-up.md) explains the timing of each; the sign-up mails are timed as in [Ask who takes part](guide/signup.md#what-the-app-sends-by-itself).
 
 ## If something goes wrong for a participant
 

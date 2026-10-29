@@ -18,7 +18,7 @@ The **Participants** (*Deelnemers*) table has one row per person. Click a name t
 | **Wishes filled in** (*Wensen ingevuld*) | Yes once anything is filled in, in a question of the form that is shown. |
 | **Drawn** (*Getrokken*) | The date they drew. |
 | **Gives to** (*Geeft aan*) | Their person. Keep this screen to yourself. |
-| **Last reminder** (*Laatste herinnering*) | Email on only. The date of their latest reminder. |
+| **Last reminder** (*Laatste herinnering*) | Email on only. The date of their latest reminder, sign-up reminders included. |
 | **Mail failure** (*Mailfout*) | Email on only. Their latest mail that failed, with the reason and a **Send again** button. |
 | **Printed card** (*Geprinte kaart*) | Not printed, Up to date, or Print again. See [Print a card](in-person.md#print-a-card). |
 
@@ -50,6 +50,7 @@ Besides the invitations, the draw-open mail and the reminders:
 
 - **Wishes updated** (*"... heeft de wensen aangepast"*): when someone changes their wishes after the person who gives to them has drawn, that giver gets a short mail with the new wishes. It goes out about 15 minutes after the first change, and further changes in that window go into the same mail. It is not sent from the exchange date on, and not to a giver who has not drawn yet (they see the wishes when they draw).
 - **Your person has changed** (*"Je lootje is veranderd"*): to a giver who had drawn and gets a new person because someone joined or dropped out. See [Changes after opening](changes.md).
+- **Sign-up reminders and "Are you sure?"**: only while the event's sign-up is open. See [What the app sends by itself](signup.md#what-the-app-sends-by-itself).
 
 All other mail goes out within a minute.
 

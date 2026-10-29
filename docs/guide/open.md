@@ -30,6 +30,8 @@ What happens:
 
 **Opening cannot be undone.** Afterwards you can still add and remove people and swap those who have not drawn; see [Changes after opening](changes.md).
 
+While the event's [sign-up](signup.md) runs, the Drawing panel is not shown at all: nobody has pairs yet, and drawing can only open after you [start the draw](signup.md#start-the-draw).
+
 The button is refused, with the reason shown in the panel, when:
 
 - the invitations have not been sent yet: **Send the invitations first, then drawing can open.** With email off it asks you to press **The links have been shared** first;
@@ -43,6 +45,7 @@ Give the group a date under **Drawing opens automatically on** (*Trekken gaat au
 
 - It only opens if the invitations were sent (or, with email off, the links marked as shared) by then. If they were not, the dashboard warns **Drawing only opens once the invitations have been sent.** and the group waits; once you send them, it opens at the next check, which runs every minute.
 - The date must be on or before the exchange date, and not in the past.
+- While sign-up runs, a group does not open by itself, even when its date has passed. Once you start the draw its invitations are out, so it opens at the next check if its date has passed by then and it has pairs.
 - You can still open drawing yourself earlier with the button.
 
 Next: [help someone in person](in-person.md).
