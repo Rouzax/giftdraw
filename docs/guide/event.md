@@ -87,7 +87,7 @@ Each choice has:
     - **Your own question** (*Eigen vraag*): type it in **Text of your own question** (*Tekst van je eigen vraag*). It is shown exactly as typed to everyone, and ends in one question mark, added if you leave it out. Typing the general question itself, such as "Welke smaak?" on chocolate, in any language, saves it as **General question**, so it stays translated.
 - **Up** (*Omhoog*), **Down** (*Omlaag*) and **Remove** (*Weghalen*).
 
-**Add a choice** (*Keuze toevoegen*) adds an empty choice at the end. A tick list has 1 to 30 choices.
+**Add a choice** (*Keuze toevoegen*) adds an empty choice at the end. A tick list has 1 to 30 choices. A list made with an older version of the app can have more: participants keep seeing all of them, with their ticks, and the page shows all of them too, but it saves the question only once you have removed choices down to 30.
 
 Typing in a follow-up field ticks its box, so an answer is never lost because someone forgot the tick.
 

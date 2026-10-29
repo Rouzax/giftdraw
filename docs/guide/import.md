@@ -209,6 +209,10 @@ On the event page, **Download as a template** (*Downloaden als sjabloon*) saves 
 
 Settings you never changed, such as the standard theme text, the standard questions or the standard choices, are written so that after the import they still follow each participant's language. A form you never changed is left out of the file altogether.
 
+A standard choice you renamed is imported as a choice of your own. If it asks its own standard follow-up question, that question is written out in the event's language, such as "Bonbons? Welke smaak?" for chocolate renamed to Bonbons, so after the import it asks the same, shown as written to everyone.
+
+A tick list with more than 30 choices, possible in an event from an older version of the app, makes a file the import refuses. Remove choices on the event page before downloading, or from the file before importing.
+
 ## The file in detail
 
 The format is described in a JSON Schema at [event.schema.json](../import/event.schema.json), and [example.json](../import/example.json) is a complete example file, the one in the screenshots above. Its dates are in December 2026; to try it out after that, change them first. You only need these if you write or fix a file by hand.
@@ -285,7 +289,7 @@ Files from before the wish form was a list of questions say `"version": 1`, such
 - `event.petOptions`: the choices under "Pets", the same way.
 - `event.sections`: per standard question (`hobbies`, `likes`, `pets`, `avoid`, `other`), `"show": false` to hide it and `"heading"` for wording of its own.
 
-In these lists a question mark in a text choice always starts the follow-up question, a question mark in an object's label is dropped, and a choice longer than 80 characters is cut short with a warning. A version 1 file has no questions of its own; to add some, import it and add them on the event page, or rewrite the file as version 2.
+Each list holds 1 to 30 choices, as in version 2. In these lists a question mark in a text choice always starts the follow-up question, a question mark in an object's label is dropped, and a choice longer than 80 characters is cut short with a warning. A version 1 file has no questions of its own; to add some, import it and add them on the event page, or rewrite the file as version 2.
 
 The two versions do not mix: `questions` in a version 1 file, or `wishOptions`, `petOptions` or `sections` in a version 2 file, is refused as an unknown field. A file without `version` is refused with a message that says which version to add, judged from the fields it has.
 

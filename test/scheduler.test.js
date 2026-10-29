@@ -472,6 +472,22 @@ test('sign-up reminders and the nudge go out once each, and reopening sends no m
   assert.equal(signupRows(db).length, before);
 });
 
+// Giving up drops the row out of reminderHistory's count; the nudge is
+// still one per person.
+test('a sign-up nudge that gave up is not queued again', async () => {
+  const { ctx, db, clock, people } = await signupSetup();
+  const ben = people[1];
+  clock.ms = Date.parse('2026-11-05T12:00:00.000Z');
+  ctx.repo.updateParticipant(ben.id, { signup: 'no', signupAt: ctx.nowIso() });
+  clock.ms = Date.parse('2026-11-18T08:00:00.000Z');
+  await tick(ctx);
+  const nudges = () => signupRows(db).filter(([id, kind]) => id === ben.id && kind === 'signup-nudge');
+  assert.equal(nudges().length, 1);
+  db.prepare("UPDATE outbox SET status = 'gaveup' WHERE kind = 'signup-nudge'").run();
+  await tickHourlyUntil(ctx, clock, '2026-11-19T18:00:00.000Z');
+  assert.equal(nudges().length, 1);
+});
+
 test('a tick counts the sign-up mails it queues and logs the count', async () => {
   const { ctx, clock, logs } = await signupSetup({ configOverrides: { logLevel: 'debug' } });
   ctx.log.level = 'debug';

@@ -5,7 +5,7 @@ import {
 } from './limits.js';
 import { normaliseEmail, PASTE_ROWS_MAX } from './people.js';
 import {
-  BUILTIN_QUESTIONS, builtinChoiceFor, cleanHeading, cleanQuestion, formValue, isBuiltinQuestion, isBuiltinText,
+  BUILTIN_QUESTIONS, builtinChoiceFor, cleanHeading, cleanQuestion, detailPrompt, formValue, isBuiltinQuestion, isBuiltinText,
   isOwnPrompt, newChoiceId, newQuestionId, sameForm, SECTION_IDS, wishForm,
 } from './questions.js';
 import { unixLines } from './text.js';
@@ -196,7 +196,8 @@ function fileChoices(questionId, items) {
   });
 }
 
-// A version 1 tick list, measured as the old event form's textarea held it.
+// A version 1 tick list, measured as the old event form's textarea held it
+// and held to the choice limit of the edit page, like a version 2 one.
 function readOptions(out, value, where, field) {
   if (value === undefined || value === null) return null;
   if (!Array.isArray(value)) {
@@ -205,6 +206,10 @@ function readOptions(out, value, where, field) {
   }
   if (value.length === 0) {
     out.error(where, 'options-empty', { field });
+    return undefined;
+  }
+  if (value.length > CHOICES_MAX) {
+    out.error(where, 'too-many-choices', { max: CHOICES_MAX });
     return undefined;
   }
   const at = (index) => [...where, { option: field, n: index + 1 }];
@@ -597,18 +602,29 @@ export function createEventFromPlan(ctx, plan) {
   });
 }
 
+// The follow-up wording a file must carry. A renamed built-in choice is
+// imported as an own choice, which would ask the general follow-up, so the
+// built-in one of its own (as for chocolate) is written out in the event's
+// language.
+function fileFollowUp(choice, lang) {
+  if (choice.question || choice.own === null) return choice.question;
+  const prompt = detailPrompt(choice, lang);
+  return prompt === t(lang, 'wish.detail') ? null : prompt;
+}
+
 // A choice as a line of text, "Boeken? Welke schrijver?", where that reads
 // back the same. A label with a question mark of its own, or an own label a
 // line would match to a built-in choice, needs the object.
 function fileChoice(choice, questionId, lang) {
   const label = choice.label(lang);
   const readsBuiltin = choice.own !== null && builtinChoiceFor(questionId, label, new Set()) !== null;
+  const question = choice.detail ? fileFollowUp(choice, lang) : null;
   if (label.includes('?') || readsBuiltin) {
     if (!choice.detail) return { label };
-    return choice.question ? { label, question: choice.question } : { label, askDetails: true };
+    return question ? { label, question } : { label, askDetails: true };
   }
   if (!choice.detail) return label;
-  return choice.question ? `${label}? ${choice.question}` : `${label}?`;
+  return question ? `${label}? ${question}` : `${label}?`;
 }
 
 // A built-in question writes only what differs from it, so its wording and

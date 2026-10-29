@@ -119,6 +119,8 @@ const DUE = [
   ['answered no: no nudge at 08:59 on deadline-2', { participant: SAID_NO }, '2026-11-18T07:59:00.000Z', NONE, NONE, null],
   ['answered no: a nudge at 09:00 on deadline-2', { participant: SAID_NO }, '2026-11-18T08:00:00.000Z', NONE, NONE, 'signup-nudge'],
   ['answered no: never a second nudge', { participant: SAID_NO }, '2026-11-19T08:00:00.000Z', NONE, { count: 1, lastAt: 'x' }, null],
+  ['answered no: no new nudge after one that gave up', { participant: SAID_NO }, '2026-11-19T08:00:00.000Z', NONE,
+    { count: 0, lastAt: '2026-11-18T08:00:30.000Z' }, null],
   ['answered no after 09:00 on deadline-2: no nudge',
     { participant: { ...SAID_NO, signupAt: '2026-11-18T08:30:00.000Z' } }, '2026-11-18T10:00:00.000Z', NONE, NONE, null],
   ['sent at 08:30 on deadline-2 to someone who said no at once: no nudge at 09:00',

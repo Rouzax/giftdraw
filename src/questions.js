@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { LANGS, t } from './i18n/index.js';
-import { CHOICES_MAX, HEADING_MAX, QUESTION_MAX, QUESTIONS_MAX } from './limits.js';
+import { HEADING_MAX, QUESTION_MAX, QUESTIONS_MAX } from './limits.js';
 import { clipText } from './text.js';
 
 export const BUILTIN_QUESTIONS = [
@@ -180,6 +180,9 @@ function readChoice(questionId, c) {
   return makeChoice(questionId, { id: c.id, own, detail, question: detail ? ownQuestion(c.id, c.question) : null });
 }
 
+// Not cut at CHOICES_MAX: the old event form limited a tick list only by
+// its total text, so a stored list can be longer, and cutting it on read
+// would hide those choices and their ticks. The limit applies to saving.
 function readChoices(questionId, stored) {
   if (!Array.isArray(stored)) return builtinType(questionId) ? builtinChoices(questionId) : [];
   const seen = new Set();
@@ -190,7 +193,7 @@ function readChoices(questionId, stored) {
     seen.add(choice.id);
     out.push(choice);
   }
-  return out.slice(0, CHOICES_MAX);
+  return out;
 }
 
 // A built-in id must keep its own type, or stored answers would be read as

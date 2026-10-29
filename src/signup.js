@@ -64,8 +64,9 @@ export function dueSignupMail({ participant, event, history, nudgeHistory, now, 
     return !history.lastAt || Date.parse(history.lastAt) < current ? 'remind-signup' : null;
   }
   // Only a no given before the nudge slot gets one; someone who said no
-  // later has just made up their mind.
-  if (participant.signup === 'no' && nudgeHistory.count === 0) {
+  // later has just made up their mind. Any nudge row counts, also one that
+  // gave up: the count leaves those out, so it would queue one every tick.
+  if (participant.signup === 'no' && nudgeHistory.lastAt === null) {
     const date = addDays(event.signupDeadline, -NUDGE_DAYS);
     if (!afterAsked(date)) return null;
     const slot = instantAt(date, SEND_AT, tz);

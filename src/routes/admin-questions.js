@@ -35,11 +35,13 @@ function draftOf(question) {
 // question has that choice and no earlier row claimed it; anything else is
 // a new choice, so a tampered id cannot take over another choice's ticks.
 // One row past the limit is read, so too many choices is refused rather
-// than cut off.
+// than cut off; an old list stored past the limit is read whole, so its
+// rows can be removed down to it.
 function readDraft(body, question) {
   const draft = { show: body?.show === '1', text: field(body, 'text', HEADING_MAX * READ_MAX), choices: [] };
   if (question.type !== 'choices') return draft;
-  const count = Math.min(Number.parseInt(field(body, 'choiceCount', 3), 10) || 0, CHOICES_MAX + 1);
+  const rowsMax = Math.max(CHOICES_MAX, question.choices.length) + 1;
+  const count = Math.min(Number.parseInt(field(body, 'choiceCount', 3), 10) || 0, rowsMax);
   const known = new Set(question.choices.map((c) => c.id));
   const used = new Set();
   for (let i = 0; i < count; i += 1) {

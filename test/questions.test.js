@@ -161,12 +161,14 @@ test('an empty or unreadable stored list gives the built-in form', () => {
   assert.ok(sameForm(wishForm({ formConfig: 'junk' }), plain));
 });
 
-test('the stored form is cut at the question and choice limits', () => {
+// A list from the old event form can hold more choices than the limit,
+// which only saving enforces.
+test('the stored form is cut at the question limit, its choices are not', () => {
   const choices = Array.from({ length: 40 }, (_, i) => ({ id: `c-${i}`, label: `Keuze ${i}` }));
   const questions = Array.from({ length: 20 }, (_, i) => ({ id: `q-${i}`, type: 'choices', text: `Vraag ${i}`, choices }));
   const form = wishForm({ formConfig: { questions } });
   assert.equal(form.questions.length, QUESTIONS_MAX);
-  assert.equal(form.questions[0].choices.length, CHOICES_MAX);
+  assert.equal(form.questions[0].choices.length, 40);
 });
 
 test('sameForm sees wording, order, show, choices and follow-ups, not the language', () => {

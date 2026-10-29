@@ -8,7 +8,7 @@ import {
 import { t as tr } from '../src/i18n/index.js';
 import { assistantPrompt } from '../src/import-prompt.js';
 import { CHOICES_MAX, QUESTIONS_MAX } from '../src/limits.js';
-import { isBuiltinChoice, isBuiltinQuestion, sameForm, SECTION_IDS, wishForm } from '../src/questions.js';
+import { detailPrompt, isBuiltinChoice, isBuiltinQuestion, sameForm, SECTION_IDS, wishForm } from '../src/questions.js';
 import { makeTestApp, textOf } from './helpers.js';
 
 const T0 = Date.parse('2026-11-01T10:00:00.000Z');
@@ -292,6 +292,9 @@ test('tick lists: empty, repeated or unshaped choices are refused', () => {
   assert.deepEqual(codes(read(file({ event: { name: 'K', petOptions: [3] } })).errors), ['option-shape']);
   assert.deepEqual(codes(read(file({ event: { name: 'K', wishOptions: [{ label: 'Boeken', question: 'q'.repeat(81) }] } })).errors), ['too-long']);
   assert.deepEqual(codes(read(file({ event: { name: 'K', wishOptions: ['x'.repeat(3000), 'y'.repeat(1001)] } })).errors), ['options-too-long']);
+  const many = Array.from({ length: CHOICES_MAX + 1 }, (_, i) => `Keuze ${i}`);
+  assert.deepEqual(codes(read(file({ event: { name: 'K', petOptions: many } })).errors), ['too-many-choices']);
+  assert.deepEqual(read(file({ event: { name: 'K', petOptions: many.slice(1) } })).errors, []);
   assert.deepEqual(codes(read(file({ event: { name: 'K', sections: { music: { show: false } } } })).errors), ['unknown-section']);
   assert.deepEqual(codes(read(file({ event: { name: 'K', sections: { pets: { show: 'no' } } } })).errors), ['not-boolean']);
   const marks = read(file({ event: { name: 'K', wishOptions: [
@@ -550,6 +553,30 @@ test('an own choice that reads like a built-in one stays the organiser\'s own af
     const imported = formOf(eventFile(event, []));
     assert.ok(sameShape(imported, wishForm(event)), language);
     assert.deepEqual(imported.questions[0].choices.map((c) => c.own), [null, 'thee', 'Tea', 'Thee'], language);
+  }
+});
+
+// A renamed built-in choice becomes an own choice on import, which would
+// ask the general follow-up; its built-in one is written out as wording.
+test('a renamed built-in choice keeps its built-in follow-up after a download', async () => {
+  const t = await setup();
+  const { repo } = t.ctx;
+  const formConfig = { questions: [
+    { id: 'likes', type: 'choices', choices: [{ id: 'chocolate', label: 'Bonbons', detail: true }, { id: 'tea', label: 'Theetjes', detail: true }] },
+    { id: 'pets', type: 'choices', choices: [{ id: 'dog' }, { id: 'other', label: 'Ander huisdier', detail: true }] },
+  ] };
+  const asked = (form) => form.questions.filter((q) => q.type === 'choices')
+    .flatMap((q) => q.choices.map((c) => [c.label('nl'), detailPrompt(c, form.lang)]));
+  for (const language of ['nl', 'en']) {
+    const event = repo.getEvent(repo.createEvent({ name: `K ${language}`, language, formConfig }, t.ctx.nowIso()));
+    const exported = eventFile(event, []);
+    const choices = exported.event.questions.find((q) => q.id === 'likes').choices;
+    assert.equal(choices[0], `Bonbons? ${tr(language, 'wish.detail.chocolate')}`, language);
+    assert.equal(choices[1], 'Theetjes?', 'a general follow-up stays general');
+    const pets = exported.event.questions.find((q) => q.id === 'pets').choices;
+    assert.equal(pets[1], `Ander huisdier? ${tr(language, 'wish.petsOther')}`, language);
+    const prompts = (form) => asked({ ...form, lang: language });
+    assert.deepEqual(prompts(formOf(exported)), prompts(wishForm(event)), language);
   }
 });
 
