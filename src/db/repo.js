@@ -324,12 +324,15 @@ export function createRepo(db) {
   }
 
   // count is of automatic reminders only, so a manual one never uses up the
-  // two; lastAt is of any, so an automatic one does not follow a manual one
-  // within the spacing.
+  // two. One that failed for good counts, so an address that keeps failing
+  // stops getting attempts; one skipped because it no longer applied does
+  // not, as it was never tried. lastAt is of any, so an automatic one does
+  // not follow a manual one within the spacing.
   function reminderHistory(participantId, kind) {
     const row = db
       .prepare(`SELECT
-                  count(*) FILTER (WHERE status IN ('pending', 'sending', 'sent') AND manual = 0) AS count,
+                  count(*) FILTER (WHERE manual = 0
+                    AND NOT (status IN ('failed', 'gaveup') AND ifnull(error_code, '') IN (${SKIP_LIST}))) AS count,
                   max(created_at) AS last_at
                 FROM outbox WHERE participant_id = ? AND kind = ?`)
       .get(participantId, kind);

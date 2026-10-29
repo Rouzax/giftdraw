@@ -209,7 +209,7 @@ function readOptions(out, value, where, field) {
     return undefined;
   }
   if (value.length > CHOICES_MAX) {
-    out.error(where, 'too-many-choices', { max: CHOICES_MAX });
+    out.error(where, 'options-too-many', { field, max: CHOICES_MAX });
     return undefined;
   }
   const at = (index) => [...where, { option: field, n: index + 1 }];

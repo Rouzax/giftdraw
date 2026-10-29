@@ -376,6 +376,23 @@ test('with mail off the tick queues no reminders or wish updates', async () => {
   assert.equal(outboxRows(db).length, 0);
 });
 
+// A reminder that gave up counts toward the two, so an address that keeps
+// failing is not tried again every few days until the exchange.
+test('a wish reminder that gave up counts toward the two', async () => {
+  const { ctx, clock, db, people } = await setup();
+  const [ada] = people;
+  const adas = () => outboxRows(db, 'remind-wishes').filter((r) => r.participant_id === ada.id);
+  clock.ms = WISHES_DUE;
+  await tick(ctx);
+  assert.equal(adas().length, 1);
+  db.prepare("UPDATE outbox SET status = 'gaveup', error_code = 'error' WHERE kind = 'remind-wishes'").run();
+  while (clock.ms < Date.parse('2026-12-17T18:00:00.000Z')) {
+    clock.ms += 60 * MINUTE;
+    await tick(ctx);
+  }
+  assert.deepEqual(adas().map((r) => r.status), ['gaveup', 'sent']);
+});
+
 test('a manual reminder spaces the next automatic one but does not count toward the two', async () => {
   const { ctx, clock, db, people } = await setup();
   const [ada] = people;
@@ -472,8 +489,7 @@ test('sign-up reminders and the nudge go out once each, and reopening sends no m
   assert.equal(signupRows(db).length, before);
 });
 
-// Giving up drops the row out of reminderHistory's count; the nudge is
-// still one per person.
+// The nudge is one per person, whatever became of the first.
 test('a sign-up nudge that gave up is not queued again', async () => {
   const { ctx, db, clock, people } = await signupSetup();
   const ben = people[1];
@@ -486,6 +502,21 @@ test('a sign-up nudge that gave up is not queued again', async () => {
   db.prepare("UPDATE outbox SET status = 'gaveup' WHERE kind = 'signup-nudge'").run();
   await tickHourlyUntil(ctx, clock, '2026-11-19T18:00:00.000Z');
   assert.equal(nudges().length, 1);
+});
+
+test('a sign-up reminder that gave up counts toward the two, also after moving the deadline', async () => {
+  const { ctx, db, clock, event, people } = await signupSetup();
+  const ada = people[0];
+  const adas = () => signupRows(db).filter(([id]) => id === ada.id);
+  clock.ms = Date.parse('2026-11-13T08:00:00.000Z');
+  await tick(ctx);
+  assert.equal(adas().length, 1);
+  db.prepare("UPDATE outbox SET status = 'gaveup', error_code = 'error' WHERE kind = 'remind-signup' AND participant_id = ?").run(ada.id);
+  await tickHourlyUntil(ctx, clock, '2026-11-19T18:00:00.000Z');
+  assert.equal(adas().length, 2);
+  ctx.repo.updateEvent(event.id, { signupDeadline: '2026-11-30' }, ctx.nowIso());
+  await tickHourlyUntil(ctx, clock, '2026-11-30T18:00:00.000Z');
+  assert.equal(adas().length, 2);
 });
 
 test('a tick counts the sign-up mails it queues and logs the count', async () => {

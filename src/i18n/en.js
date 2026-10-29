@@ -652,6 +652,7 @@ export default {
     '"{field}" is an empty list. Leave it out for the standard list, or hide that part of the form under "sections".',
   'import.error.option-shape': 'A choice has to be text, or have a "label".',
   'import.error.options-too-long': 'The list "{field}" is too long: at most {max} characters in all.',
+  'import.error.options-too-many': 'The list "{field}" has too many choices: at most {max}.',
   'import.error.unknown-section': '"{key}" is not a part of the form. The parts are: {known}.',
   'import.error.questions-empty': '"questions" is an empty list. Leave it out for the standard questions.',
   'import.error.too-many-questions': 'The form has at most {max} questions.',
