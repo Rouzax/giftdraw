@@ -134,6 +134,8 @@ ${button('no', 'admin.signup.setNo')}
 </form>`;
 }
 
+const counted = (lang, key, count) => t(lang, count === 1 ? `${key}One` : key, { count });
+
 // Per group: the counts, and everyone with their answer. Before sending
 // nobody could answer yet, so the too-small warning waits until then.
 function answerLists(lang, groups, state) {
@@ -141,7 +143,7 @@ function answerLists(lang, groups, state) {
     const yes = people.filter(joins).length;
     const no = people.filter((p) => p.signup === 'no').length;
     const counts = state === 'closed'
-      ? t(lang, 'admin.signup.countsClosed', { yes, no: people.length - yes })
+      ? [counted(lang, 'admin.signup.joins', yes), counted(lang, 'admin.signup.declines', people.length - yes)].join(', ')
       : t(lang, 'admin.signup.counts', { yes, no, none: people.length - yes - no });
     const warn = state !== 'setup' && yes < MIN_GROUP
       ? html`<p class="notice warn">${t(lang, 'admin.warning.below-minimum')}</p>`

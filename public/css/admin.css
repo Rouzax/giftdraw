@@ -773,12 +773,20 @@ h3 {
 
 .button-link {
   display: inline-block;
+  min-height: 2.75rem;
   padding: 0.5rem 1rem;
   border: 1px solid var(--accent);
   border-radius: 0.5rem;
   color: var(--accent-dark);
   font-weight: 700;
   text-decoration: none;
+}
+
+/* Icon links centre themselves through .with-icon; a plain label needs flex
+   to sit in the middle of the taller box. */
+.button-link:not(.with-icon) {
+  display: inline-flex;
+  align-items: center;
 }
 
 .panel > :first-child {

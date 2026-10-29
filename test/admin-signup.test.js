@@ -427,8 +427,21 @@ test('the sign-up panel lists each group with its answers and a button to change
 
   await t.adminPost(`/admin/events/${eventId}/signup/close`);
   const closed = await t.adminGet(`/admin/events/${eventId}`);
-  assert.ok(closed.body.includes(escape(tr('nl', 'admin.signup.countsClosed', { yes: 1, no: 3 }))));
+  assert.ok(closed.body.includes(escape(`${tr('nl', 'admin.signup.joinsOne', { count: 1 })}, ${tr('nl', 'admin.signup.declines', { count: 3 })}`)));
   assert.ok(closed.body.includes(`href="/admin/events/${eventId}/signup/finish"`));
+});
+
+test('the closed sign-up panel uses the singular for one joiner and one non-joiner', async () => {
+  const t = await setup();
+  const { eventId, groupIds: [a] } = await eventWithGroups(t, [2]);
+  await turnOn(t, eventId);
+  await send(t, eventId);
+  const [ada, ben] = people(t, a);
+  await answerAs(t, ada, 'yes');
+  await answerAs(t, ben, 'no');
+  await t.adminPost(`/admin/events/${eventId}/signup/close`);
+  const closed = await t.adminGet(`/admin/events/${eventId}`);
+  assert.ok(closed.body.includes('1 doet mee, 1 doet niet mee'));
 });
 
 test('the organiser sets someone who did not answer to yes after closing', async () => {
