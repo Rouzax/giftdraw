@@ -74,3 +74,17 @@ export function dueSignupMail({ participant, event, history, nudgeHistory, now, 
   }
   return null;
 }
+
+// The stored answer as an organiser's set-answer form saw it, so a form from
+// before the person (or another page) changed it can be told apart. The time
+// is part of it, so an answer changed and changed back still counts as
+// changed.
+export function answerSeen(participant) {
+  return `${participant.signup ?? ''}@${participant.signupAt ?? ''}`;
+}
+
+// The day a closed sign-up closed: the day the organiser closed it by hand,
+// which can only be before the deadline ran out, or else the deadline.
+export function closedOn(event, tz) {
+  return event.signupClosedAt ? todayIn(new Date(event.signupClosedAt), tz) : event.signupDeadline;
+}

@@ -70,6 +70,16 @@ The panel on the event page shows per group how many said yes, no and not yet, a
 
 ![The open sign-up: counts and answers per group, with buttons to set an answer](../images/organiser-signup-open.webp){ .shot }
 
+### The class dashboard during sign-up
+
+Each group's dashboard shows the answers too, from the moment sign-up is on until you start the draw:
+
+- The **Participants** table gets a **Sign-up** (*Aanmelding*) column with each person's answer: **Yes** (*Ja*), **No** (*Nee*) or **Not yet** (*Nog niet*); after closing, **No answer, not taking part** (*Geen antwoord, doet niet mee*). This column is there with email off too.
+- With email on, the **Invited** (*Uitgenodigd*) column is replaced by **Sign-up mail** (*Aanmeldmail*): the state of their sign-up mail (**Queued**, **Sent**, **Failed, retrying** or **Failed**), **Not yet** before you send, **Not needed, already answered** (*Niet nodig, al geantwoord*) for someone whose answer you set before sending, and **Not applicable** without an address.
+- The counts at the top add the answers, for example **Sign-up: 2 yes, 1 no, 4 not yet** (*Aanmelding: 2 ja, 1 nee, 4 nog niet*), and with email on count the sign-up mails instead of the invitations: **6 of 7 with email were sent the sign-up mail** (*6 van 7 met e-mail kregen de aanmeldmail*). Only delivered mails count.
+
+To set an answer, use the event page or the person's own page. Once you start the draw, the dashboard goes back to the usual columns and counts of [Follow up](follow-up.md#read-the-dashboard).
+
 ### What the app sends by itself
 
 With email on, the app follows up on its own, only while sign-up is open. Only people who were sent the sign-up mail can get these; someone whose answer you set before pressing **Send now** never gets one.
@@ -93,6 +103,8 @@ The **Last reminder** (*Laatste herinnering*) column on the group dashboard incl
 ### Answer for someone
 
 Each person in the panel has **Set to yes** (*Zet op ja*) and **Set to no** (*Zet op nee*), minus the answer they already have; the same buttons are in the **Sign-up** panel on their own page. Use them for someone who told you their answer in person, or who has no email or phone. You can do this from the moment sign-up is on until you start the draw, also after sign-up has closed.
+
+If the answer changed after you opened the page, because the person answered in the meantime or you set it on another page, your press is refused and nothing is saved: the page says **...'s answer has changed in the meantime, by them or on another page. Nothing was saved. Below you see the answer as it is now.** (*Het antwoord van ... is intussen veranderd, door die persoon zelf of op een andere pagina. Er is niets opgeslagen. Hieronder zie je het antwoord van nu.*) Check the answer shown and press again if you still want to change it.
 
 An answer you set counts like their own, so it also stops the reminders. Someone you set before pressing **Send now** gets no sign-up mail at all: no question, no reminders and no "Are you sure?" mail. A person who was sent the sign-up mail and whose answer is no two days before the closing date gets the "Are you sure?" mail, also when you set that no.
 
@@ -121,7 +133,9 @@ After closing:
 
 - Nobody can answer any more. A person who opens their page reads **Sign-up is closed.** (*Aanmelden is gesloten.*), whether they take part, and that they should ask you if they want to change that.
 - **Anyone who did not answer does not take part.** The panel shows them as **No answer, not taking part** (*Geen antwoord, doet niet mee*), and the counts become who takes part and who does not.
-- Nothing else happens yet. Look at the lists, call people you still want to hear from, and set answers where needed.
+- The Sign-up panel and each group's dashboard show a notice with the day sign-up closed and how many people did not answer, for example **Sign-up closed on Friday 20 November. 3 people did not answer. They do not take part.** (*Aanmelden is gesloten op vrijdag 20 november. 3 mensen hebben niet geantwoord. Zij doen niet mee.*) The panel counts the whole event, a dashboard its own group.
+- Below it, the notice names everyone **without an email address who did not answer**. They may never have been asked, because the app had no way to mail them. If you know what they want, set them to yes or no.
+- Nothing else happens yet, and nobody is told that sign-up closed. Look at the lists, call people you still want to hear from, and set answers where needed.
 
 ### Open sign-up again
 
@@ -129,16 +143,29 @@ Until you start the draw, you can open sign-up again: fill in a new closing date
 
 ## Start the draw
 
-Once sign-up has closed and the lists are right, press **Make the pairs** (*Lootjes maken*) in the panel. You first see a confirmation page, **Make the pairs with everyone taking part** (*Lootjes maken met wie meedoet*), with per group who takes part and who **Will be removed** (*Worden verwijderd*). A group with fewer than 3 people taking part is marked **At least 3 participants are needed for drawing.** A group whose automatic opening date is today or has passed is marked **Drawing in this group opens right after you make the pairs: its automatic opening day is today or has passed.** (*Het trekken gaat in deze groep meteen open als je de lootjes maakt: de dag om automatisch te openen is vandaag of al voorbij.*)
+Once sign-up has closed and the lists are right, press **Make the pairs** (*Lootjes maken*) in the panel. You first see a confirmation page, **Make the pairs with everyone taking part** (*Lootjes maken met wie meedoet*), with per group who takes part and who **Will be removed** (*Worden verwijderd*). Above the groups it lists the people without an email address who did not answer, who will be removed unless you set them to yes first.
 
-![The confirmation: per group who takes part and who will be removed, with a warning for a group under 3](../images/organiser-signup-finish.webp){ .shot }
+A group whose automatic opening date is today or has passed is marked **Drawing in this group opens right after you make the pairs: its automatic opening day is today or has passed.** (*Het trekken gaat in deze groep meteen open als je de lootjes maakt: de dag om automatisch te openen is vandaag of al voorbij.*) A group where nobody takes part is named with **...: nobody is taking part, the group will be empty.** (*...: niemand doet mee, de groep wordt leeg.*); you can still go ahead, and that group ends up without anyone in it.
+
+![The confirmation: per group who takes part and who will be removed](../images/organiser-signup-finish.webp){ .shot }
 
 Tick **Yes, I am sure** (*Ja, ik weet het zeker*) and press **Yes, make the pairs** (*Ja, lootjes maken*). Use **Back to sign-up** (*Terug naar aanmelden*) to change answers first.
+
+### When a group has only one or two people taking part
+
+Drawing needs at least 3 people in a group, so the draw cannot start while any group has one or two people taking part. The confirmation page then has no confirm button. It says **You cannot make the pairs yet. Drawing needs at least 3 people taking part in a group. These groups have fewer:** (*Je kunt de lootjes nog niet maken. Voor trekken zijn in een groep minstens 3 mensen nodig die meedoen. In deze groepen zijn het er minder:*), names each such group with how many take part, for example **Monday class: 2 taking part** (*Maandagles: 2 doen mee*), and marks it **At least 3 participants are needed for drawing.** Nobody is removed and nothing is sent.
+
+Fix it, then press **Make the pairs** again:
+
+- **Set more people in that group to yes**, for example someone who told you in person, or
+- **Remove the group** on its dashboard if it is not taking part this time. Removing a group removes everyone in it.
+
+You can also add someone to the group: after closing, a person you add counts as yes.
 
 What happens:
 
 - **Everyone who does not take part is removed** from their group: those who said no and those who did not answer. Their links stop working and their data is erased. This cannot be undone.
-- **Each group is paired** from the people who are left, in one circle as described in [How pairing works](groups.md#how-pairing-works). A group with fewer than 3 people stays unpaired until you add people; the other groups are not held up by it.
+- **Each group is paired** from the people who are left, in one circle as described in [How pairing works](groups.md#how-pairing-works). A group where nobody takes part is left empty.
 - **The invitations go out for every group**, as if you had pressed **Send invitations** on each dashboard: with email on, everyone with an address gets the usual invitation mail. With email off nothing is sent and every group counts as **The links have been shared**; share the links yourself.
 - The panel says **Sign-up is finished.** (*Aanmelden is afgerond.*). It cannot be turned on again for this event.
 

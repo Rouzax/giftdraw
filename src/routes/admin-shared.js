@@ -141,6 +141,7 @@ export function adminShared(ctx, { sendPage, sendError }) {
 
   function groupPage(lang, group, extra = {}) {
     const event = repo.getEvent(group.eventId);
+    const signup = signupState(event, ctx.now(), config.tz);
     const signingUp = signupActive(event, ctx.now(), config.tz);
     const people = repo.listParticipants(group.id);
     const byId = new Map(people.map((p) => [p.id, p]));
@@ -163,7 +164,7 @@ export function adminShared(ctx, { sendPage, sendError }) {
       warnings: groupWarnings(group, people.length).filter((w) => !(signingUp && w === 'awaiting-invitations')),
       mailEnabled: ctx.mailer.enabled,
       givenUpCount: repo.countGivenUp(group.id),
-      signupActive: signingUp,
+      signupState: signup,
       tz: config.tz,
       ...extra,
     });

@@ -3,7 +3,7 @@ import { iconText } from '../icons.js';
 import { exchangeWhen, formatDate, LANGS, t } from '../i18n/index.js';
 import { NAME_MAX, PLACE_MAX, THEME_MAX } from '../limits.js';
 import { PASTE_TEXT_MAX } from '../people.js';
-import { joins } from '../signup.js';
+import { answerSeen, closedOn, joins } from '../signup.js';
 import { newFormToken } from '../submit-log.js';
 
 const LOCALES = { nl: 'nl-NL', en: 'en-GB' };
@@ -37,8 +37,11 @@ function shortDate(lang, iso, tz) {
 
 const selected = (on) => (on ? raw(' selected') : '');
 
+// error: a translation key, or [key, vars] for a message that names something.
 function errorNotice(lang, error) {
-  return error ? html`<p class="notice error" role="alert">${t(lang, error)}</p>` : '';
+  if (!error) return '';
+  const [key, vars] = Array.isArray(error) ? error : [error];
+  return html`<p class="notice error" role="alert">${t(lang, key, vars)}</p>`;
 }
 
 function languageSelect(id, value) {
@@ -124,11 +127,13 @@ function answerText(lang, p, state) {
   return t(lang, state === 'closed' ? 'admin.signup.answer.noneClosed' : 'admin.signup.answer.none');
 }
 
-// back names the page to return to: 'event' or 'person'.
+// back names the page to return to: 'event' or 'person'. seen is the answer
+// the buttons were chosen for, so a press after it changed is refused.
 function setAnswerForm(lang, p, back) {
   const button = (answer, key) => (p.signup === answer ? '' : html`<button type="submit" name="answer" value="${answer}">${t(lang, key)}</button>`);
   return html`<form method="post" action="/admin/participants/${p.id}/signup" class="inline-form">
 <input type="hidden" name="back" value="${back}">
+<input type="hidden" name="seen" value="${answerSeen(p)}">
 ${button('yes', 'admin.signup.setYes')}
 ${button('no', 'admin.signup.setNo')}
 </form>`;
@@ -138,13 +143,19 @@ const counted = (lang, key, count) => t(lang, count === 1 ? `${key}One` : key, {
 
 // Per group: the counts, and everyone with their answer. Before sending
 // nobody could answer yet, so the too-small warning waits until then.
+// Once closed, not answering is a no, so the counts become who joins.
+function answerCounts(lang, people, state) {
+  const yes = people.filter(joins).length;
+  const no = people.filter((p) => p.signup === 'no').length;
+  return state === 'closed'
+    ? [counted(lang, 'admin.signup.joins', yes), counted(lang, 'admin.signup.declines', people.length - yes)].join(', ')
+    : t(lang, 'admin.signup.counts', { yes, no, none: people.length - yes - no });
+}
+
 function answerLists(lang, groups, state) {
   return groups.map(({ group, people }) => {
     const yes = people.filter(joins).length;
-    const no = people.filter((p) => p.signup === 'no').length;
-    const counts = state === 'closed'
-      ? [counted(lang, 'admin.signup.joins', yes), counted(lang, 'admin.signup.declines', people.length - yes)].join(', ')
-      : t(lang, 'admin.signup.counts', { yes, no, none: people.length - yes - no });
+    const counts = answerCounts(lang, people, state);
     const warn = state !== 'setup' && yes < MIN_GROUP
       ? html`<p class="notice warn">${t(lang, 'admin.warning.below-minimum')}</p>`
       : '';
@@ -158,6 +169,24 @@ ${setAnswerForm(lang, p, 'event')}
 </li>`)}</ul>`;
   });
 }
+
+// After closing, who did not answer drops out at the start of the draw.
+// Someone without an address was never mailed the question, so the organiser
+// is the one who can still ask them. people: [{p, group?}].
+function closedNotice(lang, { event, people, tz }) {
+  const silent = people.filter(({ p }) => !p.signup);
+  const unasked = silent.filter(({ p }) => !p.email);
+  const count = silent.length
+    ? counted(lang, 'admin.signup.noAnswer', silent.length)
+    : t(lang, 'admin.signup.allAnswered');
+  return html`<div class="notice warn">
+<p>${t(lang, 'admin.signup.closedOn', { date: formatDate(lang, closedOn(event, tz), tz) })} ${count}</p>
+${unasked.length ? html`<p>${t(lang, 'admin.signup.noEmailNoAnswer')}</p>
+<ul>${unasked.map(({ p, group }) => html`<li><a href="/admin/participants/${p.id}">${p.name}</a>${group ? html` <span class="muted">(${group.name})</span>` : ''}</li>`)}</ul>` : ''}
+</div>`;
+}
+
+const everyone = (groups) => groups.flatMap(({ group, people }) => people.map((p) => ({ p, group })));
 
 // The sign-up step of the whole event. Each state shows where it stands and
 // only the steps that are possible from there. Once invitations went out it
@@ -205,6 +234,7 @@ ${answerLists(lang, groups, state)}
 ${stepForm('close', 'admin.signup.close', 'admin.signup.closeHint')}`;
   } else if (state === 'closed') {
     steps = html`<p>${t(lang, 'admin.signup.closed')}</p>
+${closedNotice(lang, { event, people: everyone(groups), tz })}
 ${answerLists(lang, groups, state)}
 <p class="hint">${t(lang, 'admin.signup.finishHint')}</p>
 <p><a class="button-link" href="${action}/finish">${t(lang, 'admin.signup.finish')}</a></p>
@@ -278,31 +308,56 @@ ${deleteForm(lang, `/admin/events/${event.id}/delete`, { label: t(lang, 'admin.e
 }
 
 // The last look before starting the draw: per group who stays and who is
-// removed, which groups stay too small to pair, and which open for drawing
-// at once because their automatic opening day has come.
+// removed, which groups open for drawing at once because their automatic
+// opening day has come, and who without an address never answered. A group
+// with one or two people taking part could not be paired, so the draw cannot
+// start until the organiser fixes it and the confirmation is left out; a
+// group where nobody takes part is allowed and is left empty.
 export function signupFinishView(lang, { event, groups, today, mailEnabled }) {
   const title = t(lang, 'admin.signup.finish.title');
   const names = (people) => (people.length
     ? html`<ul>${people.map((p) => html`<li>${p.name}</li>`)}</ul>`
     : html`<p class="muted">${t(lang, 'admin.signup.finish.nobody')}</p>`);
-  const body = html`${backLink(`/admin/events/${event.id}#signup`, t(lang, 'admin.signup.finish.back'))}
-<h1>${title}</h1>
-<p>${t(lang, mailEnabled ? 'admin.signup.finish.intro' : 'admin.signup.finish.introNoMail')}</p>
-${groups.map(({ group, joining, leaving }) => html`<section class="panel">
-<h2>${group.name}</h2>
-${joining.length < MIN_GROUP ? html`<p class="notice warn">${t(lang, 'admin.warning.below-minimum')}</p>` : ''}
-${group.autoOpenAt && group.autoOpenAt <= today ? html`<p class="notice warn">${t(lang, 'admin.signup.finish.opensAtOnce')}</p>` : ''}
-<h3>${t(lang, 'admin.signup.finish.joining')}</h3>
-${names(joining)}
-<h3>${t(lang, 'admin.signup.finish.leaving')}</h3>
-${names(leaving)}
-</section>`)}
-<section class="panel">
-<form method="post" action="/admin/events/${event.id}/signup/finish" class="stack">
+  const tooSmall = groups.filter(({ joining }) => joining.length > 0 && joining.length < MIN_GROUP);
+  const unasked = groups.flatMap(({ group, leaving }) => leaving.filter((p) => !p.signup && !p.email).map((p) => ({ p, group })));
+  const refusal = tooSmall.length
+    ? html`<div class="notice error" role="alert">
+<p>${t(lang, 'admin.signup.finish.tooSmall')}</p>
+<ul>${tooSmall.map(({ group, joining }) => html`<li>${t(lang, `admin.signup.finish.tooSmallGroup${joining.length === 1 ? 'One' : ''}`, { group: group.name, count: joining.length })}</li>`)}</ul>
+<p>${t(lang, 'admin.signup.finish.tooSmallFix')}</p>
+</div>`
+    : '';
+  const confirm = tooSmall.length
+    ? html`<p><a class="button-link" href="/admin/events/${event.id}#signup">${t(lang, 'admin.signup.finish.back')}</a></p>`
+    : html`<form method="post" action="/admin/events/${event.id}/signup/finish" class="stack">
 ${formToken()}
 <label class="check"><input type="checkbox" name="confirm" value="1" required> <span>${t(lang, 'admin.delete.confirm')}</span></label>
 <button type="submit" class="primary">${t(lang, 'admin.signup.finish.confirm')}</button>
-</form>
+</form>`;
+  const groupNotice = ({ group, joining }) => {
+    if (joining.length === 0) return html`<p class="notice warn">${t(lang, 'admin.signup.finish.empty', { group: group.name })}</p>`;
+    if (joining.length < MIN_GROUP) return html`<p class="notice error">${t(lang, 'admin.warning.below-minimum')}</p>`;
+    return '';
+  };
+  const body = html`${backLink(`/admin/events/${event.id}#signup`, t(lang, 'admin.signup.finish.back'))}
+<h1>${title}</h1>
+${refusal}
+<p>${t(lang, mailEnabled ? 'admin.signup.finish.intro' : 'admin.signup.finish.introNoMail')}</p>
+${unasked.length ? html`<div class="notice warn">
+<p>${t(lang, 'admin.signup.finish.noEmail')}</p>
+<ul>${unasked.map(({ p, group }) => html`<li><a href="/admin/participants/${p.id}">${p.name}</a> <span class="muted">(${group.name})</span></li>`)}</ul>
+</div>` : ''}
+${groups.map((entry) => html`<section class="panel">
+<h2>${entry.group.name}</h2>
+${groupNotice(entry)}
+${entry.group.autoOpenAt && entry.group.autoOpenAt <= today ? html`<p class="notice warn">${t(lang, 'admin.signup.finish.opensAtOnce')}</p>` : ''}
+<h3>${t(lang, 'admin.signup.finish.joining')}</h3>
+${names(entry.joining)}
+<h3>${t(lang, 'admin.signup.finish.leaving')}</h3>
+${names(entry.leaving)}
+</section>`)}
+<section class="panel">
+${confirm}
 </section>`;
   return { title, body };
 }
@@ -323,6 +378,25 @@ function inviteCell(lang, row) {
   const state = row.mail.invite;
   if (state) return status(INVITE_STATES[state], t(lang, `admin.invite.${state}`), `state-${state}`);
   if (row.participant.invitedAt) return status('done', t(lang, 'admin.status.yes'));
+  return status('waiting', t(lang, 'admin.status.notYet'), 'muted');
+}
+
+const ANSWER_KINDS = { yes: 'done', no: 'none' };
+
+function signupCell(lang, p, state) {
+  const kind = ANSWER_KINDS[p.signup] ?? (state === 'closed' ? 'none' : 'waiting');
+  return status(kind, answerText(lang, p, state), p.signup === 'yes' ? '' : 'muted');
+}
+
+// The sign-up mail in the invitation's place while sign-up runs. Someone
+// whose answer the organiser set before sending was never mailed, and needs
+// not be.
+function signupMailCell(lang, row) {
+  const p = row.participant;
+  if (!p.email) return status('none', t(lang, 'admin.status.notApplicable'), 'muted');
+  const state = row.mail.signup;
+  if (state) return status(INVITE_STATES[state], t(lang, `admin.invite.${state}`), `state-${state}`);
+  if (p.signup) return status('none', t(lang, 'admin.signupMail.notNeeded'), 'muted');
   return status('waiting', t(lang, 'admin.status.notYet'), 'muted');
 }
 
@@ -389,7 +463,10 @@ function emailText(email) {
   return html`<span class="email">${email.slice(0, at)}<wbr>${email.slice(at)}</span>`;
 }
 
-function participantRow(lang, row, tz, mailEnabled) {
+// signupState is the event's; while sign-up runs the table shows each answer
+// and the sign-up mail instead of the invitation.
+function participantRow(lang, row, tz, mailEnabled, signupState) {
+  const signing = SIGNUP_ACTIVE.has(signupState);
   const { participant: p, receiver } = row;
   const label = (key) => t(lang, `admin.col.${key}`);
   // One wrapper per cell: the phone layout is a two-column grid of label and value.
@@ -397,7 +474,9 @@ function participantRow(lang, row, tz, mailEnabled) {
   return html`<tr>
 <th scope="row"><a href="/admin/participants/${p.id}">${p.name}</a></th>
 ${cell('email', p.email ? emailText(p.email) : status('none', t(lang, 'admin.noEmail'), 'muted'))}
-${mailEnabled ? cell('invited', inviteCell(lang, row)) : ''}
+${signing ? cell('signup', signupCell(lang, p, signupState)) : ''}
+${mailEnabled && signing ? cell('signupMail', signupMailCell(lang, row)) : ''}
+${mailEnabled && !signing ? cell('invited', inviteCell(lang, row)) : ''}
 ${cell('visited', dateOrNo(lang, p.visitedAt, tz), mailEnabled ? `${label('visited')} ${label('visitedNote')}` : label('visited'))}
 ${cell('wishes', row.hasWishes ? status('done', t(lang, 'admin.status.yes')) : status('waiting', t(lang, 'admin.status.no'), 'muted'))}
 ${cell('drawn', dateOrNo(lang, p.drawnAt, tz))}
@@ -408,25 +487,28 @@ ${cell('card', cardCell(lang, row))}
 </tr>`;
 }
 
-function participantTable(lang, rows, tz, mailEnabled) {
+function participantTable(lang, rows, tz, mailEnabled, signupState) {
   if (rows.length === 0) return html`<p class="muted">${t(lang, 'admin.participants.empty')}</p>`;
   const heading = (key) => html`<th scope="col">${t(lang, `admin.col.${key}`)}</th>`;
+  const signing = SIGNUP_ACTIVE.has(signupState);
+  const mailHeading = signing ? 'signupMail' : 'invited';
   return html`<p class="hint">${t(lang, mailEnabled ? 'admin.participants.hint' : 'admin.participants.hintNoMail')}</p>
 <div class="table-wrap">
 <table class="people">
 <thead><tr>
-${heading('name')}${heading('email')}${mailEnabled ? heading('invited') : ''}
+${heading('name')}${heading('email')}${signing ? heading('signup') : ''}${mailEnabled ? heading(mailHeading) : ''}
 <th scope="col">${t(lang, 'admin.col.visited')}${mailEnabled ? html` <span class="small">${t(lang, 'admin.col.visitedNote')}</span>` : ''}</th>
 ${heading('wishes')}${heading('drawn')}${heading('givesTo')}${mailEnabled ? html`${heading('reminder')}${heading('failure')}` : ''}${heading('card')}
 </tr></thead>
 <tbody>
-${rows.map((row) => participantRow(lang, row, tz, mailEnabled))}
+${rows.map((row) => participantRow(lang, row, tz, mailEnabled, signupState))}
 </tbody>
 </table>
 </div>`;
 }
 
-function summary(lang, rows, mailEnabled) {
+function summary(lang, rows, mailEnabled, signupState) {
+  const signing = SIGNUP_ACTIVE.has(signupState);
   const total = rows.length;
   const n = (test) => rows.filter(test).length;
   const withEmail = rows.filter((r) => r.participant.email);
@@ -435,9 +517,13 @@ function summary(lang, rows, mailEnabled) {
     t(lang, 'admin.summary.wishes', { count: n((r) => r.hasWishes), total }),
     t(lang, 'admin.summary.visited', { count: n((r) => r.participant.visitedAt), total }),
   ];
+  if (signing) {
+    items.push(t(lang, 'admin.summary.signup', { counts: answerCounts(lang, rows.map((r) => r.participant), signupState) }));
+  }
   if (mailEnabled) {
-    items.push(t(lang, 'admin.summary.invited', {
-      count: withEmail.filter((r) => r.mail.invite === 'sent').length, total: withEmail.length,
+    const mail = signing ? 'signup' : 'invite';
+    items.push(t(lang, signing ? 'admin.summary.signupMailed' : 'admin.summary.invited', {
+      count: withEmail.filter((r) => r.mail[mail] === 'sent').length, total: withEmail.length,
     }));
   }
   return html`<ul class="summary">${items.map((item) => html`<li>${item}</li>`)}</ul>`;
@@ -529,8 +615,9 @@ function signupLine(lang, event) {
 
 export function groupView(lang, {
   event, group, rows, warnings, mailEnabled, tz, error = null, values = null, pasteError = null, pasteText = '',
-  openError = null, done = null, givenUpCount = 0, signupActive = false,
+  openError = null, done = null, givenUpCount = 0, signupState = 'off',
 }) {
+  const signing = SIGNUP_ACTIVE.has(signupState);
   const title = group.name;
   const uninvited = rows.filter((r) => r.participant.email && !r.participant.invitedAt).length;
   const banners = [
@@ -542,9 +629,10 @@ export function groupView(lang, {
 <h1>${title}</h1>
 ${doneNotice(lang, done)}
 ${banners}
-${summary(lang, rows, mailEnabled)}
+${summary(lang, rows, mailEnabled, signupState)}
 ${groupStatus(lang, group, tz, mailEnabled)}
-${signupActive ? signupLine(lang, event) : html`<section class="panel">
+${signupState === 'closed' ? closedNotice(lang, { event, people: rows.map((r) => ({ p: r.participant })), tz }) : ''}
+${signing ? signupLine(lang, event) : html`<section class="panel">
 <h2>${t(lang, 'admin.invite.title')}</h2>
 ${invitePanelBody(lang, { group, mailEnabled, uninvited, withEmail: rows.some((r) => r.participant.email) })}
 </section>
@@ -552,7 +640,7 @@ ${drawPanel(lang, { group, rows, openError, mailEnabled })}`}
 <section class="panel wide">
 <h2>${t(lang, 'admin.participants.title')}</h2>
 ${resendAllPanel(lang, group.id, givenUpCount, mailEnabled)}
-${participantTable(lang, rows, tz, mailEnabled)}
+${participantTable(lang, rows, tz, mailEnabled, signupState)}
 </section>
 <section class="panel">
 <h2>${t(lang, 'admin.paste.title')}</h2>
