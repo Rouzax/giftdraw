@@ -92,6 +92,7 @@ h1 {
 
 .theme p {
   margin: 0 0 0.5rem;
+  white-space: pre-line;
 }
 
 .theme .date {
@@ -436,6 +437,7 @@ h1 {
 .wishes dd {
   display: inline;
   margin: 0;
+  white-space: pre-line;
   overflow-wrap: anywhere;
 }
 

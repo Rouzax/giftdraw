@@ -100,6 +100,7 @@ export default {
   'error.400': 'Dit verzoek klopt niet, ga terug en probeer het opnieuw.',
   'error.403': 'Dit mag helaas niet.',
   'error.404': 'Deze pagina bestaat niet. Kijk of de link klopt.',
+  'error.linkGone': 'Deze link werkt niet. Misschien heeft de organisator je een nieuwe link gegeven. Kijk of je een nieuwere e-mail hebt, of vraag de organisator om je nieuwe link.',
   'error.429': 'Even te veel tegelijk. Probeer het over een minuut opnieuw.',
   'error.500': 'Er ging iets mis. Probeer het later nog eens.',
 

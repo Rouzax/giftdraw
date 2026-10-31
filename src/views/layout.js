@@ -82,9 +82,12 @@ export function printPage({ lang, title, body, assetVersion }) {
 }
 
 // One plain sentence and nothing else: no status code, no detail.
-export function errorPage({ status, lang = 'nl', assetVersion }) {
+// linkGone is the 404 for a participant link; it reads the same whether the
+// link was replaced, removed or never existed, so it tells a guesser nothing.
+export function errorPage({ status, lang = 'nl', assetVersion, linkGone = false }) {
   const key = ERROR_KEYS.has(status) ? status : status >= 500 ? 500 : 400;
+  const message = linkGone && key === 404 ? t(lang, 'error.linkGone') : t(lang, `error.${key}`);
   const body = html`<h1>${t(lang, 'error.title')}</h1>
-<p class="lead">${t(lang, `error.${key}`)}</p>`;
+<p class="lead">${message}</p>`;
   return participantPage({ lang, title: t(lang, 'error.title'), body, assetVersion });
 }

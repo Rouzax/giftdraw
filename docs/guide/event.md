@@ -31,7 +31,7 @@ The **Settings** (*Instellingen*) panel holds the name, the default language, th
 :   A number from 1 to 52, default 4. That many weeks after a group's exchange date, the group is erased with all its participants, wishes, pairs and mail history. The event itself stays. See [Privacy and cleanup](../self-host/privacy.md).
 
 **Theme** (*Thema*)
-:   The text participants read at the top of their page, in every mail and on the printed card. The field starts with the built-in regift text in the event's language. Leave that text as it is, or empty the field, and each participant reads the built-in text in their own language. Text you type yourself is shown exactly as typed to everyone, whatever their language. At most 2000 characters.
+:   The text participants read at the top of their page, in every mail and on the printed card. The field starts with the built-in regift text in the event's language. Leave that text as it is, or empty the field, and each participant reads the built-in text in their own language. Text you type yourself is shown exactly as typed to everyone, whatever their language, with its line breaks and empty lines between paragraphs. At most 2000 characters.
 
 ## The form
 

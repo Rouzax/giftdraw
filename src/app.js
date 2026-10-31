@@ -55,8 +55,8 @@ export async function buildApp(ctx) {
   const { config } = ctx;
 
   const sendPage = (reply, page) => reply.type('text/html; charset=utf-8').send(page);
-  const sendError = (reply, status, lang) =>
-    sendPage(reply.code(status), errorPage({ status, lang, assetVersion: config.assetVersion }));
+  const sendError = (reply, status, lang, linkGone = false) =>
+    sendPage(reply.code(status), errorPage({ status, lang, assetVersion: config.assetVersion, linkGone }));
 
   const app = Fastify({
     loggerInstance: ctx.log,
@@ -95,9 +95,10 @@ export async function buildApp(ctx) {
     return sendError(reply, 403, request.participant?.language);
   });
 
+  // Any /p/ address that leads nowhere gets the same page as an unknown token.
   app.setNotFoundHandler((request, reply) => {
     request.log.info({ method: request.method }, 'not_found');
-    return sendError(reply, 404);
+    return sendError(reply, 404, undefined, pathMatches(request, PARTICIPANT_PATH));
   });
 
   // Only the class is logged: messages can carry SQL, paths or user input.
