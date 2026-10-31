@@ -35,7 +35,7 @@ export function participantRoutes(app, ctx, { sendPage, sendError, isParticipant
     if (!participant) {
       failures.hit(request.ip, now);
       request.log.info({ method: request.method }, 'token_unknown');
-      return sendError(reply, 404);
+      return sendError(reply, 404, undefined, true);
     }
     if (!traffic.hit(request.ip, now)) {
       request.log.warn({ participant_id: participant.id }, 'participant_rate_limited');

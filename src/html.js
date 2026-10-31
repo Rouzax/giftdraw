@@ -28,6 +28,12 @@ function render(value) {
   return escape(value);
 }
 
+// Typed text with its line breaks as <br>, every line escaped: for mail
+// clients, which ignore the CSS that keeps line breaks on the pages.
+export function withBreaks(text) {
+  return raw(String(text).split(/\r?\n/).map(escape).join('<br>'));
+}
+
 // Tagged template: every interpolated value is escaped unless it is SafeHtml,
 // so nested templates compose without double escaping.
 export function html(strings, ...values) {

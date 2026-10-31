@@ -131,14 +131,39 @@ test('a 5000 character field is stored as 1000', async () => {
   assert.equal(ctx.repo.getParticipant(ada.id).wishes.answers.other.length, 1000);
 });
 
-test('an unknown token gets the HTML 404 page', async () => {
+test('an unknown token gets the HTML 404 page that says the link may have been replaced', async () => {
   const { app } = await setup();
   for (const url of ['/p/unknown-token', '/p/unknown-token/about']) {
     const res = await app.inject(url);
     assert.equal(res.statusCode, 404);
     assert.match(res.headers['content-type'], /^text\/html/);
-    assert.ok(res.body.includes('Deze pagina bestaat niet.'));
+    assert.ok(textOf(res.body).includes(tr('nl', 'error.linkGone')));
   }
+});
+
+test('an old page posted after the link was replaced gets the same 404 page as a link that never existed', async () => {
+  const { app, ctx, post, adminPost, ada } = await setup();
+  const regenerated = await adminPost(`/admin/participants/${ada.id}/regenerate-link`, { confirm: '1' });
+  assert.equal(regenerated.statusCode, 303);
+  const responses = [];
+  for (const token of [ada.token, 'never-existed']) {
+    for (const request of [
+      () => app.inject(`/p/${token}`),
+      () => app.inject(`/p/${token}/about`),
+      () => post(`/p/${token}/about`, aboutBody({ q_hobbies: 'Ik hou van thee.' })),
+      () => post(`/p/${token}/draw`),
+      () => post(`/p/${token}/signup`, { answer: 'yes' }),
+      () => post(`/p/${token}/lang`, { lang: 'en' }),
+      () => app.inject(`/p/${token}/no-such-page`),
+    ]) {
+      const res = await request();
+      responses.push({ status: res.statusCode, type: res.headers['content-type'], body: res.body });
+    }
+  }
+  assert.equal(responses[0].status, 404);
+  assert.ok(textOf(responses[0].body).includes(tr('nl', 'error.linkGone')));
+  for (const res of responses) assert.deepEqual(res, responses[0]);
+  assert.equal(ctx.repo.getParticipant(ada.id).wishes, null);
 });
 
 test('the language switch stores a known language and goes back', async () => {

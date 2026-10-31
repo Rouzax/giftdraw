@@ -1,5 +1,5 @@
 import { wishLines } from '../answers.js';
-import { html } from '../html.js';
+import { html, withBreaks } from '../html.js';
 import { exchangeLine, formatDate, t, themeText } from '../i18n/index.js';
 import { endsInMark, wishForm } from '../questions.js';
 import { daysLeft } from '../signup.js';
@@ -62,7 +62,7 @@ function wishesBlock(lang, receiver, event) {
     html: html`<p style="${TEXT}margin:0 0 8px;font-weight:bold;">${title}</p>
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;">
         ${lines.map((line) => html`<tr><td style="${TEXT}padding:4px 0;">
-          <strong>${colon(line.label)}</strong> ${line.value}</td></tr>`)}
+          <strong>${colon(line.label)}</strong> ${withBreaks(line.value)}</td></tr>`)}
       </table>`,
     text: [title, ...lines.map((line) => `- ${colon(line.label)} ${line.value}`)],
   };
@@ -131,7 +131,7 @@ export function renderEmail(kind, { lang, participant, receiver, event, group, l
   </table>`)}
   <p style="${TEXT}margin:0 0 16px;font-weight:bold;">${date}</p>
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;">
-    <tr><td style="background-color:${C.theme};border-radius:10px;padding:16px 18px;${FONT}font-size:19px;line-height:1.5;color:${C.ink};">${theme}</td></tr>
+    <tr><td style="background-color:${C.theme};border-radius:10px;padding:16px 18px;${FONT}font-size:19px;line-height:1.5;color:${C.ink};">${withBreaks(theme)}</td></tr>
   </table>
   <p style="${TEXT}margin:0 0 4px;font-size:18px;color:${C.muted};">${linkIntro}</p>
   <p style="${TEXT}margin:0 0 24px;font-size:18px;word-break:break-all;"><a href="${link}" style="color:${C.accent};">${link}</a></p>

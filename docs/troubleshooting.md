@@ -159,9 +159,9 @@ That mail goes only to a giver who has already drawn and has email, about 15 min
 
 ## Participants
 
-### A participant sees "This page does not exist. Please check the link."
+### A participant sees "This link does not work."
 
-(*Deze pagina bestaat niet. Kijk of de link klopt.*) The link is cut off, mistyped, or you made a new link for them since. Copy the current link from their page, or resend the invitation. A participant removed from the group gets the same page, including people removed because they did not take part after sign-up.
+(*Deze link werkt niet. Misschien heeft de organisator je een nieuwe link gegeven. Kijk of je een nieuwere e-mail hebt, of vraag de organisator om je nieuwe link.*) The link is cut off, mistyped, or you made a new link for them since. Copy the current link from their page, or resend the invitation. A participant removed from the group gets the same page, including people removed because they did not take part after sign-up. So does someone who presses a button on a page they opened before you made the new link; what they typed on that page is not saved, so they fill it in again from the new link. The page reads the same in every case, so it does not reveal whether a link ever existed, and it is in Dutch because the app cannot tell whose link it was.
 
 ### A participant sees "Too much at once. Please try again in a minute."
 

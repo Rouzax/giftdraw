@@ -99,6 +99,7 @@ export default {
   'error.400': 'Something about this request is not right, so please go back and try again.',
   'error.403': 'Sorry, this is not allowed.',
   'error.404': 'This page does not exist. Please check the link.',
+  'error.linkGone': 'This link does not work. The organiser may have given you a new link. Check whether you have a newer email, or ask the organiser for your new link.',
   'error.429': 'Too much at once. Please try again in a minute.',
   'error.500': 'Something went wrong. Please try again later.',
 
