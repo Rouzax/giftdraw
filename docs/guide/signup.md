@@ -78,6 +78,8 @@ Each group's dashboard shows the answers too, from the moment sign-up is on unti
 - With email on, the **Invited** (*Uitgenodigd*) column is replaced by **Sign-up mail** (*Aanmeldmail*): the state of their sign-up mail (**Queued**, **Sent**, **Failed, retrying** or **Failed**), **Not yet** before you send, **Not needed, already answered** (*Niet nodig, al geantwoord*) for someone whose answer you set before sending, and **Not applicable** without an address.
 - The counts at the top add the answers, for example **Sign-up: 2 yes, 1 no, 4 not yet** (*Aanmelding: 2 ja, 1 nee, 4 nog niet*), and with email on count the sign-up mails instead of the invitations: **6 of 7 with email were sent the sign-up mail** (*6 van 7 met e-mail kregen de aanmeldmail*). Only delivered mails count, and people whose answer you set before sending are left out of the total, because they need no mail.
 
+![A group dashboard during sign-up: the counts with the answers and the sign-up mails, and the Sign-up and Sign-up mail columns in the table](../images/organiser-signup-dashboard.webp){ .shot }
+
 To set an answer, use the event page or the person's own page. Once you start the draw, the dashboard goes back to the usual columns and counts of [Follow up](follow-up.md#read-the-dashboard).
 
 ### What the app sends by itself

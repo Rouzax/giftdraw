@@ -47,7 +47,7 @@ The page says **No access** (*Geen toegang*). The connection did not come from a
 
 ### The "Open drawing" button is refused
 
-Send the invitations first (with email off: press **The links have been shared**), and make sure the group has at least 3 people. The message in the Drawing panel says which of the two it is.
+Tick **Yes, I am sure** (*Ja, ik weet het zeker*) next to the button first; without it the panel says **Tick "Yes, I am sure" first. Opening cannot be undone.** Also send the invitations first (with email off: press **The links have been shared**), and make sure the group has at least 3 people. The message in the Drawing panel says which it is.
 
 ### Drawing did not open on its automatic date
 
@@ -95,13 +95,13 @@ Someone in the event has already been invited: a group has had its invitations s
 
 (*De sluitdatum is voorbij.*) The closing date went by before the question was sent. Fill in **New closing date**, press **Move the date**, and **Send now** is back. See [Send the question](guide/signup.md#send-the-question).
 
-### "Choose a date before the first exchange date."
+### "Choose a closing date earlier than the first exchange date."
 
-(*Kies een datum voor de eerste ruildatum.*) The closing date must be before the earliest exchange date of all groups in the event, so that the answers are in before the first exchange. Choose an earlier closing date, or move that group's exchange date.
+(*Kies een sluitdatum die eerder is dan de eerste ruildatum.*) The closing date must be before the earliest exchange date of all groups in the event, so that the answers are in before the first exchange. Choose an earlier closing date, or move that group's exchange date.
 
-### "Choose a date before the day drawing opens automatically."
+### "Choose a closing date earlier than the day drawing opens automatically."
 
-(*Kies een datum voor de dag waarop het trekken automatisch opengaat.*) A group has an automatic opening date on or before the closing date you chose. Choose an earlier closing date, or on that group's dashboard move its **Drawing opens automatically on** date to after the closing date, or clear it.
+(*Kies een sluitdatum die eerder is dan de dag waarop het trekken automatisch opengaat.*) A group has an automatic opening date on or before the closing date you chose. Choose an earlier closing date, or on that group's dashboard move its **Drawing opens automatically on** date to after the closing date, or clear it.
 
 ### A group is refused with "The exchange date must be after the sign-up closing date."
 
@@ -166,3 +166,12 @@ That mail goes only to a giver who has already drawn and has email, about 15 min
 ### A participant sees "Too much at once. Please try again in a minute."
 
 (*Even te veel tegelijk. Probeer het over een minuut opnieuw.*) Their internet address tried too many links that do not exist, or loaded a very large number of pages. Waiting a minute helps. If a whole group shares one connection behind your reverse proxy and this happens often, set `TRUSTED_PROXIES` so the app can tell people apart.
+
+### Can a whole class on one Wi-Fi network block each other?
+
+No, not in normal use. Everyone on one Wi-Fi network, for example in a community centre or a classroom, reaches the app from the same internet address, so the app counts them together. The two limits on participant pages are set with that in mind:
+
+- **Links that do not exist**: at most 20 per minute per address. Only a link the app does not know counts: a mistyped or cut-off link, or an old one you replaced. Opening a working link, saving wishes or drawing never counts toward it. When the limit is reached, everyone on that address gets **Too much at once** for the rest of that minute, also with a working link, so someone guessing links learns nothing. A class only gets there if many people open broken links within the same minute; if that happens, send the right links and wait a minute.
+- **All page views and button presses with a working link**: at most 600 per minute per address. A class of 30 opening their page, filling in wishes and drawing at the same time uses a small part of that.
+
+The organiser login has its own limit (10 wrong passwords per address in 15 minutes, 50 overall in an hour), which protects the password; see ["Too many attempts"](#too-many-attempts-please-try-again-later-and-nobody-can-log-in). It does not affect participants. Behind a reverse proxy without `TRUSTED_PROXIES`, every visitor counts as the proxy's address; set it so each connection is counted on its own.

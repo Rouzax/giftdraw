@@ -178,7 +178,7 @@ Checking creates nothing yet. You get one of two pages.
 
     The text is below the list; correct it there, or paste the list into the chat and ask the assistant to fix the file, then check again.
 
-![Three problems listed with the group and participant they belong to](../images/organiser-import-errors.webp){ .shot }
+![Three problems listed with the group and participant they belong to, one of them a name that is already in the group](../images/organiser-import-errors.webp){ .shot }
 
 **Check before importing** (*Controleer voor het importeren*)
 :   Everything the import will create: the event's settings, the questions of the wish form in their order with the choices of each tick list, each group with its date, place and auto-open date, and the number of participants. Open a group's count to see the names.

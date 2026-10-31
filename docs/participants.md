@@ -10,11 +10,11 @@ Only when the organiser [asks who takes part](guide/signup.md) first. Until the 
 
 <div class="phones" markdown>
 
-![The question: "Doe je mee met Lootjes trekken 2026?", the theme, the date and place, the closing date, and the buttons "Ja, ik doe mee" and "Nee, deze keer niet"](images/participant-signup.webp){ .shot width="240" }
+![Opened from the yes button in the mail: "Doe je mee aan Lootjes trekken 2026?", "Bijna klaar: tik hieronder om het te bevestigen", one large button "Ja, ik doe mee" with the link "Toch niet? Nee, deze keer niet" below it, the closing date, the theme, and the date and place](images/participant-signup.webp){ .shot width="240" }
 
-![After answering yes: "Je doet mee." and the button "Toch niet meedoen"](images/participant-signup-answered.webp){ .shot width="240" }
+![After answering yes: "Je doet mee." in a box with what comes next, until when the answer can change, and the button "Antwoord veranderen"](images/participant-signup-answered.webp){ .shot width="240" }
 
-![After the closing date: "Aanmelden is gesloten. Je doet deze keer niet mee." and a note to ask the organiser](images/participant-signup-closed.webp){ .shot width="240" }
+![After the closing date: "Aanmelden is gesloten. Je doet deze keer niet mee." and a note to ask the organiser, for example in class](images/participant-signup-closed.webp){ .shot width="240" }
 
 </div>
 
