@@ -19,5 +19,6 @@ test('html renders null and undefined as empty', () => {
 
 test('withBreaks escapes every line and joins them with <br>, whatever the line ending', () => {
   assert.equal(withBreaks('a <b>\r\n\nc & d').toString(), 'a &lt;b&gt;<br><br>c &amp; d');
+  assert.equal(withBreaks('a\rb\r\rc').toString(), 'a<br>b<br><br>c', 'a lone carriage return breaks too, as unixLines reads it');
   assert.equal(html`<td>${withBreaks('x')}</td>`.toString(), '<td>x</td>');
 });

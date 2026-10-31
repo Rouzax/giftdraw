@@ -322,19 +322,22 @@ ${footer({ lang, langAction, showLangSwitch })}
 }
 
 // Long wishes would push an A5 page onto a second sheet, so the card steps
-// its type down by the amount of text rather than letting the browser split it.
-// Every wish line, every line break within a wish and every paragraph starts
-// a printed row of its own, so each counts in whole rows of CARD_ROW
-// characters: fifteen one-word answers fill as much paper as a few long ones. The limits were measured by
-// printing cards with long wishes, many short answers, a long theme and a
-// long exchange place to A5 PDF in Chrome.
+// its type down by the amount of text rather than letting the browser split
+// it. Every wish line, every line break within a wish and every paragraph
+// starts a printed row of its own, so each counts in whole rows of CARD_ROW
+// characters: fifteen one-word answers fill as much paper as a few long
+// ones. A blank line within a wish prints as an empty row, so it counts as
+// one too. The limits were measured by printing cards with long wishes, many
+// short answers, a long theme and a long exchange place to A5 PDF in Chrome.
 const CARD_TEXT_STEPS = [[1300, 'card-tiny'], [950, 'card-smallest'], [700, 'card-smaller']];
 const CARD_ROW = 50;
 const inRows = (length) => Math.ceil(length / CARD_ROW) * CARD_ROW;
+const rowsOf = (text) => text.split(/\r\n?|\n/);
 
 function cardSize(lines, ...texts) {
-  const rows = [...lines.map((line) => `${line.label}: ${line.value}`), ...texts].flatMap((text) => text.split(/\r?\n/));
-  const length = rows.reduce((sum, text) => sum + inRows(text.length), 0);
+  const wishRows = lines.flatMap((line) => rowsOf(`${line.label}: ${line.value}`)).map((text) => inRows(Math.max(text.length, 1)));
+  const textRows = texts.flatMap(rowsOf).map((text) => inRows(text.length));
+  const length = [...wishRows, ...textRows].reduce((sum, rows) => sum + rows, 0);
   return CARD_TEXT_STEPS.find(([limit]) => length > limit)?.[1] ?? '';
 }
 

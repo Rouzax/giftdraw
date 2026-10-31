@@ -142,14 +142,13 @@ export function normaliseEmail(value) {
 }
 
 // Each skipped line names its own problem, so the organiser looks for the
-// right mistake. Within one paste a second line with an address or a name
-// already taken by an earlier line is skipped and names that line: two
-// people with one address or one name in a group would get two links and
-// two pairs for what is most likely one person.
+// right mistake. Within one paste a second line with a name already taken by
+// an earlier line is skipped and names that line: two people with one name in
+// a group would get two links and two pairs for what is most likely one
+// person. A shared address is only a warning, from planAddParticipants.
 export function parsePasteList(text) {
   const rows = [];
   const errors = [];
-  const emails = new Map();
   const names = new Map();
   String(text ?? '').split(/\r?\n/).forEach((original, index) => {
     // A spreadsheet export often ends a line with an empty column.
@@ -171,9 +170,7 @@ export function parsePasteList(text) {
     const email = rawEmail ? normaliseEmail(rawEmail) : null;
     if (rawEmail && !email) return error('invalid-email');
     const nameKey = name.toLowerCase();
-    if (email && emails.has(email)) return error('duplicate-email', emails.get(email));
     if (names.has(nameKey)) return error('duplicate-name', names.get(nameKey));
-    if (email) emails.set(email, index + 1);
     names.set(nameKey, index + 1);
     rows.push({ name, email });
   });
@@ -207,11 +204,16 @@ export function planAddParticipants(ctx, groupId, rows) {
       if (p.email && !known.has(p.email.toLowerCase())) known.set(p.email.toLowerCase(), other.name);
     }
   }
-  // A repeat within the list itself is skipped by parsePasteList.
+  // otherGroupName null means the address came earlier in the same list.
+  // One address for two people happens, such as a couple sharing one, so a
+  // repeat is a warning; the same name twice is skipped by parsePasteList.
   const duplicates = [];
+  const inList = new Set();
   const planned = rows.map((row, index) => {
     const email = row.email?.toLowerCase();
     if (email && known.has(email)) duplicates.push({ row: index, otherGroupName: known.get(email) });
+    else if (email && inList.has(email)) duplicates.push({ row: index, otherGroupName: null });
+    if (email) inList.add(email);
     return { name: row.name, email: row.email ?? null, insertGiverId: open ? chooseInsertGiver(map, notDrawn) : null };
   });
   const changedGivers = [...new Set(planned.map((r) => r.insertGiverId).filter((id) => id !== null))];

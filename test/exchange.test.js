@@ -115,3 +115,17 @@ test('a card with far more text than fits at the smallest type uses the tiny typ
   const body = cardView({ participant: ada, receiver: { ...ben, wishes }, event, group, lang: 'nl', tz: TZ }).body.toString();
   assert.ok(body.includes('<article class="card card-tiny">'));
 });
+
+test('a blank line in a wish answer fills a printed row like a line of text', () => {
+  const size = (answer) => {
+    const questions = Array.from({ length: 3 }, (_, i) => ({ id: `q-${i}`, type: 'text', text: `Vraag ${i + 1}` }));
+    const answers = Object.fromEntries(questions.map((q) => [q.id, answer]));
+    const body = cardView({
+      participant: ada, receiver: { ...ben, wishes: { answers } }, event: { ...event, formConfig: { questions } }, group, lang: 'nl', tz: TZ,
+    }).body.toString();
+    return /<article class="([^"]*)"/.exec(body)[1];
+  };
+  assert.notEqual(size('Rood\nRood'), size('Rood\nx\nx\nx\nRood'));
+  assert.equal(size('Rood\n\n\n\nRood'), size('Rood\nx\nx\nx\nRood'));
+  assert.equal(size('Rood\r\r\r\rRood'), size('Rood\nx\nx\nx\nRood'));
+});

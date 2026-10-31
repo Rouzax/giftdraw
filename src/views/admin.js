@@ -63,7 +63,9 @@ export function backLink(href, label) {
 // duplicate: an event already called the entered name. Back after creating
 // one gives the form a fresh token and keeps the typed name, so pressing the
 // button again would otherwise make a second event; a second one of the
-// same name needs the tick.
+// same name needs the tick. The tick is not required in the browser, so a
+// name changed to a free one goes through; the server asks again while the
+// name still matches.
 export function eventsView(lang, events, { error = null, values = {}, duplicate = null } = {}) {
   const title = t(lang, 'admin.events.title');
   const list = events.length
@@ -82,7 +84,7 @@ ${formToken()}
 <input id="event-name" name="name" type="text" maxlength="${NAME_MAX}" required value="${values.name ?? ''}">
 <label for="event-language">${t(lang, 'admin.event.language')}</label>
 ${languageSelect('event-language', values.language ?? 'nl')}
-${duplicate ? html`<label class="check"><input type="checkbox" name="confirmDuplicate" value="1" required> <span>${t(lang, 'admin.event.duplicateConfirm')}</span></label>` : ''}
+${duplicate ? html`<label class="check"><input type="checkbox" name="confirmDuplicate" value="1"> <span>${t(lang, 'admin.event.duplicateConfirm')}</span></label>` : ''}
 <button type="submit" class="primary">${t(lang, 'admin.events.create')}</button>
 </form>
 </section>`;
@@ -520,10 +522,12 @@ ${rows.map((row) => participantRow(lang, row, tz, mailEnabled, signupState))}
 </div>`;
 }
 
-// People whose invitation reached the mail server; a queued one is not
-// counted until it is sent.
+// Counts what inviteCell shows as invited: an invitation that reached the
+// mail server, or invitedAt with no invitation mail on record, as for links
+// shared while email was off or an invitation dropped because the person had
+// already drawn. A queued one is not counted until it is sent.
 function invitedCount(rows) {
-  return rows.filter((r) => r.participant.email && r.mail.invite === 'sent').length;
+  return rows.filter((r) => r.participant.email && (r.mail.invite === 'sent' || (!r.mail.invite && r.participant.invitedAt))).length;
 }
 
 function summary(lang, rows, mailEnabled, signupState) {
@@ -637,9 +641,12 @@ function resendAllPanel(lang, groupId, count, mailEnabled) {
 }
 
 // Inviting and drawing wait until the event's sign-up is done, so the
-// dashboard sends the organiser there instead.
-function signupLine(lang, event) {
-  return html`<p class="notice">${t(lang, 'admin.signup.groupLine')} <a href="/admin/events/${event.id}#signup">${t(lang, 'admin.signup.groupLink')}</a></p>`;
+// dashboard sends the organiser there instead. Once closed, the closed notice
+// above already says where sign-up stands, so this line only says what comes
+// next.
+function signupLine(lang, event, state) {
+  const key = state === 'closed' ? 'admin.signup.groupLineClosed' : 'admin.signup.groupLine';
+  return html`<p class="notice">${t(lang, key)} <a href="/admin/events/${event.id}#signup">${t(lang, 'admin.signup.groupLink')}</a></p>`;
 }
 
 export function groupView(lang, {
@@ -661,7 +668,7 @@ ${banners}
 ${summary(lang, rows, mailEnabled, signupState)}
 ${groupStatus(lang, group, tz, mailEnabled)}
 ${signupState === 'closed' ? closedNotice(lang, { event, people: rows.map((r) => ({ p: r.participant })), tz }) : ''}
-${signing ? signupLine(lang, event) : html`<section class="panel">
+${signing ? signupLine(lang, event, signupState) : html`<section class="panel">
 <h2>${t(lang, 'admin.invite.title')}</h2>
 ${invitePanelBody(lang, {
     group,
@@ -732,7 +739,9 @@ export function pasteConfirmView(lang, { group, plan, errors, changes, text, mai
   const duplicates = plan.duplicates.length
     ? html`<section class="panel">
 <h2>${t(lang, 'admin.paste.duplicatesTitle')}</h2>
-<ul>${plan.duplicates.map((d) => html`<li>${t(lang, 'admin.paste.duplicate', { email: plan.rows[d.row].email, group: d.otherGroupName })}</li>`)}</ul>
+<ul>${plan.duplicates.map((d) => html`<li>${d.otherGroupName === null
+    ? t(lang, 'admin.paste.duplicateInList', { email: plan.rows[d.row].email })
+    : t(lang, 'admin.paste.duplicate', { email: plan.rows[d.row].email, group: d.otherGroupName })}</li>`)}</ul>
 </section>`
     : '';
   const openNotice = changes

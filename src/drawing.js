@@ -38,6 +38,19 @@ export function swapPair(ctx, groupId, a, b, version) {
   });
 }
 
+// Why the group cannot open now, or null. The organiser's form checks this
+// before asking for the tick, so the real blocker is named first.
+export function openBlocker(ctx, group) {
+  const { repo } = ctx;
+  if (group.openedAt) return 'already-open';
+  if (signupActive(repo.getEvent(group.eventId), ctx.now(), ctx.config.tz)) return 'signup';
+  if (!group.invitationsSentAt) return 'no-invitations';
+  const people = repo.listParticipants(group.id);
+  if (people.length < MIN_GROUP) return 'too-small';
+  if (!validateAssignment(repo.getAssignment(group.id), people.map((p) => p.id))) return 'invalid';
+  return null;
+}
+
 // markGroupOpened is conditional, so of two overlapping calls (a double
 // press, or a press racing the auto-open date) only one queues the mails.
 export function openGroup(ctx, groupId) {
@@ -47,12 +60,9 @@ export function openGroup(ctx, groupId) {
     const group = repo.getGroup(groupId);
     // The scheduler can reach a group that was deleted in the meantime.
     if (!group) return { opened: false, reason: 'invalid' };
-    if (group.openedAt) return { opened: false, reason: 'already-open' };
-    if (signupActive(repo.getEvent(group.eventId), ctx.now(), ctx.config.tz)) return { opened: false, reason: 'signup' };
-    if (!group.invitationsSentAt) return { opened: false, reason: 'no-invitations' };
+    const blocker = openBlocker(ctx, group);
+    if (blocker) return { opened: false, reason: blocker };
     const people = repo.listParticipants(groupId);
-    if (people.length < MIN_GROUP) return { opened: false, reason: 'too-small' };
-    if (!validateAssignment(repo.getAssignment(groupId), people.map((p) => p.id))) return { opened: false, reason: 'invalid' };
     if (!repo.markGroupOpened(groupId, now)) return { opened: false, reason: 'already-open' };
     let queued = 0;
     for (const p of people) {

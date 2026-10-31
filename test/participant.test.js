@@ -160,9 +160,17 @@ test('an old page posted after the link was replaced gets the same 404 page as a
       responses.push({ status: res.statusCode, type: res.headers['content-type'], body: res.body });
     }
   }
+  const bare = await app.inject('/p/');
+  responses.push({ status: bare.statusCode, type: bare.headers['content-type'], body: bare.body });
   assert.equal(responses[0].status, 404);
   assert.ok(textOf(responses[0].body).includes(tr('nl', 'error.linkGone')));
   for (const res of responses) assert.deepEqual(res, responses[0]);
+  // HEAD sends no body, so only the status and type can be compared.
+  for (const token of [ada.token, 'never-existed']) {
+    const head = await app.inject({ method: 'HEAD', url: `/p/${token}` });
+    assert.deepEqual({ status: head.statusCode, type: head.headers['content-type'], body: head.body },
+      { status: responses[0].status, type: responses[0].type, body: '' });
+  }
   assert.equal(ctx.repo.getParticipant(ada.id).wishes, null);
 });
 

@@ -50,7 +50,7 @@ test('parsePasteList names the real problem of each skipped line', () => {
   ]);
 });
 
-test('parsePasteList skips a second line with the same address or the same name, naming the first', () => {
+test('parsePasteList skips a second line with the same name, naming the first, and keeps a shared address', () => {
   const { rows, errors } = parsePasteList([
     'Anneke de Vries, anneke@example.com',
     'Bas, bas@example.com',
@@ -63,14 +63,22 @@ test('parsePasteList skips a second line with the same address or the same name,
   assert.deepEqual(rows, [
     { name: 'Anneke de Vries', email: 'anneke@example.com' },
     { name: 'Bas', email: 'bas@example.com' },
+    { name: 'Annie', email: 'anneke@example.com' },
     { name: 'Cor', email: 'cor@example.com' },
   ]);
   assert.deepEqual(errors.map((e) => [e.line, e.reason, e.earlier]), [
-    [3, 'duplicate-email', 1],
-    [4, 'duplicate-email', 1],
+    [3, 'duplicate-name', 1],
     [5, 'duplicate-name', 2],
     [6, 'invalid-email', undefined],
   ]);
+});
+
+test('planAddParticipants warns about an address twice in the list, as a couple may share one', async () => {
+  const { ctx, group } = await setup({ names: ['Ada', 'Ben', 'Cor'] });
+  const plan = planAddParticipants(ctx, group.id, [
+    { name: 'Dirk', email: 'thuis@example.com' }, { name: 'Eva', email: 'thuis@example.com' }]);
+  assert.equal(plan.rows.length, 2);
+  assert.deepEqual(plan.duplicates, [{ row: 1, otherGroupName: null }]);
 });
 
 test('parsePasteList reports bad lines with their line number', () => {
@@ -218,7 +226,7 @@ test('a paste with the same person twice adds one and reports the second line', 
   const check = await t.adminPost(`/admin/groups/${t.group.id}/participants`, { text });
   assert.equal(check.statusCode, 200);
   const page = textOf(check.body);
-  assert.match(page, /regel 2: Anneke, anneke@example\.com \(dit e-mailadres staat al op regel 1\)/);
+  assert.match(page, /regel 2: Anneke, anneke@example\.com \(deze naam staat al op regel 1;/);
   assert.match(page, /Ja, voeg deze 1 toe/);
   const form = /<form[^>]*>\s*<input type="hidden" name="confirm" value="1">[\s\S]*?<\/form>/.exec(check.body)[0];
   const value = (name) => /value="([^"]*)"/.exec(new RegExp(`name="${name}"[^>]*`).exec(form)[0])[1].replace(/&quot;/g, '"');
@@ -228,4 +236,14 @@ test('a paste with the same person twice adds one and reports the second line', 
   assert.equal(res.statusCode, 303);
   const names = t.ctx.repo.listParticipants(t.group.id).map((p) => p.name);
   assert.deepEqual(names.filter((n) => n === 'Anneke'), ['Anneke']);
+});
+
+test('a paste with one address for two people shows a warning and adds both', async () => {
+  const t = await setup({ names: ['Ada', 'Ben', 'Cor'] });
+  const check = await t.adminPost(`/admin/groups/${t.group.id}/participants`, { text: 'Dirk, thuis@example.com\nEva, thuis@example.com' });
+  assert.equal(check.statusCode, 200);
+  const page = textOf(check.body);
+  assert.match(page, /thuis@example\.com staat twee keer in de lijst\./);
+  assert.doesNotMatch(page, /overgeslagen/);
+  assert.match(page, /Ja, voeg deze 2 toe/);
 });

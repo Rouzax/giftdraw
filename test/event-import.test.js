@@ -322,7 +322,7 @@ test('warnings point out what is allowed but probably not meant', () => {
   assert.deepEqual(codes(read(file({ groups: [] })).warnings), ['no-groups']);
 });
 
-test('the same address or the same name twice in a group is an error naming the first', () => {
+test('the same name twice in a group is an error naming the first; a shared address is a warning', () => {
   const groups = [
     { name: 'Maandag', exchangeDate: '2026-12-14', participants: [
       { name: 'Ada', email: 'ada@example.com' }, { name: ' ADA ', email: 'ada2@example.com' }, 'Ben', { name: 'Cor', email: 'Ada@Example.com' }] },
@@ -331,8 +331,16 @@ test('the same address or the same name twice in a group is an error naming the 
   assert.equal(plan, null);
   assert.deepEqual(errors.map((e) => [e.where.map((w) => w.group ?? w.participant), e.code, e.vars.earlier]), [
     [[1, 2], 'name-twice', [{ participant: 1, name: 'Ada' }]],
-    [[1, 4], 'email-twice', [{ participant: 1, name: 'Ada' }]],
   ]);
+  const shared = read(file({ groups: [{ name: 'Maandag', exchangeDate: '2026-12-14', participants: [
+    { name: 'Ada', email: 'thuis@example.com' }, { name: 'Ben', email: 'Thuis@Example.com' }, 'Cor'] }] }));
+  assert.deepEqual(shared.errors, []);
+  assert.ok(shared.plan);
+  assert.deepEqual(shared.warnings, [{
+    where: [{ group: 1, name: 'Maandag' }, { participant: 2, name: 'Ben' }],
+    code: 'email-twice',
+    vars: { email: 'thuis@example.com' },
+  }]);
 });
 
 test('one address in two groups of a file is a warning, so one person can join two classes', async () => {

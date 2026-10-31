@@ -137,6 +137,7 @@ After closing:
 - **Anyone who did not answer does not take part.** The panel shows them as **No answer, not taking part** (*Geen antwoord, doet niet mee*), and the counts become who takes part and who does not.
 - The Sign-up panel and each group's dashboard show a notice with the day sign-up closed and how many people did not answer, for example **Sign-up closed on Friday 20 November. 3 people did not answer. They do not take part.** (*Aanmelden is gesloten op vrijdag 20 november. 3 mensen hebben niet geantwoord. Zij doen niet mee.*) The panel counts the whole event, a dashboard its own group.
 - Below it, the notice names everyone **without an email address who did not answer**. They may never have been asked, because the app had no way to mail them. If you know what they want, set them to yes or no.
+- On each group's dashboard, the line about sign-up being on becomes **Inviting and drawing come after you make the pairs.** (*Uitnodigen en trekken komen nadat je de lootjes hebt gemaakt.*), still with the link to the sign-up panel.
 - Nothing else happens yet, and nobody is told that sign-up closed. Look at the lists, call people you still want to hear from, and set answers where needed.
 
 ### Open sign-up again

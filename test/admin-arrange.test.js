@@ -399,3 +399,40 @@ test('the arrange page and the swap-refusal page carry the arrange URL', async (
   assert.ok(refused.body.includes('/static/js/arrange.js'));
   assert.ok(refused.body.includes(`data-arrange-url="${url}"`));
 });
+
+test('people whose links were shared while email was off count as invited, as the table shows them', async () => {
+  const t = await setup();
+  t.ctx.repo.markInvitationsSent(t.groupId, t.ctx.nowIso());
+  const page = await t.adminGet(`/admin/groups/${t.groupId}`);
+  const text = textOf(page.body);
+  assert.match(text, /5 van 5 met e-mail uitgenodigd/);
+  assert.match(text, /Iedereen met e-mail is uitgenodigd/);
+});
+
+test('an invitation skipped because the person already drew counts as invited, as the table shows it', async () => {
+  const t = await setup({ invited: false });
+  sendInvitations(t.ctx, t.groupId);
+  const [ada] = t.ctx.repo.listParticipants(t.groupId);
+  t.ctx.repo.updateParticipant(ada.id, { drawnAt: t.ctx.nowIso() });
+  await settle(t);
+  const page = textOf((await t.adminGet(`/admin/groups/${t.groupId}`)).body);
+  assert.match(page, /5 van 5 met e-mail uitgenodigd/);
+  assert.match(page, /Iedereen met e-mail is uitgenodigd/);
+});
+
+test('Open drawing without the tick names the real blocker first', async () => {
+  const t = await setup({ invited: false });
+  const noInvites = await t.adminPost(`/admin/groups/${t.groupId}/open`);
+  assert.equal(noInvites.statusCode, 409);
+  assert.match(textOf(noInvites.body), /Verstuur eerst de uitnodigingen/);
+  assert.doesNotMatch(textOf(noInvites.body), /Vink eerst/);
+  const small = await setup({ names: ['Ada', 'Ben'] });
+  small.ctx.repo.markInvitationsSent(small.groupId, small.ctx.nowIso());
+  const tooSmall = await small.adminPost(`/admin/groups/${small.groupId}/open`);
+  assert.equal(tooSmall.statusCode, 409);
+  assert.doesNotMatch(textOf(tooSmall.body), /Vink eerst/);
+  assert.equal(small.ctx.repo.getGroup(small.groupId).openedAt, null);
+  const open = await setup({ opened: true });
+  const again = await open.adminPost(`/admin/groups/${open.groupId}/open`);
+  assert.equal(again.statusCode, 303);
+});

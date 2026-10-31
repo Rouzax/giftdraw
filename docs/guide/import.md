@@ -174,7 +174,7 @@ Checking creates nothing yet. You get one of two pages.
 **This file cannot be imported yet** (*Dit bestand kan nog niet worden geïmporteerd*)
 :   A list of everything that has to change, each with its place in the file, such as *Groep 2 (Woensdagavond): De ruildatum ligt in het verleden.* Fields are named in words, as on the event and group pages (*De ruildatum ontbreekt*, not the name the file uses). A problem in the form names the question and the choice by number, such as *Evenement, vraag 3, keuze 2*.
 
-    Each person may appear once per group: the same email address or the same name twice in one group is a problem on the second one, which names where the first is, such as *Groep 1 (Maandag), deelnemer 5 (anne): Deze naam staat ook al bij deelnemer 2 (Anne).* Names count as the same whatever their capitals. Give two different people with one name distinct names; two people in one group sharing one address need one of them without it, or with an address of their own. The same address in two different groups is allowed, with a warning (see below).
+    Each person may appear once per group: the same name twice in one group is a problem on the second one, which names where the first is, such as *Groep 1 (Maandag), deelnemer 5 (anne): Deze naam staat ook al bij deelnemer 2 (Anne).* Names count as the same whatever their capitals or surrounding spaces. Give two different people with one name distinct names. The same email address twice is allowed, with a warning (see below).
 
     The text is below the list; correct it there, or paste the list into the chat and ask the assistant to fix the file, then check again.
 
@@ -190,7 +190,7 @@ Above that, **Please check** (*Kijk hier even naar*) lists things that are allow
 - an event with the same name already exists, so importing makes a second one;
 - the file has no groups, so the event is created without them;
 - a group has fewer than 3 people (pairs are made once it has 3);
-- an email address is also in another group, for example one person who joins two classes;
+- an email address appears twice in a group, for example a couple sharing one address, or is also in another group, for example one person who joins two classes;
 - two groups have the same name;
 - a choice appears more than once in one tick list;
 - in a version 1 file, a choice is longer than 80 characters and is cut short;
