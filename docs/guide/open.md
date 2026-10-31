@@ -32,7 +32,7 @@ What happens:
 
 While the event's [sign-up](signup.md) runs, the Drawing panel is not shown at all: nobody has pairs yet, and drawing can only open after you [start the draw](signup.md#start-the-draw).
 
-The button is refused, with the reason shown in the panel, when:
+The button is refused, with the reason shown in the panel, when the following applies. This reason comes before the request to tick **Yes, I am sure**, so ticking it never helps while one of these is in the way:
 
 - the invitations have not been sent yet: **Send the invitations first, then drawing can open.** With email off it asks you to press **The links have been shared** first;
 - the group has fewer than 3 people.

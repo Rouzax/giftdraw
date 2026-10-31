@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { validateAssignment } from '../src/draw/cycle.js';
 import { saveWishes } from '../src/people.js';
-import { aboutBody, makeTestApp, textOf } from './helpers.js';
+import { aboutBody, makeTestApp } from './helpers.js';
 
 const T0 = Date.parse('2026-11-01T10:00:00.000Z');
 const FOUR = 'Ada, ada@example.com\nBen; ben@example.com\nCor\nDirk\tdirk@example.com';
@@ -373,18 +373,18 @@ test('unknown events and groups give the not-found page', async () => {
   assert.equal((await t.adminPost('/admin/groups/999/invite')).statusCode, 404);
 });
 
-test('the same email twice in one pasted list skips the second line', async () => {
+test('the same email twice in one pasted list needs confirmation', async () => {
   const t = await setup();
   const groupId = await createGroup(t, await createEvent(t));
   const res = await t.adminPost(`/admin/groups/${groupId}/participants`, {
     text: 'Ada, ada@example.com\nBen\nCor\nAda Two, ADA@example.com',
   });
   assert.equal(res.statusCode, 200);
-  assert.ok(textOf(res.body).includes('regel 4: Ada Two, ADA@example.com (dit e-mailadres staat al op regel 1)'));
+  assert.ok(res.body.includes('ada@example.com staat twee keer in de lijst.'));
   assert.equal(t.ctx.repo.listParticipants(groupId).length, 0);
   const confirm = await t.adminPost(`/admin/groups/${groupId}/participants`, { confirm: '1', plan: hiddenPlan(res.body) });
   assert.equal(confirm.statusCode, 303);
-  assert.deepEqual(t.ctx.repo.listParticipants(groupId).map((p) => p.name), ['Ada', 'Ben', 'Cor']);
+  assert.equal(t.ctx.repo.listParticipants(groupId).length, 4);
 });
 
 test('pasting more people than the cap is refused with a form error', async () => {

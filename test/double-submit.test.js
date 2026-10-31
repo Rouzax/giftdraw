@@ -107,13 +107,28 @@ test('Back and create the same event again, with the fresh token Back gives, ask
   assert.equal(t.ctx.repo.listEvents().length, 2);
   const page = textOf(again.body);
   assert.match(page, /Er is al een evenement dat &quot;Lootjes 2027&quot; heet/);
-  assert.match(again.body, /<input type="checkbox" name="confirmDuplicate" value="1" required>/);
+  assert.match(again.body, /<input type="checkbox" name="confirmDuplicate" value="1">/);
   assert.match(again.body, new RegExp(`href="${first.headers.location.replace(/\?.*/, '')}"`));
   const anyway = await t.adminPost('/admin/events', {
     name: 'lootjes 2027', language: 'nl', confirmDuplicate: '1', formToken: await token(),
   });
   assert.equal(anyway.statusCode, 303);
   assert.equal(t.ctx.repo.listEvents().length, 3);
+});
+
+test('a name changed to a unique one on the duplicate notice creates the event without the tick', async () => {
+  const t = await setup();
+  const token = async () => formField((await t.adminGet('/admin')).body, '/admin/events', 'formToken');
+  await t.adminPost('/admin/events', { name: 'Lootjes 2027', language: 'nl', formToken: await token() });
+  const again = await t.adminPost('/admin/events', { name: 'Lootjes 2027', language: 'nl', formToken: await token() });
+  assert.equal(again.statusCode, 200);
+  const before = t.ctx.repo.listEvents().length;
+  const renamed = await t.adminPost('/admin/events', {
+    name: 'Lootjes 2027 klas 2', language: 'nl', formToken: formField(again.body, '/admin/events', 'formToken'),
+  });
+  assert.equal(renamed.statusCode, 303);
+  assert.equal(t.ctx.repo.listEvents().length, before + 1);
+  assert.doesNotMatch(again.body, /name="confirmDuplicate"[^>]*required/, 'the tick is not required, so a renamed form can be sent');
 });
 
 test('a double-clicked group delete deletes once and leads to the event both times', async () => {

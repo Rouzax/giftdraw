@@ -1062,3 +1062,18 @@ test('the closed panel shows the closing notice once and warns only for groups o
   assert.ok(groupTwo.startsWith('Groep 2') && groupTwo.includes(words('nl', 'admin.warning.below-minimum')));
   assert.equal(people(t, none).length, 3);
 });
+
+test('after closing, the event and group pages show the closed notice without saying sign-up is on', async () => {
+  const t = await setup();
+  const { eventId, groupIds } = await eventWithGroups(t, [3]);
+  await turnOn(t, eventId);
+  await send(t, eventId);
+  await t.adminPost(`/admin/events/${eventId}/signup/close`);
+  for (const url of [`/admin/events/${eventId}`, `/admin/groups/${groupIds[0]}`]) {
+    const page = textOf((await t.adminGet(url)).body);
+    assert.match(page, /Aanmelden is gesloten op/, url);
+    assert.doesNotMatch(page, /Aanmelden staat aan/, url);
+  }
+  const groupPage = (await t.adminGet(`/admin/groups/${groupIds[0]}`)).body;
+  assert.ok(groupPage.includes(`href="/admin/events/${eventId}#signup"`), 'the group page still leads to the sign-up');
+});

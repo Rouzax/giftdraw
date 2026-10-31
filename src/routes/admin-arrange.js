@@ -1,4 +1,4 @@
-import { arrangeState, openGroup, swapPair } from '../drawing.js';
+import { arrangeState, openBlocker, openGroup, swapPair } from '../drawing.js';
 import { arrangeView } from '../views/admin.js';
 import { adminLang } from './admin-auth.js';
 import { ID } from './admin-shared.js';
@@ -44,11 +44,18 @@ export function adminArrangeRoutes(app, ctx, { render, loadGroup, groupPage }) {
 
   // Opening mails everyone and cannot be undone, so like every other step
   // of that kind it needs the tick; the checkbox is required in the form,
-  // and a post without it is refused here too.
+  // and a post without it is refused here too. What keeps the group closed
+  // anyway is named before the missing tick, so ticking it is never asked
+  // for in vain; openGroup checks again inside its transaction.
   app.post('/admin/groups/:id/open', loadGroup, async (request, reply) => {
     const group = request.record;
     const dashboard = `/admin/groups/${group.id}?done=opened`;
-    if (request.body?.confirm !== '1' && !group.openedAt) {
+    const blocker = openBlocker(ctx, group);
+    if (blocker && blocker !== 'already-open') {
+      request.log.info({ group_id: group.id, reason: blocker }, 'group_open_refused');
+      return render(request, reply, groupPage(adminLang(request), group, { openError: blocker }), 409);
+    }
+    if (request.body?.confirm !== '1' && !blocker) {
       request.log.info({ group_id: group.id, reason: 'confirm' }, 'group_open_refused');
       return render(request, reply, groupPage(adminLang(request), group, { openError: 'confirm' }), 400);
     }
