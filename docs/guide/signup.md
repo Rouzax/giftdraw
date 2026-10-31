@@ -62,9 +62,9 @@ If the closing date has already passed before you send, **Send now** is gone and
 
 ### How people answer
 
-The buttons in the mail open the person's own page, with the answer they chose as the first button. **Opening the page records nothing**: the answer only counts once they press a button on the page. That protects the answers from mail programs that open every link to check it for danger.
+The buttons in the mail open the person's own page, which says **Almost done: tap below to confirm** (*Bijna klaar: tik hieronder om het te bevestigen*) above one large button for the answer they chose, with the other answer as a small link below it. **Opening the page records nothing**: the answer only counts once they press a button on the page. That protects the answers from mail programs that open every link to check it for danger.
 
-After answering, the page says **You are taking part.** (*Je doet mee.*) or **You are not taking part this time.** (*Je doet deze keer niet mee.*), with one button to change their mind. They can change their answer as often as they like until the end of the closing date. [What participants see](../participants.md#signing-up) shows the pages.
+After answering, the page says **You are taking part.** (*Je doet mee.*) or **You are not taking part this time.** (*Je doet deze keer niet mee.*) and what comes next. There is no answer button on that page, so an accidental second tap cannot change the answer: to change it they press **Change your answer** (*Antwoord veranderen*) first, and then choose again. They can change their answer as often as they like until the end of the closing date. [What participants see](../participants.md#signing-up) shows the pages.
 
 The panel on the event page shows per group how many said yes, no and not yet, and each person's answer. A group with 1 or 2 yes answers shows **At least 3 participants are needed for drawing.** (*Er zijn minstens 3 deelnemers nodig om te kunnen trekken.*)
 
@@ -86,11 +86,11 @@ With email on, the app follows up on its own, only while sign-up is open. Only p
 
 | Mail | Who gets it | When |
 | --- | --- | --- |
-| Sign-up reminder: "8 days left to say whether you are taking part in ..." (*Nog 8 dagen om te zeggen of je meedoet aan ...*) | Everyone who has not answered. | A week before the closing date, at 09:00. |
-| Sign-up reminder: "3 days left to say ..." (*Nog 3 dagen om te zeggen ...*) | Everyone who still has not answered. | Two days before the closing date, at 09:00. |
-| "Are you sure?" (*Weet je het zeker?*) | Everyone whose answer is no at that moment. It says not taking part is perfectly fine, and that they can still change their mind. | Two days before the closing date, at 09:00. |
+| Sign-up reminder: "7 days left to say whether you are taking part in ..." (*Nog 7 dagen om te zeggen of je meedoet aan ...*) | Everyone who has not answered. | A week before the closing date, at 09:00. |
+| Sign-up reminder: "2 days left to say ..." (*Nog 2 dagen om te zeggen ...*) | Everyone who still has not answered. | Two days before the closing date, at 09:00. |
+| "Are you sure you are not taking part in ...?" (*Weet je zeker dat je niet meedoet met ...?*) | Everyone whose answer is no at that moment. It says not taking part is perfectly fine, and that they can still change their mind. | Two days before the closing date, at 09:00. |
 
-The number of days counts the closing date itself, so with a closing date of Friday 20 November the reminders go out on Friday 13 November ("8 days left") and Wednesday 18 November ("3 days left"), and the "Are you sure?" mail also on 18 November.
+The number of days counts the whole days until the closing date, so with a closing date of Friday 20 November the reminders go out on Friday 13 November ("7 days left") and Wednesday 18 November ("2 days left"), and the "Are you sure?" mail also on 18 November. A reminder that only goes out on the closing date itself, for example because the app was not running, says that today is the last day: "Today is the last day to say whether you are taking part in ..." (*Vandaag nog: zeg of je meedoet aan ...*).
 
 - Mail goes out between 09:00 and 20:00 in the app's time zone. If the app was not running at 09:00, the mail follows as soon as it runs again within that window.
 - Nobody gets a reminder or the "Are you sure?" mail on the day they were sent the sign-up mail. A date that falls on or before that day is skipped, not sent late: with a closing date a week or less after sending, the first reminder is skipped, and with two days or less, none of these mails go out.

@@ -113,7 +113,7 @@ Someone in the event has already been invited: a group has had its invitations s
 
 ### Someone wants to join after sign-up closed
 
-Their page says **Sign-up is closed.** and asks them to contact you.
+Their page says **Sign-up is closed.** and asks them to tell you, for example in class.
 
 - **Before you start the draw**: press **Set to yes** next to their name in the Sign-up panel, or open sign-up again with a new closing date so everyone can still answer.
 - **After you start the draw**: if they had not said yes, they were removed. Add them to their group again as in [Someone joins late](guide/changes.md#someone-joins-late). They get a new link and, with email on, their invitation straight away.

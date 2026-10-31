@@ -18,9 +18,9 @@ Only when the organiser [asks who takes part](guide/signup.md) first. Until the 
 
 </div>
 
-1. **The question.** With email on, the sign-up mail has a yes button and a no button. Either opens their page, with the chosen answer as the first button. Opening the page does not answer yet: they confirm by pressing **Yes, I'm taking part** (*Ja, ik doe mee*) or **No, not this time** (*Nee, deze keer niet*). The page shows the theme, the exchange date with time and place, and until when they can answer.
-2. **Answered.** The page says **You are taking part.** (*Je doet mee.*) or **You are not taking part this time.** (*Je doet deze keer niet mee.*), with one button to change it: **Do not take part after all** (*Toch niet meedoen*) or **Take part after all** (*Toch meedoen*). They can change it until the end of the closing date.
-3. **Closed.** After the closing date the page says **Sign-up is closed.** (*Aanmelden is gesloten.*) and whether they take part. Anyone who did not answer does not take part. To change it, they ask the organiser.
+1. **The question.** With email on, the sign-up mail has a yes button and a no button. Either opens their page, which says **Almost done: tap below to confirm** (*Bijna klaar: tik hieronder om het te bevestigen*) above one large button for the chosen answer, with the other answer as a small link below it: **I will take part after all** (*Ik doe toch mee*) or **Not after all? No, not this time** (*Toch niet? Nee, deze keer niet*). Opening the page does not answer yet; the tap on the page does. Opened from their link without a mail button, the page asks the question with both buttons, **Yes, I'm taking part** (*Ja, ik doe mee*) and **No, not this time** (*Nee, deze keer niet*). The page shows the theme, the exchange date with time and place, and until when they can answer.
+2. **Answered.** The page says **You are taking part.** (*Je doet mee.*) or **You are not taking part this time.** (*Je doet deze keer niet mee.*) in a box, with what comes next: after a yes, that an email follows when sign-up is finished to tell what they like, and that they draw a name later (without an email address, that they do this on the same page); after a no, that they do not need to do anything else. The page has no answer button, so a second tap cannot undo the answer. To change it they press **Change your answer** (*Antwoord veranderen*), which shows both answers again with **Keep my answer** (*Laat mijn antwoord zo*) to go back. They can change it until the end of the closing date.
+3. **Closed.** After the closing date the page says **Sign-up is closed.** (*Aanmelden is gesloten.*) and whether they take part. Anyone who did not answer does not take part. To change it, they tell the organiser, for example in class. An answer pressed on a page opened before closing is not saved, and the page says so: **Your answer was not saved, because sign-up is closed.** (*Je antwoord is niet bewaard, want aanmelden is gesloten.*)
 
 Someone who opens their link before the organiser has sent the question reads **The organiser will soon ask you whether you are taking part.** (*De organisator vraagt je binnenkort of je meedoet.*)
 
@@ -87,8 +87,8 @@ With email on, every mail has the participant's name, one big button to their pa
 | Mail | Subject (English / Dutch) | When |
 | --- | --- | --- |
 | Sign-up | Are you taking part in ...? / Doe je mee met ...? | With sign-up on, when you send the question, or when you add them while sign-up is open. |
-| Sign-up reminder | 8 days left to say whether you are taking part in ... / Nog 8 dagen om te zeggen of je meedoet aan ... (3 days in the second) | Up to two, to people who have not answered. |
-| Are you sure? | Are you sure? / Weet je het zeker? | At most once, to people who said no. |
+| Sign-up reminder | 7 days left to say whether you are taking part in ... / Nog 7 dagen om te zeggen of je meedoet aan ... (2 days in the second) | Up to two, to people who have not answered. |
+| Are you sure? | Are you sure you are not taking part in ...? / Weet je zeker dat je niet meedoet met ...? | At most once, to people who said no. |
 | Invitation | Tell us a little about yourself / Vertel iets over jezelf | When you send the invitations, or start the draw after sign-up. |
 | Invitation into an open group | You can draw a name straight away / Je kunt meteen een naam trekken | A newcomer added after drawing opened. |
 | Drawing is open | You can draw a name now / Je kunt nu een naam trekken | When the group opens. |

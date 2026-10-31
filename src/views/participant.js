@@ -64,17 +64,41 @@ ${footer({ lang, langAction, showLangSwitch })}`;
   return { title: t(lang, 'waiting.title'), body };
 }
 
+// kind is main, secondary (as large, quieter) or link (small, below the main
+// button, for the choice the mail link did not suggest).
+const BUTTON_CLASS = { main: 'button', secondary: 'button secondary', link: 'link-button' };
+
 function answerForm(lang, action, buttons) {
   return html`<form method="post" action="${action}">
-${buttons.map(({ answer, key, primary }) => html`<button type="submit" class="button${primary ? '' : ' secondary'}" name="answer" value="${answer}">${t(lang, key)}</button>`)}
+${buttons.map(({ answer, key, kind }) => html`<button type="submit" class="${BUTTON_CLASS[kind]}" name="answer" value="${answer}">${t(lang, key)}</button>`)}
 </form>`;
 }
 
+const BOTH = [{ answer: 'yes', key: 'signup.yes', kind: 'main' }, { answer: 'no', key: 'signup.no', kind: 'secondary' }];
+
+// The answer stands on its own page with no answer button on it, so a
+// second tap where the first one landed cannot store the opposite answer;
+// changing it starts with a plain link to the change step.
+function answeredContent({ participant, event, group, lang, tz, emailOn, changeHref }) {
+  const joined = joins(participant);
+  let next = 'signup.nextNo';
+  if (joined) next = participant.email && emailOn ? 'signup.nextYes' : 'signup.nextYesNoEmail';
+  return html`<section class="answered">
+<p class="answer">${iconInline('check', t(lang, joined ? 'signup.joined' : 'signup.notJoined'))}</p>
+<p>${t(lang, next)}</p>
+</section>
+<p>${t(lang, 'signup.changeUntil', { date: formatDate(lang, event.signupDeadline, tz) })}</p>
+${themeBlock({ event, group, lang, tz })}
+<a class="button secondary" href="${changeHref}">${t(lang, 'signup.change')}</a>`;
+}
+
 // The sign-up step before the draw, by its state. ask is the answer the mail
-// link suggested (?a=); it only puts that button first, because a mail
-// scanner opens the same link without anyone choosing.
+// link suggested (?a=); it is only offered for one more tap, because a mail
+// scanner opens the same link without anyone choosing. change is set on the
+// change step (?change=1); notSaved when an answer came in after closing.
 export function signupView({
-  participant, event, group, lang, tz, state, ask = null, signupAction, langAction, showLangSwitch,
+  participant, event, group, lang, tz, state, ask = null, change = false, notSaved = false,
+  signupAction, pageHref, langAction, showLangSwitch, emailOn,
 }) {
   let content;
   if (state === 'setup') {
@@ -83,27 +107,37 @@ ${themeBlock({ event, group, lang, tz })}`;
   } else if (state === 'closed') {
     // Not answering counts as not joining once sign-up has closed.
     const joined = joins(participant);
-    content = html`<p class="lead">${t(lang, 'signup.closed')}</p>
+    const refused = notSaved ? html`<p class="notice" role="alert">${t(lang, 'signup.notSaved')}</p>` : '';
+    content = html`${refused}<p class="lead">${t(lang, 'signup.closed')}</p>
 <p class="answer">${t(lang, joined ? 'signup.joined' : 'signup.notJoined')}</p>
 <p>${t(lang, joined ? 'signup.askToLeave' : 'signup.askToJoin')}</p>
 ${themeBlock({ event, group, lang, tz })}`;
-  } else {
-    let buttons;
-    if (participant.signup) {
-      const other = participant.signup === 'yes' ? 'no' : 'yes';
-      buttons = [{ answer: other, key: other === 'yes' ? 'signup.switchToYes' : 'signup.switchToNo', primary: false }];
-    } else {
-      const order = ask === 'no' ? ['no', 'yes'] : ['yes', 'no'];
-      buttons = order.map((answer, i) => ({ answer, key: `signup.${answer}`, primary: !ask || i === 0 }));
-    }
-    const answered = participant.signup
-      ? html`<p class="answer">${t(lang, joins(participant) ? 'signup.joined' : 'signup.notJoined')}</p>`
-      : '';
+  } else if (ask && ask !== participant.signup) {
+    const other = ask === 'yes' ? 'no' : 'yes';
+    const now = participant.signup ? html`<p>${t(lang, participant.signup === 'yes' ? 'signup.nowYes' : 'signup.nowNo')}</p>` : '';
     content = html`<p class="lead">${t(lang, 'signup.question', { event: event.name })}</p>
-${answered}
+${now}
+<h2 class="confirm">${t(lang, 'signup.confirm')}</h2>
+${answerForm(lang, signupAction, [
+    { answer: ask, key: `signup.${ask}`, kind: 'main' },
+    { answer: other, key: other === 'yes' ? 'signup.otherYes' : 'signup.otherNo', kind: 'link' },
+  ])}
+<p>${t(lang, 'signup.deadline', { date: formatDate(lang, event.signupDeadline, tz) })}</p>
+${themeBlock({ event, group, lang, tz })}`;
+  } else if (participant.signup && change) {
+    content = html`<p class="answer">${t(lang, joins(participant) ? 'signup.joined' : 'signup.notJoined')}</p>
+<p class="lead">${t(lang, 'signup.changeLead')}</p>
+${answerForm(lang, signupAction, BOTH)}
+<p><a class="edit-link" href="${pageHref}">${t(lang, 'signup.keep')}</a></p>
+<p>${t(lang, 'signup.deadline', { date: formatDate(lang, event.signupDeadline, tz) })}</p>
+${themeBlock({ event, group, lang, tz })}`;
+  } else if (participant.signup) {
+    content = answeredContent({ participant, event, group, lang, tz, emailOn, changeHref: `${pageHref}?change=1` });
+  } else {
+    content = html`<p class="lead">${t(lang, 'signup.question', { event: event.name })}</p>
 ${themeBlock({ event, group, lang, tz })}
 <p>${t(lang, 'signup.deadline', { date: formatDate(lang, event.signupDeadline, tz) })}</p>
-${answerForm(lang, signupAction, buttons)}`;
+${answerForm(lang, signupAction, BOTH)}`;
   }
   const body = html`<h1>${t(lang, 'welcome.greeting', { name: participant.name })}</h1>
 ${content}

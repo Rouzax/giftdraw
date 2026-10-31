@@ -65,12 +65,23 @@ export default {
   'signup.no': 'No, not this time',
   'signup.joined': 'You are taking part.',
   'signup.notJoined': 'You are not taking part this time.',
-  'signup.switchToYes': 'Take part after all',
-  'signup.switchToNo': 'Do not take part after all',
+  'signup.confirm': 'Almost done: tap below to confirm',
+  'signup.otherYes': 'I will take part after all',
+  'signup.otherNo': 'Not after all? No, not this time',
+  'signup.nowYes': 'Right now it says you are taking part.',
+  'signup.nowNo': 'Right now it says you are not taking part.',
+  'signup.nextYes': 'When sign-up is finished, you will get an email. In it you tell us what you like. Later you draw a name.',
+  'signup.nextYesNoEmail': 'When sign-up is finished, you can tell us on this page what you like. Later you draw a name here.',
+  'signup.nextNo': 'You do not need to do anything else.',
+  'signup.changeUntil': 'Changed your mind? You can change your answer until the end of {date}.',
+  'signup.change': 'Change your answer',
+  'signup.changeLead': 'Choose your new answer.',
+  'signup.keep': 'Keep my answer',
   'signup.setup': 'The organiser will soon ask you whether you are taking part.',
   'signup.closed': 'Sign-up is closed.',
-  'signup.askToJoin': 'Would you like to take part after all? Ask the organiser. They can still add you.',
-  'signup.askToLeave': 'Would you rather not take part after all? Let the organiser know.',
+  'signup.notSaved': 'Your answer was not saved, because sign-up is closed.',
+  'signup.askToJoin': 'Would you like to take part after all? Ask the organiser, for example in class. They can still add you.',
+  'signup.askToLeave': 'Would you rather not take part after all? Tell the organiser, for example in class.',
 
   'draw.title': 'You can draw a name',
   'draw.intro': 'Press the button. Then you see who you give a present to.',
@@ -138,13 +149,18 @@ export default {
   'email.signup.button2': 'No, not this time',
   'email.remindSignup.subject': '{days} days left to say whether you are taking part in {event}',
   'email.remindSignup.subjectOne': '1 day left to say whether you are taking part in {event}',
+  'email.remindSignup.subjectToday': 'Today is the last day to say whether you are taking part in {event}',
+  'email.remindSignup.bodyToday':
+    'You have not yet said whether you are taking part in {event}. Today is the last day. Choose yes or no below. Your own page then opens, and there you confirm your choice.',
+  'email.remindSignup.bodyTextToday':
+    'You have not yet said whether you are taking part in {event}. Today is the last day. Open the link below that goes with your answer. Your own page then opens, and there you confirm your choice.',
   'email.remindSignup.body':
     'You have not yet said whether you are taking part in {event}. Choose yes or no below. Your own page then opens, and there you confirm your choice. You can do so until the end of {deadline}.',
   'email.remindSignup.bodyText':
     'You have not yet said whether you are taking part in {event}. Open the link below that goes with your answer. Your own page then opens, and there you confirm your choice. You can do so until the end of {deadline}.',
   'email.remindSignup.button': "Yes, I'm taking part",
   'email.remindSignup.button2': 'No, not this time',
-  'email.signupNudge.subject': 'Are you sure?',
+  'email.signupNudge.subject': 'Are you sure you are not taking part in {event}?',
   'email.signupNudge.body':
     'You said you are not taking part in {event}. That is perfectly fine. Changed your mind? You can still say so until the end of {deadline}, on your own page.',
   'email.signupNudge.bodyText':

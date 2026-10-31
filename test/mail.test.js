@@ -30,7 +30,7 @@ function render(kind, lang, overrides = {}) {
     group,
     link: LINK,
     tz: 'Europe/Amsterdam',
-    // 09:00 Amsterdam on 13 November: eight days up to and with the deadline.
+    // 09:00 Amsterdam on 13 November: a week before the closing day.
     now: new Date('2026-11-13T08:00:00.000Z'),
     ...overrides,
   });
@@ -53,14 +53,14 @@ const ANSWERS = {
 const SIGNUP = {
   nl: {
     signup: 'Doe je mee met Gifts 2026?',
-    'remind-signup': 'Nog 8 dagen om te zeggen of je meedoet aan Gifts 2026',
-    'signup-nudge': 'Weet je het zeker?',
+    'remind-signup': 'Nog 7 dagen om te zeggen of je meedoet aan Gifts 2026',
+    'signup-nudge': 'Weet je zeker dat je niet meedoet met Gifts 2026?',
     deadline: 'tot en met vrijdag 20 november',
   },
   en: {
     signup: 'Are you taking part in Gifts 2026?',
-    'remind-signup': '8 days left to say whether you are taking part in Gifts 2026',
-    'signup-nudge': 'Are you sure?',
+    'remind-signup': '7 days left to say whether you are taking part in Gifts 2026',
+    'signup-nudge': 'Are you sure you are not taking part in Gifts 2026?',
     deadline: 'until the end of Friday 20 November',
   },
 };
@@ -92,12 +92,22 @@ for (const lang of ['nl', 'en']) {
     assert.ok(!mail.html.includes('?a='), 'no answer in the link');
   });
 
-  test(`the last-day sign-up reminder in ${lang} speaks of one day`, () => {
-    const mail = render('remind-signup', lang, { now: new Date('2026-11-20T08:00:00.000Z') });
+  test(`the sign-up reminder the day before closing in ${lang} speaks of one day`, () => {
+    const mail = render('remind-signup', lang, { now: new Date('2026-11-19T08:00:00.000Z') });
     const want = lang === 'nl'
       ? 'Nog 1 dag om te zeggen of je meedoet aan Gifts 2026'
       : '1 day left to say whether you are taking part in Gifts 2026';
     assert.equal(mail.subject, `${EXPECT[lang].app}: ${want}`);
+  });
+
+  test(`the sign-up reminder on the closing day in ${lang} says today is the last day`, () => {
+    const mail = render('remind-signup', lang, { now: new Date('2026-11-20T08:00:00.000Z') });
+    const want = lang === 'nl'
+      ? { subject: 'Vandaag nog: zeg of je meedoet aan Gifts 2026', body: 'Vandaag is de laatste dag' }
+      : { subject: 'Today is the last day to say whether you are taking part in Gifts 2026', body: 'Today is the last day' };
+    assert.equal(mail.subject, `${EXPECT[lang].app}: ${want.subject}`);
+    for (const body of [mail.html, mail.text]) assert.ok(body.includes(want.body), body);
+    assert.ok(mail.html.includes(`href="${LINK}?a=yes"`), 'still a button for each answer');
   });
 }
 
