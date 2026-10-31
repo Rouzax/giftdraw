@@ -69,6 +69,12 @@ export function adminSetupRoutes(app, ctx, {
       const view = eventsView(lang, repo.listEvents(), { error: 'admin.event.error.name', values: { name, language } });
       return render(request, reply, view, 400);
     }
+    const same = repo.listEvents().find((event) => event.name.toLowerCase() === name.toLowerCase());
+    if (same && request.body?.confirmDuplicate !== '1') {
+      request.log.info({ event_id: same.id }, 'event_create_duplicate_name');
+      const view = eventsView(lang, repo.listEvents(), { values: { name, language }, duplicate: { id: same.id, name: same.name } });
+      return render(request, reply, view);
+    }
     const id = repo.createEvent({ name, language }, ctx.nowIso());
     request.log.info({ event_id: id }, 'event_created');
     return redirectDone(request, reply, `/admin/events/${id}?done=event-created`);

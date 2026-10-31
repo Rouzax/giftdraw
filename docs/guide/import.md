@@ -172,7 +172,11 @@ The field names in the file stay in English, whatever language you chat in, beca
 Checking creates nothing yet. You get one of two pages.
 
 **This file cannot be imported yet** (*Dit bestand kan nog niet worden geïmporteerd*)
-:   A list of everything that has to change, each with its place in the file, such as *Groep 2 (Woensdagavond): De ruildatum ligt in het verleden.* A problem in the form names the question and the choice by number, such as *Evenement, vraag 3, keuze 2*. The text is below the list; correct it there, or paste the list into the chat and ask the assistant to fix the file, then check again.
+:   A list of everything that has to change, each with its place in the file, such as *Groep 2 (Woensdagavond): De ruildatum ligt in het verleden.* Fields are named in words, as on the event and group pages (*De ruildatum ontbreekt*, not the name the file uses). A problem in the form names the question and the choice by number, such as *Evenement, vraag 3, keuze 2*.
+
+    Each person may appear once: the same email address twice anywhere in the file, or the same name twice in one group, is a problem on the second one, which names where the first is, such as *Groep 1 (Maandag), deelnemer 5 (anne): Deze naam staat ook al bij deelnemer 2 (Anne).* Names count as the same whatever their capitals. Give two different people with one name distinct names; two people sharing one address need one of them without it, or with an address of their own.
+
+    The text is below the list; correct it there, or paste the list into the chat and ask the assistant to fix the file, then check again.
 
 ![Three problems listed with the group and participant they belong to](../images/organiser-import-errors.webp){ .shot }
 
@@ -186,8 +190,6 @@ Above that, **Please check** (*Kijk hier even naar*) lists things that are allow
 - an event with the same name already exists, so importing makes a second one;
 - the file has no groups, so the event is created without them;
 - a group has fewer than 3 people (pairs are made once it has 3);
-- two people in one group have the same name;
-- an email address appears twice in a group, or also in another group (a couple sharing one address is fine);
 - two groups have the same name;
 - a choice appears more than once in one tick list;
 - in a version 1 file, a choice is longer than 80 characters and is cut short;

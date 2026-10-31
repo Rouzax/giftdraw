@@ -226,7 +226,7 @@ test('a post from an outdated about page stores nothing and shows the form again
   ]) {
     const res = await send();
     assert.equal(res.statusCode, 200);
-    assert.ok(textOf(res.body).includes('Deze pagina was verouderd, dus er is niets opgeslagen.'));
+    assert.ok(textOf(res.body).includes('Deze pagina was verouderd, dus er is niets opgeslagen'));
     assert.ok(res.body.includes('>Breien</textarea>'));
     assert.match(res.body, /name="q_likes" value="tea" checked/);
   }

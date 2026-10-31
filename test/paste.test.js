@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { validateAssignment } from '../src/draw/cycle.js';
 import { commitAddParticipants, parsePasteList, planAddParticipants } from '../src/people.js';
-import { makeTestApp, seedGroup } from './helpers.js';
+import { makeTestApp, seedGroup, textOf } from './helpers.js';
 
 const T0 = Date.parse('2026-11-01T10:00:00.000Z');
 
@@ -18,10 +18,59 @@ test('parsePasteList accepts comma, semicolon, tab and name-only lines', () => {
   assert.deepEqual(errors, []);
 });
 
-test('parsePasteList lower-cases emails and splits on the first separator only', () => {
+test('parsePasteList lower-cases emails and refuses a line with more than a name and an address', () => {
   const { rows } = parsePasteList('Eva; Eva.Jansen@Example.COM\r\nFem, fem@example.com, extra');
   assert.deepEqual(rows[0], { name: 'Eva', email: 'eva.jansen@example.com' });
-  assert.equal(parsePasteList('Fem, fem@example.com, extra').errors[0].reason, 'invalid-email');
+  assert.equal(parsePasteList('Fem, fem@example.com, extra').errors[0].reason, 'extra-field');
+});
+
+test('parsePasteList ignores separators at the end of a line', () => {
+  const { rows, errors } = parsePasteList('Bas Jansen, bas@example.com,\nCor;\t\nDirk, dirk@example.com ;');
+  assert.deepEqual(rows, [
+    { name: 'Bas Jansen', email: 'bas@example.com' },
+    { name: 'Cor', email: null },
+    { name: 'Dirk', email: 'dirk@example.com' },
+  ]);
+  assert.deepEqual(errors, []);
+});
+
+test('parsePasteList names the real problem of each skipped line', () => {
+  const { rows, errors } = parsePasteList([
+    'Fenna Mulder fenna@example.com',
+    'gerard@example.com, Gerard',
+    'Hilde, hilde@example',
+    'ida@example.com',
+  ].join('\n'));
+  assert.deepEqual(rows, []);
+  assert.deepEqual(errors.map((e) => [e.line, e.reason]), [
+    [1, 'no-separator'],
+    [2, 'email-first'],
+    [3, 'invalid-email'],
+    [4, 'no-name'],
+  ]);
+});
+
+test('parsePasteList skips a second line with the same address or the same name, naming the first', () => {
+  const { rows, errors } = parsePasteList([
+    'Anneke de Vries, anneke@example.com',
+    'Bas, bas@example.com',
+    'Anneke de Vries, anneke@example.com',
+    'Annie, ANNEKE@example.com',
+    '  bas  ',
+    'Cor, cor@',
+    'Cor, cor@example.com',
+  ].join('\n'));
+  assert.deepEqual(rows, [
+    { name: 'Anneke de Vries', email: 'anneke@example.com' },
+    { name: 'Bas', email: 'bas@example.com' },
+    { name: 'Cor', email: 'cor@example.com' },
+  ]);
+  assert.deepEqual(errors.map((e) => [e.line, e.reason, e.earlier]), [
+    [3, 'duplicate-email', 1],
+    [4, 'duplicate-email', 1],
+    [5, 'duplicate-name', 2],
+    [6, 'invalid-email', undefined],
+  ]);
 });
 
 test('parsePasteList reports bad lines with their line number', () => {
@@ -154,12 +203,29 @@ test('commitAddParticipants leaves newcomers to a closed group uninvited before 
   assert.equal(ctx.repo.mailStatus(added[0].id).pendingCount, 0);
 });
 
-test('planAddParticipants flags an email that appears twice in the pasted list', async () => {
+test('planAddParticipants flags an email already in a group of the event', async () => {
   const { ctx, group } = await setup({ names: ['Ada', 'Ben', 'Cor'] });
   const plan = planAddParticipants(ctx, group.id, [
     { name: 'Eva', email: 'eva@example.com' },
-    { name: 'Fem', email: null },
-    { name: 'Eva Two', email: 'eva@example.com' },
+    { name: 'Ada Two', email: 'ada@example.com' },
   ]);
-  assert.deepEqual(plan.duplicates, [{ row: 2, otherGroupName: null }]);
+  assert.deepEqual(plan.duplicates, [{ row: 1, otherGroupName: 'Monday' }]);
+});
+
+test('a paste with the same person twice adds one and reports the second line', async () => {
+  const t = await setup({ names: ['Ada', 'Ben', 'Cor'] });
+  const text = 'Anneke, anneke@example.com\nAnneke, anneke@example.com';
+  const check = await t.adminPost(`/admin/groups/${t.group.id}/participants`, { text });
+  assert.equal(check.statusCode, 200);
+  const page = textOf(check.body);
+  assert.match(page, /regel 2: Anneke, anneke@example\.com \(dit e-mailadres staat al op regel 1\)/);
+  assert.match(page, /Ja, voeg deze 1 toe/);
+  const form = /<form[^>]*>\s*<input type="hidden" name="confirm" value="1">[\s\S]*?<\/form>/.exec(check.body)[0];
+  const value = (name) => /value="([^"]*)"/.exec(new RegExp(`name="${name}"[^>]*`).exec(form)[0])[1].replace(/&quot;/g, '"');
+  const plan = value('plan');
+  const formToken = value('formToken');
+  const res = await t.adminPost(`/admin/groups/${t.group.id}/participants`, { confirm: '1', plan, formToken });
+  assert.equal(res.statusCode, 303);
+  const names = t.ctx.repo.listParticipants(t.group.id).map((p) => p.name);
+  assert.deepEqual(names.filter((n) => n === 'Anneke'), ['Anneke']);
 });

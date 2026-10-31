@@ -546,6 +546,23 @@ test('a double-submitted new question is added once', async () => {
   assert.equal(ids(t).length, 6);
 });
 
+test('Back and save a new question again, with the fresh token Back gives, adds it once', async () => {
+  const t = await setup();
+  const post = async (text) => {
+    const page = await t.adminGet(`/admin/events/${t.eventId}/questions/new?type=text`);
+    const fields = { ...shownFields(page.body, `/admin/events/${t.eventId}/questions/new`), text, action: 'save' };
+    return t.adminPost(`/admin/events/${t.eventId}/questions/new`, fields);
+  };
+  assert.equal((await post('Lievelingskleur')).statusCode, 303);
+  const again = await post(' lievelingskleur ');
+  assert.equal(again.statusCode, 400);
+  assert.match(textOf(again.body), /Er staat al een vraag met deze tekst op het formulier/);
+  assert.equal(ids(t).length, 6);
+  const builtIn = await post(tr('nl', 'wish.hobbies'));
+  assert.equal(builtIn.statusCode, 400, 'the wording of a built-in question counts too');
+  assert.equal(ids(t).length, 6);
+});
+
 test('posting a type does not change the kind of a question', async () => {
   const t = await setup();
   const { fields } = await editPage(t, 'hobbies');

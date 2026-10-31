@@ -309,21 +309,32 @@ test('tick lists: empty, repeated or unshaped choices are refused', () => {
 
 test('warnings point out what is allowed but probably not meant', () => {
   const groups = [
-    { name: 'Maandag', exchangeDate: '2026-12-14', participants: [
-      { name: 'Ada', email: 'ada@example.com' }, { name: 'ada', email: 'ada@example.com' }, 'Ben'] },
-    { name: 'maandag', exchangeDate: '2026-12-14', participants: [{ name: 'Cor', email: 'ada@example.com' }] },
+    { name: 'Maandag', exchangeDate: '2026-12-14', participants: ['Ada', 'Ben', 'Cor'] },
+    { name: 'maandag', exchangeDate: '2026-12-14', participants: [{ name: 'Dirk', email: 'dirk@example.com' }] },
   ];
   const { errors, warnings } = read(file({ event: { name: 'Kerst 2025' }, groups }), { existingNames: new Set(['kerst 2025']) });
   assert.deepEqual(errors, []);
   assert.deepEqual(warnings.map((w) => [w.where[0]?.group ?? w.where[0]?.part, w.code]), [
     ['event', 'event-exists'],
-    [1, 'name-twice'],
-    [1, 'email-twice'],
     [2, 'group-name-twice'],
     [2, 'small-group'],
-    [2, 'email-elsewhere'],
   ]);
   assert.deepEqual(codes(read(file({ groups: [] })).warnings), ['no-groups']);
+});
+
+test('the same address twice in a file, or the same name twice in a group, is an error naming the first', () => {
+  const groups = [
+    { name: 'Maandag', exchangeDate: '2026-12-14', participants: [
+      { name: 'Ada', email: 'ada@example.com' }, { name: ' ADA ', email: 'ada2@example.com' }, 'Ben', { name: 'Cor', email: 'Ada@Example.com' }] },
+    { name: 'Dinsdag', exchangeDate: '2026-12-14', participants: ['Ada', 'Dirk', { name: 'Eva', email: 'ada@example.com' }] },
+  ];
+  const { errors, plan } = read(file({ groups }));
+  assert.equal(plan, null);
+  assert.deepEqual(errors.map((e) => [e.where.map((w) => w.group ?? w.participant), e.code, e.vars.earlier]), [
+    [[1, 2], 'name-twice', [{ participant: 1, name: 'Ada' }]],
+    [[1, 4], 'email-twice', [{ participant: 1, name: 'Ada' }]],
+    [[2, 3], 'email-twice', [{ group: 1, name: 'Maandag' }, { participant: 1, name: 'Ada' }]],
+  ]);
 });
 
 test('a file has at most so many groups and participants per group', () => {
@@ -357,7 +368,7 @@ test('the check page shows a cut version 1 label as a warning', async () => {
   const t = await setup();
   const res = await t.adminPost('/admin/events/import', { text: JSON.stringify(file({ event: { name: 'K', wishOptions: ['x'.repeat(81)] } })) });
   assert.equal(res.statusCode, 200);
-  assert.match(textOf(res.body), /Evenement, wishOptions, keuze 1: &quot;x{40}…&quot; is langer dan 80 tekens en wordt ingekort\./);
+  assert.match(textOf(res.body), /Evenement, de keuzes bij &quot;Ik houd van\.\.\.&quot;, keuze 1: &quot;x{40}…&quot; is langer dan 80 tekens en wordt ingekort\./);
 });
 
 // Version 2: the form as questions
@@ -785,6 +796,22 @@ test('problems are listed with their place, and the text comes back escaped', as
   assert.match(textOf(res.body), /Groep 1 \(Maandag\), deelnemer 1 \(&lt;\/textarea&gt;&lt;script&gt;x\(\)&lt;\/script&gt;\): Het e-mailadres &quot;nope&quot; klopt niet\./);
   assert.match(res.body, /<textarea id="import-text" name="text"[^>]*>\{&quot;version&quot;:1/);
   assert.equal(t.ctx.repo.listEvents().length, 0);
+});
+
+test('problems name the fields in words, and a repeat names where it was first', async () => {
+  const t = await setup();
+  const data = file({ groups: [
+    { name: 'Maandag', participants: ['Ada', 'Ben', 'ada'] },
+    { name: 'Dinsdag', exchangeDate: '16-12-2026', exchangeTime: 'half tien', participants: ['Ada', 'Ben', 'Cor'] },
+  ] });
+  const res = await t.adminPost('/admin/events/import', { text: JSON.stringify(data) });
+  assert.equal(res.statusCode, 400);
+  const page = textOf(res.body);
+  assert.match(page, /Groep 1 \(Maandag\): De ruildatum ontbreekt\./);
+  assert.match(page, /Groep 1 \(Maandag\), deelnemer 3 \(ada\): Deze naam staat ook al bij deelnemer 1 \(Ada\)\./);
+  assert.match(page, /Groep 2 \(Dinsdag\): De tijd van het ruilen moet een tijd zijn, zoals 10:30\./);
+  const outsideText = textOf(res.body.replace(/<textarea[\s\S]*?<\/textarea>/g, ''));
+  assert.ok(!/exchangeDate|exchangeTime/.test(outsideText), 'no field keys outside the pasted text');
 });
 
 test('a file wrong throughout lists its first problems only', async () => {

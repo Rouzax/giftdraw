@@ -455,7 +455,30 @@ function readParticipant(out, value, where) {
   return { name, email };
 }
 
-function readGroup(out, value, where, today) {
+// Within one file a second participant with an address already used, or
+// with a name already used in the same group, is refused and points at the
+// first: one person twice gets two links and two pairs. emails holds the
+// first place of each address across the file's groups.
+function checkRepeats(out, people, places, groupWhere, emails) {
+  const names = new Map();
+  people.forEach((person, index) => {
+    if (!person) return;
+    const at = [...groupWhere, places[index]];
+    const participant = { participant: index + 1, name: person.name };
+    const first = names.get(person.name.toLowerCase());
+    if (first) out.error(at, 'name-twice', { earlier: [first] });
+    else names.set(person.name.toLowerCase(), participant);
+    if (!person.email) return;
+    const firstEmail = emails.get(person.email);
+    if (!firstEmail) emails.set(person.email, { group: groupWhere[0], participant });
+    else {
+      const earlier = firstEmail.group === groupWhere[0] ? [firstEmail.participant] : [firstEmail.group, firstEmail.participant];
+      out.error(at, 'email-twice', { email: person.email, earlier });
+    }
+  });
+}
+
+function readGroup(out, value, where, today, emails) {
   if (!isObject(value)) {
     out.error(where, 'not-object', { field: 'groups' });
     return null;
@@ -483,11 +506,12 @@ function readGroup(out, value, where, today) {
       out.error(where, 'too-many-participants', { max: PASTE_ROWS_MAX });
       ok = false;
     } else {
-      people = value.participants.map((person, index) => {
-        const at = [...where, { participant: index + 1, name: typeof person?.name === 'string' ? person.name : typeof person === 'string' ? person : null }];
-        return readParticipant(out, person, at);
-      });
-      if (people.includes(null)) ok = false;
+      const places = value.participants.map((person, index) => (
+        { participant: index + 1, name: typeof person?.name === 'string' ? person.name : typeof person === 'string' ? person : null }));
+      people = value.participants.map((person, index) => readParticipant(out, person, [...where, places[index]]));
+      const before = out.errors.length;
+      checkRepeats(out, people, places, where, emails);
+      if (people.includes(null) || out.errors.length > before) ok = false;
     }
   }
   return ok ? { name, exchangeDate, exchangeTime, exchangePlace, autoOpenAt, participants: people } : null;
@@ -498,25 +522,12 @@ function readGroup(out, value, where, today) {
 function warnAboutGroups(out, groups) {
   if (groups.length === 0) out.warn([], 'no-groups', {});
   const groupNames = new Set();
-  const emails = new Map();
   groups.forEach((group, index) => {
     const where = [{ group: index + 1, name: group.name }];
     if (groupNames.has(group.name.toLowerCase())) out.warn(where, 'group-name-twice', { name: group.name });
     groupNames.add(group.name.toLowerCase());
     const count = group.participants.length;
     if (count < MIN_GROUP) out.warn(where, 'small-group', { count, min: MIN_GROUP });
-    const names = new Set();
-    for (const person of group.participants) {
-      const key = person.name.toLowerCase();
-      if (names.has(key)) out.warn(where, 'name-twice', { name: person.name });
-      names.add(key);
-      if (!person.email) continue;
-      const first = emails.get(person.email);
-      if (first === undefined) emails.set(person.email, group.name);
-      // One address for two people happens, such as a couple sharing one.
-      else if (first === group.name) out.warn(where, 'email-twice', { email: person.email });
-      else out.warn(where, 'email-elsewhere', { email: person.email, group: first });
-    }
   });
 }
 
@@ -574,8 +585,9 @@ export function readEventFile(text, { today, existingNames = new Set() }) {
   } else if (data.groups.length > GROUPS_MAX) {
     out.error([], 'too-many-groups', { max: GROUPS_MAX });
   } else {
+    const emails = new Map();
     groups = data.groups.map((group, index) =>
-      readGroup(out, group, [{ group: index + 1, name: typeof group?.name === 'string' ? group.name : null }], today));
+      readGroup(out, group, [{ group: index + 1, name: typeof group?.name === 'string' ? group.name : null }], today, emails));
   }
   if (out.errors.length || !event || !groups || groups.includes(null)) return result();
   warnAboutGroups(out, groups);

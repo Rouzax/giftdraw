@@ -4,9 +4,9 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import { openGroup } from '../src/drawing.js';
 import { validateAssignment } from '../src/draw/cycle.js';
-import { drawFor } from '../src/people.js';
+import { drawFor, sendInvitations } from '../src/people.js';
 import { assignmentVersion } from '../src/status.js';
-import { makeTestApp, seedGroup } from './helpers.js';
+import { makeTestApp, seedGroup, textOf } from './helpers.js';
 
 const T0 = Date.parse('2026-11-01T10:00:00.000Z');
 const FIVE = ['Ada', 'Ben', 'Cor', 'Dirk', 'Eva'];
@@ -156,10 +156,40 @@ test('the arrange page and swap answer 404 for an unknown group', async () => {
   assert.equal((await t.adminPost('/admin/groups/999/open')).statusCode, 404);
 });
 
+test('opening needs the "I am sure" tick, on the page and on the server', async () => {
+  const t = await setup();
+  t.ctx.repo.markInvitationsSent(t.groupId, t.ctx.nowIso());
+  const page = await t.adminGet(`/admin/groups/${t.groupId}`);
+  const form = /<form method="post" action="\/admin\/groups\/\d+\/open"[\s\S]*?<\/form>/.exec(page.body)[0];
+  assert.match(form, /<input type="checkbox" name="confirm" value="1" required>/);
+  assert.match(textOf(form), /Ja, ik weet het zeker/);
+  const refused = await t.adminPost(`/admin/groups/${t.groupId}/open`);
+  assert.equal(refused.statusCode, 400);
+  assert.match(textOf(refused.body), /Vink eerst/);
+  assert.equal(t.ctx.repo.getGroup(t.groupId).openedAt, null);
+  assert.equal(drawOpenRows(t), 0);
+  const opened = await t.adminPost(`/admin/groups/${t.groupId}/open`, { confirm: '1' });
+  assert.equal(opened.statusCode, 303);
+  assert.ok(t.ctx.repo.getGroup(t.groupId).openedAt);
+});
+
+test('right after the invitations are sent, the counter and the invitation panel agree', async () => {
+  const t = await setup({ invited: false });
+  sendInvitations(t.ctx, t.groupId);
+  const queued = textOf((await t.adminGet(`/admin/groups/${t.groupId}`)).body);
+  assert.match(queued, /0 van 5 met e-mail uitgenodigd/);
+  assert.doesNotMatch(queued, /Iedereen met e-mail is uitgenodigd/);
+  assert.match(queued, /0 van 5 uitnodigingen zijn verstuurd/);
+  await settle(t);
+  const sent = textOf((await t.adminGet(`/admin/groups/${t.groupId}`)).body);
+  assert.match(sent, /5 van 5 met e-mail uitgenodigd/);
+  assert.match(sent, /Iedereen met e-mail is uitgenodigd/);
+});
+
 test('opening before the invitations went out is refused', async () => {
   const t = await setup();
   assert.deepEqual(openGroup(t.ctx, t.groupId), { opened: false, reason: 'no-invitations' });
-  const res = await t.adminPost(`/admin/groups/${t.groupId}/open`);
+  const res = await t.adminPost(`/admin/groups/${t.groupId}/open`, { confirm: '1' });
   assert.equal(res.statusCode, 409);
   assert.ok(res.body.includes('role="alert"'));
   assert.equal(t.ctx.repo.getGroup(t.groupId).openedAt, null);
@@ -172,7 +202,7 @@ test('opening a group of 2 is refused', async () => {
   const { group } = seedGroup(t.ctx, { names: ['Ada', 'Ben'] });
   t.ctx.repo.markInvitationsSent(group.id, t.ctx.nowIso());
   assert.deepEqual(openGroup(t.ctx, group.id), { opened: false, reason: 'too-small' });
-  const res = await t.adminPost(`/admin/groups/${group.id}/open`);
+  const res = await t.adminPost(`/admin/groups/${group.id}/open`, { confirm: '1' });
   assert.equal(res.statusCode, 409);
   assert.equal(t.ctx.repo.getGroup(group.id).openedAt, null);
   assert.equal(drawOpenRows(t), 0);
@@ -193,7 +223,7 @@ test('opening sends one draw-open per participant with email', async () => {
   const noEmail = t.people[4];
   t.ctx.repo.updateParticipant(noEmail.id, { email: null });
   t.ctx.repo.markInvitationsSent(t.groupId, t.ctx.nowIso());
-  const res = await t.adminPost(`/admin/groups/${t.groupId}/open`);
+  const res = await t.adminPost(`/admin/groups/${t.groupId}/open`, { confirm: '1' });
   assert.equal(res.statusCode, 303, res.body);
   assert.equal(res.headers.location, `/admin/groups/${t.groupId}?done=opened`);
   assert.ok(t.ctx.repo.getGroup(t.groupId).openedAt);
@@ -223,10 +253,10 @@ test('opening twice, including two overlapping posts, sends no more and answers 
   t.ctx.repo.markInvitationsSent(t.groupId, t.ctx.nowIso());
   t.mailer.delayMs = 20;
   const [first, second] = await Promise.all([
-    t.adminPost(`/admin/groups/${t.groupId}/open`),
-    t.adminPost(`/admin/groups/${t.groupId}/open`),
+    t.adminPost(`/admin/groups/${t.groupId}/open`, { confirm: '1' }),
+    t.adminPost(`/admin/groups/${t.groupId}/open`, { confirm: '1' }),
   ]);
-  const third = await t.adminPost(`/admin/groups/${t.groupId}/open`);
+  const third = await t.adminPost(`/admin/groups/${t.groupId}/open`, { confirm: '1' });
   for (const res of [first, second, third]) {
     assert.equal(res.statusCode, 303);
     assert.equal(res.headers.location, `/admin/groups/${t.groupId}?done=opened`);
@@ -296,7 +326,7 @@ test('the dashboard says to send the invitations first next to the open button',
   const hint = 'Verstuur eerst de uitnodigingen, daarna kan het trekken open.';
   const before = await t.adminGet(`/admin/groups/${t.groupId}`);
   assert.equal(before.body.split(hint).length - 1, 1);
-  const refused = await t.adminPost(`/admin/groups/${t.groupId}/open`);
+  const refused = await t.adminPost(`/admin/groups/${t.groupId}/open`, { confirm: '1' });
   assert.equal(refused.statusCode, 409);
   assert.equal(refused.body.split(hint).length - 1, 1, 'the refusal does not repeat the sentence');
   t.ctx.repo.markInvitationsSent(t.groupId, t.ctx.nowIso());

@@ -20,7 +20,7 @@ Without JavaScript in the browser, each row has a **Swap with** (*Wisselen met*)
 
 ## Open drawing
 
-Press **Open drawing** (*Trekken openen*) in the Drawing panel.
+In the Drawing panel, tick **Yes, I am sure** (*Ja, ik weet het zeker*) and press **Open drawing** (*Trekken openen*). Without the tick nothing opens: the browser asks for it, and if the press reaches the app anyway the panel says to tick it first.
 
 What happens:
 

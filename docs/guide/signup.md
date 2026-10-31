@@ -35,7 +35,7 @@ What happens:
 
 ![The sign-up panel after turning it on: Send now, a new closing date, and turning sign-up off](../images/organiser-signup-setup.webp){ .shot }
 
-A closing date on or after a group's automatic opening date is refused with **Choose a date before the day drawing opens automatically. Or move that day in the group first.** (*Kies een datum voor de dag waarop het trekken automatisch opengaat. Of verschuif eerst die dag bij de groep.*)
+A closing date on or after the first exchange date is refused with **Choose a closing date earlier than the first exchange date.** (*Kies een sluitdatum die eerder is dan de eerste ruildatum.*) One on or after a group's automatic opening date is refused with **Choose a closing date earlier than the day drawing opens automatically. Or move that day in the group first.** (*Kies een sluitdatum die eerder is dan de dag waarop het trekken automatisch opengaat. Of verschuif eerst die dag bij de groep.*)
 
 Until you send, you can still change your mind:
 
@@ -48,7 +48,7 @@ Check that every group is complete, then press **Send now** (*Nu versturen*). Th
 
 With email on:
 
-- Everyone with an email address gets the sign-up mail at once, in their own language: "Are you taking part in ...?" (*Doe je mee met ...?*) with the event's name. It shows the theme, the exchange date, time and place of their group, the closing date, and two buttons: **Yes, I'm taking part** (*Ja, ik doe mee*) and **No, not this time** (*Nee, deze keer niet*).
+- Everyone with an email address gets the sign-up mail at once, in their own language: "Are you taking part in ...?" (*Doe je mee aan ...?*) with the event's name. It shows the theme, the exchange date, time and place of their group, the closing date, and two buttons: **Yes, I'm taking part** (*Ja, ik doe mee*) and **No, not this time** (*Nee, deze keer niet*).
 - People without an email address get nothing. Give them their link yourself, as in [Share a link yourself](invitations.md#share-a-link-yourself), or answer for them.
 - People whose answer you already set get nothing, now or later; see [Answer for someone](#answer-for-someone).
 
@@ -86,9 +86,9 @@ With email on, the app follows up on its own, only while sign-up is open. Only p
 
 | Mail | Who gets it | When |
 | --- | --- | --- |
-| Sign-up reminder: "7 days left to say whether you are taking part in ..." (*Nog 7 dagen om te zeggen of je meedoet aan ...*) | Everyone who has not answered. | A week before the closing date, at 09:00. |
+| Sign-up reminder: "7 days left to say whether you are taking part in ..." (*Nog 7 dagen om te zeggen of je meedoet aan ...*). It says their answer has not come in yet and asks them to choose and then confirm it on their page, which also fits someone who tapped a mail button but did not confirm. | Everyone who has not answered. | A week before the closing date, at 09:00. |
 | Sign-up reminder: "2 days left to say ..." (*Nog 2 dagen om te zeggen ...*) | Everyone who still has not answered. | Two days before the closing date, at 09:00. |
-| "Are you sure you are not taking part in ...?" (*Weet je zeker dat je niet meedoet met ...?*) | Everyone whose answer is no at that moment. It says not taking part is perfectly fine, and that they can still change their mind. | Two days before the closing date, at 09:00. |
+| "Are you sure you are not taking part in ...?" (*Weet je zeker dat je niet meedoet aan ...?*) | Everyone whose answer is no at that moment. It says not taking part is perfectly fine, and that they can still change their mind. | Two days before the closing date, at 09:00. |
 
 The number of days counts the whole days until the closing date, so with a closing date of Friday 20 November the reminders go out on Friday 13 November ("7 days left") and Wednesday 18 November ("2 days left"), and the "Are you sure?" mail also on 18 November. A reminder that only goes out on the closing date itself, for example because the app was not running, says that today is the last day: "Today is the last day to say whether you are taking part in ..." (*Vandaag nog: zeg of je meedoet aan ...*).
 

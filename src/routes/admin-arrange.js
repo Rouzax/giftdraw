@@ -42,10 +42,17 @@ export function adminArrangeRoutes(app, ctx, { render, loadGroup, groupPage }) {
     return reply.redirect(`/admin/groups/${group.id}/arrange?swapped=${a}-${b}`, 303);
   });
 
+  // Opening mails everyone and cannot be undone, so like every other step
+  // of that kind it needs the tick; the checkbox is required in the form,
+  // and a post without it is refused here too.
   app.post('/admin/groups/:id/open', loadGroup, async (request, reply) => {
     const group = request.record;
-    const result = openGroup(ctx, group.id);
     const dashboard = `/admin/groups/${group.id}?done=opened`;
+    if (request.body?.confirm !== '1' && !group.openedAt) {
+      request.log.info({ group_id: group.id, reason: 'confirm' }, 'group_open_refused');
+      return render(request, reply, groupPage(adminLang(request), group, { openError: 'confirm' }), 400);
+    }
+    const result = openGroup(ctx, group.id);
     // A second press, or one racing the auto-open, finds the group open:
     // that is the outcome the organiser asked for, not an error.
     if (result.reason === 'already-open') return reply.redirect(dashboard, 303);

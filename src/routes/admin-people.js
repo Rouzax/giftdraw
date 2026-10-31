@@ -177,6 +177,11 @@ export function adminPeopleRoutes(app, ctx, {
     return reply.redirect(personUrl(participant.id, 'wishes-saved'), 303);
   });
 
+  // The draw result exists only as the answer to the POST below; its address
+  // opened again (a bookmark, a restored tab) leads back to the person.
+  app.get('/admin/participants/:id/draw', loadParticipant, async (request, reply) =>
+    reply.redirect(personUrl(request.record.id), 303));
+
   // Rendered straight from the POST, because the organiser draws with the
   // participant beside her; drawFor is idempotent, so a reload only shows the
   // result again without the reveal.

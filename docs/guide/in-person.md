@@ -16,7 +16,7 @@ Click **Fill in the wishes of ...** (*De wensen van ... invullen*). You get the 
 
 Everything is optional, as it is for participants. If the person who gives to them has already drawn, that giver gets a "wishes updated" mail, just as when the participant changes them; see [Follow up](follow-up.md#mail-the-app-sends-by-itself).
 
-If you changed the questions after opening the form, Save is always refused. If the participant saved their own page after you opened it, Save is refused only when it would change something. Either way nothing is stored and their giver gets no mail: the form comes back with what is saved now, the notice **The answers of ... or the questions changed in the meantime, so this page was out of date. Nothing was saved.** (*De antwoorden van ... of de vragen zijn intussen veranderd, dus deze pagina was niet meer actueel. Er is niets opgeslagen.*), and what you typed listed above it under **What you had just filled in for ... (not saved)** (*Dit had je net ingevuld voor ... (niet opgeslagen)*). Put what you want to keep in the form and press **Save** again.
+If you changed the questions after opening the form, Save is always refused. If the participant saved their own page after you opened it, Save is refused only when it would change something. Either way nothing is stored and their giver gets no mail: the form comes back with what is saved now, the notice **The answers of ... or the questions changed in the meantime, so this page was out of date. Nothing was saved.** (*De antwoorden van ... of de vragen zijn intussen veranderd, dus deze pagina was niet meer actueel. Er is niets opgeslagen.*), and what you typed listed above it under **What you had just filled in for ... (not saved)** (*Dit had je net ingevuld voor ... (niet opgeslagen)*). Put what you want to keep in the form and press **Save** again. A form opened before an update of the app is refused the same way, with **This page was out of date, so nothing was saved for ...** (*Deze pagina was verouderd, dus er is niets opgeslagen voor ...*). These notices are in your language; the form and its button stay in the participant's.
 
 ## Draw together
 
@@ -24,7 +24,7 @@ Once drawing is open for the group, press **Draw for ...** (*Trekken voor ...*).
 
 ![Drawing on the organiser's screen: Gerda gives to Ada, with Ada's wishes](../images/organiser-behalf-draw.webp){ .shot }
 
-This counts as their draw, exactly as if they had pressed the button themselves. Afterwards the button reads **Show the drawn name again** (*De getrokken naam nog eens laten zien*) and shows the result without the animation. Before the group opens, the panel says drawing is not open yet.
+This counts as their draw, exactly as if they had pressed the button themselves. Afterwards the button reads **Show the drawn name again** (*De getrokken naam nog eens laten zien*) and shows the result without the animation. Before the group opens, the panel says drawing is not open yet. Opening the address of the draw page again later, from a bookmark or a restored tab, takes you back to the person's page; press the button there to see the name again.
 
 ## Print a card
 

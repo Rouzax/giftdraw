@@ -15,6 +15,11 @@ const ECHO_MAX = 40;
 // A file wrong throughout gives a problem per field; the first ones are
 // enough to see what is wrong, and the page stays small.
 const PROBLEMS_SHOWN = 100;
+const FIELD_LABELS = new Set([
+  'event', 'groups', 'name', 'label', 'question', 'heading', 'text', 'theme', 'exchangeDate', 'exchangeTime',
+  'exchangePlace', 'autoOpenAt', 'askDetails', 'show', 'sections', 'questions', 'wishOptions', 'petOptions', 'choices',
+  'participants',
+]);
 
 const echo = (value) => {
   const text = String(value ?? '');
@@ -35,16 +40,35 @@ function whereText(lang, where) {
     }
     if (step.question) return t(lang, 'import.where.question', { n: step.question });
     if (step.choice) return t(lang, 'import.where.choice', { n: step.choice });
-    if (step.option) return t(lang, 'import.where.option', { field: step.option, n: step.n });
+    if (step.option) return t(lang, 'import.where.option', { field: fieldText(lang, step.option), n: step.n });
     return t(lang, 'import.where.section', { id: step.section });
   }).join(', ');
 }
 
+// A field is named in words, as the event and group pages name it, so the
+// organiser can fix the file herself. A key without a label of its own
+// (a section id, say) is shown as written.
+function fieldText(lang, key) {
+  const label = `import.field.${key}`;
+  return FIELD_LABELS.has(key) ? t(lang, label) : `"${echo(key)}"`;
+}
+
+function problemVars(lang, vars) {
+  return Object.fromEntries(Object.entries(vars).map(([k, v]) => {
+    if (k === 'field') return [k, fieldText(lang, v)];
+    if (k === 'earlier') return [k, whereText(lang, v)];
+    return [k, typeof v === 'string' ? echo(v) : v];
+  }));
+}
+
+// Labels open with an article ("de ruildatum"), which may start the
+// sentence.
+const capitalised = (text) => text.charAt(0).toUpperCase() + text.slice(1);
+
 function problemList(lang, problems, kind) {
   const hidden = problems.length - PROBLEMS_SHOWN;
   return html`<ul>${problems.slice(0, PROBLEMS_SHOWN).map((p) => {
-    const vars = Object.fromEntries(Object.entries(p.vars).map(([k, v]) => [k, typeof v === 'string' ? echo(v) : v]));
-    const message = t(lang, `import.${kind}.${p.code}`, vars);
+    const message = capitalised(t(lang, `import.${kind}.${p.code}`, problemVars(lang, p.vars)));
     return html`<li>${p.where.length ? html`<strong>${whereText(lang, p.where)}:</strong> ` : ''}${message}</li>`;
   })}</ul>
 ${hidden > 0 ? html`<p>${t(lang, 'import.more', { count: hidden })}</p>` : ''}`;

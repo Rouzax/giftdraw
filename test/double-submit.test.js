@@ -97,6 +97,25 @@ test('a double-clicked create event or create group makes one of each', async ()
   assert.equal(t.ctx.repo.listGroups(eventId).length, 1);
 });
 
+test('Back and create the same event again, with the fresh token Back gives, asks before a second one', async () => {
+  const t = await setup();
+  const token = async () => formField((await t.adminGet('/admin')).body, '/admin/events', 'formToken');
+  const first = await t.adminPost('/admin/events', { name: 'Lootjes 2027', language: 'nl', formToken: await token() });
+  assert.equal(first.statusCode, 303);
+  const again = await t.adminPost('/admin/events', { name: ' lootjes 2027 ', language: 'nl', formToken: await token() });
+  assert.equal(again.statusCode, 200);
+  assert.equal(t.ctx.repo.listEvents().length, 2);
+  const page = textOf(again.body);
+  assert.match(page, /Er is al een evenement dat &quot;Lootjes 2027&quot; heet/);
+  assert.match(again.body, /<input type="checkbox" name="confirmDuplicate" value="1" required>/);
+  assert.match(again.body, new RegExp(`href="${first.headers.location.replace(/\?.*/, '')}"`));
+  const anyway = await t.adminPost('/admin/events', {
+    name: 'lootjes 2027', language: 'nl', confirmDuplicate: '1', formToken: await token(),
+  });
+  assert.equal(anyway.statusCode, 303);
+  assert.equal(t.ctx.repo.listEvents().length, 3);
+});
+
 test('a double-clicked group delete deletes once and leads to the event both times', async () => {
   const t = await setup();
   const eventId = t.group.eventId;
@@ -162,8 +181,8 @@ test('a double-clicked remove confirm leads to the group both times', async () =
 test('a second "Open drawing" leads to the open dashboard instead of an error', async () => {
   const t = await setup({ names: ['Ann', 'Bob', 'Cas'], withEmail: false });
   t.ctx.repo.markInvitationsSent(t.groupId, t.ctx.nowIso());
-  const first = await t.adminPost(`/admin/groups/${t.groupId}/open`);
-  const second = await t.adminPost(`/admin/groups/${t.groupId}/open`);
+  const first = await t.adminPost(`/admin/groups/${t.groupId}/open`, { confirm: '1' });
+  const second = await t.adminPost(`/admin/groups/${t.groupId}/open`, { confirm: '1' });
   assert.equal(first.statusCode, 303);
   assert.equal(second.statusCode, 303, second.body);
   assert.equal(first.headers.location, `/admin/groups/${t.groupId}?done=opened`);

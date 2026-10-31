@@ -190,6 +190,13 @@ h1 {
     width: auto;
     min-width: 20rem;
   }
+
+  /* As wide as the button above and under it, not centred across the page.
+     A block button with an automatic width fits its text. */
+  .link-button {
+    width: auto;
+    min-width: 20rem;
+  }
 }
 
 .about fieldset {

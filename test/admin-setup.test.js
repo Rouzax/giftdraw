@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { validateAssignment } from '../src/draw/cycle.js';
 import { saveWishes } from '../src/people.js';
-import { aboutBody, makeTestApp } from './helpers.js';
+import { aboutBody, makeTestApp, textOf } from './helpers.js';
 
 const T0 = Date.parse('2026-11-01T10:00:00.000Z');
 const FOUR = 'Ada, ada@example.com\nBen; ben@example.com\nCor\nDirk\tdirk@example.com';
@@ -284,7 +284,8 @@ test('the dashboard shows a failed mail that is still being retried', async () =
   await settle(t);
   const res = await t.adminGet(`/admin/groups/${groupId}`);
   assert.ok(res.body.includes('Mislukt, wordt opnieuw geprobeerd'));
-  assert.ok(res.body.includes('ECONNREFUSED'));
+  assert.ok(res.body.includes('De mailserver was niet te bereiken.'));
+  assert.equal(res.body.includes('ECONNREFUSED'), false, 'the dashboard shows no raw code');
 });
 
 test('event settings save the name, language, cleanup weeks and theme', async () => {
@@ -372,18 +373,18 @@ test('unknown events and groups give the not-found page', async () => {
   assert.equal((await t.adminPost('/admin/groups/999/invite')).statusCode, 404);
 });
 
-test('the same email twice in one pasted list needs confirmation', async () => {
+test('the same email twice in one pasted list skips the second line', async () => {
   const t = await setup();
   const groupId = await createGroup(t, await createEvent(t));
   const res = await t.adminPost(`/admin/groups/${groupId}/participants`, {
     text: 'Ada, ada@example.com\nBen\nCor\nAda Two, ADA@example.com',
   });
   assert.equal(res.statusCode, 200);
-  assert.ok(res.body.includes('ada@example.com staat twee keer in de lijst.'));
+  assert.ok(textOf(res.body).includes('regel 4: Ada Two, ADA@example.com (dit e-mailadres staat al op regel 1)'));
   assert.equal(t.ctx.repo.listParticipants(groupId).length, 0);
   const confirm = await t.adminPost(`/admin/groups/${groupId}/participants`, { confirm: '1', plan: hiddenPlan(res.body) });
   assert.equal(confirm.statusCode, 303);
-  assert.equal(t.ctx.repo.listParticipants(groupId).length, 4);
+  assert.deepEqual(t.ctx.repo.listParticipants(groupId).map((p) => p.name), ['Ada', 'Ben', 'Cor']);
 });
 
 test('pasting more people than the cap is refused with a form error', async () => {
@@ -411,9 +412,12 @@ test('paste text over the length limit is refused, not truncated', async () => {
 test('a maximal confirmation plan is accepted in full', async () => {
   const t = await setup();
   const groupId = await createGroup(t, await createEvent(t));
-  const name = 'N'.repeat(100);
-  // The longest address normaliseEmail accepts: 254 characters.
-  const lines = Array.from({ length: 500 }, (_, i) => `${name}, ${String(i).padStart(3, '0')}${'e'.repeat(239)}@example.com`);
+  // The longest name, and the longest address normaliseEmail accepts: 254
+  // characters.
+  const lines = Array.from({ length: 500 }, (_, i) => {
+    const n = String(i).padStart(3, '0');
+    return `${n}${'N'.repeat(97)}, ${n}${'e'.repeat(239)}@example.com`;
+  });
   lines.push('Bad, bad@');
   const res = await t.adminPost(`/admin/groups/${groupId}/participants`, { text: lines.join('\n') });
   assert.equal(res.statusCode, 200);

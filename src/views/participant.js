@@ -213,8 +213,9 @@ function typedBlock(lines, lang, title) {
 // nothing was saved and the stored answers are shown again. stale holds
 // the lines of a post refused because its page was rendered from other
 // answers or another form (see typedLines). behalf ({ lang, name }) is set
-// when the organiser fills in the form: the stale notice is hers, so it is
-// in her language and names the participant.
+// when the organiser fills in the form: both notices are hers, so they are
+// in her language and name the participant, and they name no button, whose
+// label is in the participant's language.
 export function aboutFormView({
   event, group, wishes, lang, tz, formAction, langAction, showLangSwitch, outdated = false, stale = null, behalf = null,
 }) {
@@ -222,15 +223,15 @@ export function aboutFormView({
   const form = wishForm(event);
   const shown = form.questions.filter((question) => question.show);
   let notice = '';
+  const [noteLang, prefix, vars] = behalf ? [behalf.lang, 'admin.behalf', { name: behalf.name }] : [lang, 'about', {}];
   if (stale) {
-    const [noteLang, prefix, vars] = behalf ? [behalf.lang, 'admin.behalf', { name: behalf.name }] : [lang, 'about', {}];
     notice = html`<div class="notice" role="alert">
 <p>${t(noteLang, `${prefix}.stale`, vars)}</p>
 <p>${t(noteLang, `${prefix}.staleForm`, vars)}</p>
 </div>
 ${typedBlock(stale, lang, t(noteLang, `${prefix}.typedTitle`, vars))}`;
   } else if (outdated) {
-    notice = html`<p class="notice" role="alert">${t(lang, 'about.outdated')}</p>`;
+    notice = html`<p class="notice" role="alert">${t(noteLang, `${prefix}.outdated`, vars)}</p>`;
   }
   const body = html`<h1>${t(lang, 'about.title')}</h1>
 ${notice}

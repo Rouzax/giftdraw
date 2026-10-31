@@ -2,7 +2,7 @@ import { countAnswers } from '../answers.js';
 import { CHOICES_MAX, HEADING_MAX, QUESTION_MAX, QUESTIONS_MAX } from '../limits.js';
 import {
   cleanQuestion, FOLLOW_UPS, formValue, isBuiltinChoice, isBuiltinQuestion, newChoiceId, newQuestionId, ownLabel,
-  ownQuestion, ownText, sameForm, wishForm,
+  ownQuestion, ownText, questionText, sameForm, wishForm,
 } from '../questions.js';
 import { questionView } from '../views/questions.js';
 import { adminLang } from './admin-auth.js';
@@ -113,6 +113,17 @@ function buildQuestion(draft, current) {
   return { question: { id: current.id, type: current.type, text, show: draft.show, choices } };
 }
 
+// Two questions with the same wording are never meant. Back after adding a
+// question gives the form a fresh token and keeps the typed text, so saving
+// again would otherwise add the question twice. Wording is compared as
+// each language shows it, so typing a built-in question's text counts too.
+function sameWording(form, question) {
+  const key = (text) => text.trim().toLowerCase();
+  const own = question.text && key(question.text);
+  if (!own) return false;
+  return form.questions.some((q) => q.id !== question.id && ['nl', 'en'].some((l) => key(questionText(q, l)) === own));
+}
+
 export function adminQuestionRoutes(app, ctx, { render, sendError, loadEvent, resubmitted, redirectDone }) {
   const { repo } = ctx;
   const formUrl = (event, done = null) => `/admin/events/${event.id}${done ? `?done=${done}` : ''}#form`;
@@ -153,6 +164,10 @@ export function adminQuestionRoutes(app, ctx, { render, sendError, loadEvent, re
     }
     const { question, errors } = buildQuestion(draft, isNew ? { ...current, id: newQuestionId(form) } : current);
     if (errors) return page(request, reply, { form, question: current, draft, errors, status: 400 });
+    if (sameWording(form, question)) {
+      const duplicate = { text: { key: 'admin.question.error.duplicate' } };
+      return page(request, reply, { form, question: current, draft, errors: duplicate, status: 400 });
+    }
 
     const kept = new Set(question.choices.map((c) => c.id));
     const removed = current.choices.filter((c) => !kept.has(c.id));
