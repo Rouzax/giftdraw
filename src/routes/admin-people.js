@@ -166,7 +166,9 @@ export function adminPeopleRoutes(app, ctx, {
       const stale = result === 'stale'
         ? typedLines(request.body, wishForm(data.event), current.wishes, data.lang)
         : null;
-      const view = aboutFormView({ ...data, wishes: current.wishes, outdated: result === 'outdated', stale });
+      const view = aboutFormView({
+        ...data, wishes: current.wishes, outdated: result === 'outdated', stale, behalf: { lang: adminLang(request), name: current.name },
+      });
       return renderBehalf(request, reply, current, view, behalfFrame(request, current));
     }
     // No participant id, like wishes_saved: it would tie this receiver to

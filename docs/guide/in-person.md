@@ -16,7 +16,7 @@ Click **Fill in the wishes of ...** (*De wensen van ... invullen*). You get the 
 
 Everything is optional, as it is for participants. If the person who gives to them has already drawn, that giver gets a "wishes updated" mail, just as when the participant changes them; see [Follow up](follow-up.md#mail-the-app-sends-by-itself).
 
-If the participant saved their own page after you opened the form, or you changed the questions in between, your save is refused and the form comes back with what is saved now and what you typed listed above it; see [If something goes wrong for a participant](../participants.md#if-something-goes-wrong-for-a-participant).
+If you changed the questions after opening the form, Save is always refused. If the participant saved their own page after you opened it, Save is refused only when it would change something. Either way nothing is stored and their giver gets no mail: the form comes back with what is saved now, the notice **The answers of ... or the questions changed in the meantime, so this page was out of date. Nothing was saved.** (*De antwoorden van ... of de vragen zijn intussen veranderd, dus deze pagina was niet meer actueel. Er is niets opgeslagen.*), and what you typed listed above it under **What you had just filled in for ... (not saved)** (*Dit had je net ingevuld voor ... (niet opgeslagen)*). Put what you want to keep in the form and press **Save** again.
 
 ## Draw together
 

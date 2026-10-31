@@ -167,10 +167,10 @@ ${tickList(question, typeof answer === 'object' ? answer : null, lang)}
 
 // The answers a refused post held, shown above the form that holds the
 // saved ones, so it is plain which of the two a press on Save stores.
-function typedBlock(lines, lang) {
+function typedBlock(lines, lang, title) {
   if (!lines.length) return '';
   return html`<section class="typed">
-<h2>${t(lang, 'about.typedTitle')}</h2>
+<h2>${title}</h2>
 <dl>${lines.map((line) => html`<div><dt>${line.label ?? t(lang, 'about.typedGone')}</dt><dd>${line.value}</dd></div>`)}</dl>
 </section>`;
 }
@@ -178,20 +178,23 @@ function typedBlock(lines, lang) {
 // outdated says the post came from a page whose fields cannot be read, so
 // nothing was saved and the stored answers are shown again. stale holds
 // the lines of a post refused because its page was rendered from other
-// answers or another form (see typedLines).
+// answers or another form (see typedLines). behalf ({ lang, name }) is set
+// when the organiser fills in the form: the stale notice is hers, so it is
+// in her language and names the participant.
 export function aboutFormView({
-  event, group, wishes, lang, tz, formAction, langAction, showLangSwitch, outdated = false, stale = null,
+  event, group, wishes, lang, tz, formAction, langAction, showLangSwitch, outdated = false, stale = null, behalf = null,
 }) {
   const answers = readAnswers(wishes);
   const form = wishForm(event);
   const shown = form.questions.filter((question) => question.show);
   let notice = '';
   if (stale) {
+    const [noteLang, prefix, vars] = behalf ? [behalf.lang, 'admin.behalf', { name: behalf.name }] : [lang, 'about', {}];
     notice = html`<div class="notice" role="alert">
-<p>${t(lang, 'about.stale')}</p>
-<p>${t(lang, 'about.staleForm')}</p>
+<p>${t(noteLang, `${prefix}.stale`, vars)}</p>
+<p>${t(noteLang, `${prefix}.staleForm`, vars)}</p>
 </div>
-${typedBlock(stale, lang)}`;
+${typedBlock(stale, lang, t(noteLang, `${prefix}.typedTitle`, vars))}`;
   } else if (outdated) {
     notice = html`<p class="notice" role="alert">${t(lang, 'about.outdated')}</p>`;
   }

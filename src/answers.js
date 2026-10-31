@@ -134,23 +134,28 @@ export function parseWishesForm(body, form, previous = null) {
   return { answers };
 }
 
-// What an about page was rendered from: the stored answers exactly as
-// stored, and the form as participants read it. A page opened before
-// another save or a question change carries another version; storing its
-// post would put older answers back, or drop answers the organiser's
-// confirmation never counted.
+const digest = (value) => createHash('sha256').update(JSON.stringify(value)).digest('hex').slice(0, VERSION_LENGTH);
+
+// What an about page was rendered from, in two halves: the stored answers
+// exactly as stored, and the form as participants read it. A page opened
+// before another save or a question change carries another version;
+// storing its post would put older answers back, or drop answers the
+// organiser's confirmation never counted.
 export function wishesVersion(wishes, form) {
-  return createHash('sha256')
-    .update(JSON.stringify([wishes ?? null, formKey(form)]))
-    .digest('hex')
-    .slice(0, VERSION_LENGTH);
+  return `${digest(wishes ?? null)}.${digest(formKey(form))}`;
 }
 
-// A post without a version comes from a page rendered before pages carried
-// one, and is read as before.
-export function isStaleWishesPost(body, wishes, form) {
+// Which half of a posted version no longer matches: 'form', 'answers' or
+// null. A post without a version comes from a page rendered before pages
+// carried one, and is read as before; an unreadable one counts as a form
+// change.
+export function staleWishesPost(body, wishes, form) {
   const posted = field(body ?? {}, 'version');
-  return posted !== undefined && posted !== wishesVersion(wishes, form);
+  if (posted === undefined) return null;
+  const [answers, shape] = typeof posted === 'string' ? posted.split('.') : [];
+  const [nowAnswers, nowShape] = wishesVersion(wishes, form).split('.');
+  if (shape !== nowShape) return 'form';
+  return answers === nowAnswers ? null : 'answers';
 }
 
 // What a refused post held where it differs from the saved answers, so the

@@ -237,11 +237,14 @@ test('an on-behalf page opened before the participant saved stores nothing and s
 
   const res = await t.adminPost(`/admin/participants/${ada.id}/about`, { ...behalf, q_hobbies: 'Tuinieren' });
   assert.equal(res.statusCode, 200);
-  assert.ok(res.body.includes(tr('nl', 'about.stale')));
+  // The organiser reads the notice in her own words, about the participant.
+  assert.ok(res.body.includes(tr('nl', 'admin.behalf.stale', { name: 'Ada' })));
+  assert.equal(res.body.includes(tr('nl', 'about.stale')), false);
   assert.ok(res.body.includes('>Breien</textarea>'));
   assert.match(res.body, /name="q_likes" value="candles" checked/);
   const typed = /<section class="typed"[\s\S]*?<\/section>/.exec(res.body)?.[0] ?? '';
   assert.ok(typed.includes('Tuinieren'));
+  assert.ok(typed.includes(tr('nl', 'admin.behalf.typedTitle', { name: 'Ada' })));
   assert.ok(res.body.includes(`action="/admin/participants/${ada.id}/about"`));
   const after = t.ctx.repo.getParticipant(ada.id);
   assert.deepEqual(after.wishes, before.wishes);
@@ -256,4 +259,18 @@ test('an on-behalf page opened before the participant saved stores nothing and s
   const stale = await t.post(`/p/${ada.token}/about`, { ...ownOld, q_hobbies: 'Breien' });
   assert.equal(stale.statusCode, 200);
   assert.equal(t.ctx.repo.getParticipant(ada.id).wishes.answers.hobbies, 'Breien en tuinieren');
+});
+
+test('the on-behalf stale notice follows the organiser language, not the participant language', async () => {
+  const t = await setup({ names: ['Ada', 'Ben', 'Cor'] });
+  const ada = t.people[0];
+  t.ctx.repo.updateParticipant(ada.id, { language: 'en' });
+  const behalf = hiddenFields((await t.adminGet(`/admin/participants/${ada.id}/about`)).body);
+  await t.adminPost(`/admin/participants/${ada.id}/about`, { ...behalf, q_hobbies: 'Breien' });
+  const res = await t.adminPost(`/admin/participants/${ada.id}/about`, { ...behalf, q_hobbies: 'Tuinieren' });
+  assert.equal(res.statusCode, 200);
+  assert.ok(res.body.includes(tr('nl', 'admin.behalf.stale', { name: 'Ada' })));
+  assert.ok(res.body.includes(tr('nl', 'admin.behalf.typedTitle', { name: 'Ada' })));
+  assert.equal(res.body.includes(tr('en', 'about.stale')), false);
+  assert.ok(res.body.includes('Tuinieren'));
 });
