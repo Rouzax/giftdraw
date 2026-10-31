@@ -13,6 +13,8 @@ An event is one gift exchange, such as "Lootjes trekken 2026". Its settings appl
 3. Choose the **Default language for participants** (*Standaardtaal voor deelnemers*): Nederlands or English.
 4. Press **Create event** (*Evenement maken*).
 
+If an event with that name already exists (whatever the capitals), nothing is created yet: the form comes back with **There is already an event called "..."** (*Er is al een evenement dat "..." heet*) and a link to it. To make a second one anyway, tick **Yes, make a second event with this name anyway** (*Ja, maak toch een tweede evenement met deze naam*) and press **Create event** again. This also stops a second event when you go back and press the button again.
+
 ![The Events page with one event and the form for a new one](../images/organiser-events.webp){ .shot }
 
 You land on the event page, which says the event has been created. It lists the groups, has a form for a new group, and the event settings below that.
@@ -65,7 +67,7 @@ Press **Edit** (*Aanpassen*) next to the question. Its page has:
 :   Turn it off to leave the question out of the form. See [Hide or remove a question](#hide-or-remove-a-question).
 
 **Question** (*Vraag*)
-:   The wording, one line of at most 80 characters. On a standard question the field shows the standard wording in grey: leave it empty and each participant reads that wording in their own language. Wording you type is shown exactly as typed to everyone. A question you added always needs wording.
+:   The wording, one line of at most 80 characters. On a standard question the field shows the standard wording in grey: leave it empty and each participant reads that wording in their own language. Wording you type is shown exactly as typed to everyone. A question you added always needs wording. Wording that another question on the form already has (whatever the capitals, in either language) is refused with **The form already has a question with this text.** (*Er staat al een vraag met deze tekst op het formulier.*); if that other question is hidden, the message says so and asks you to turn on **Show** for it instead (*die vraag staat verborgen; zet Tonen aan bij die vraag*). A question that keeps its wording can always be saved, also when another one has the same text.
 
 **Choices** (*Keuzes*), on a tick list only
 :   One block per choice, from **Choice 1** (*Keuze 1*) down, described in the next section.

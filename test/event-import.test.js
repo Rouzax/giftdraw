@@ -322,19 +322,39 @@ test('warnings point out what is allowed but probably not meant', () => {
   assert.deepEqual(codes(read(file({ groups: [] })).warnings), ['no-groups']);
 });
 
-test('the same address twice in a file, or the same name twice in a group, is an error naming the first', () => {
+test('the same address or the same name twice in a group is an error naming the first', () => {
   const groups = [
     { name: 'Maandag', exchangeDate: '2026-12-14', participants: [
       { name: 'Ada', email: 'ada@example.com' }, { name: ' ADA ', email: 'ada2@example.com' }, 'Ben', { name: 'Cor', email: 'Ada@Example.com' }] },
-    { name: 'Dinsdag', exchangeDate: '2026-12-14', participants: ['Ada', 'Dirk', { name: 'Eva', email: 'ada@example.com' }] },
   ];
   const { errors, plan } = read(file({ groups }));
   assert.equal(plan, null);
   assert.deepEqual(errors.map((e) => [e.where.map((w) => w.group ?? w.participant), e.code, e.vars.earlier]), [
     [[1, 2], 'name-twice', [{ participant: 1, name: 'Ada' }]],
     [[1, 4], 'email-twice', [{ participant: 1, name: 'Ada' }]],
-    [[2, 3], 'email-twice', [{ group: 1, name: 'Maandag' }, { participant: 1, name: 'Ada' }]],
   ]);
+});
+
+test('one address in two groups of a file is a warning, so one person can join two classes', async () => {
+  const groups = [
+    { name: 'Maandag', exchangeDate: '2026-12-14', participants: [{ name: 'Ada', email: 'ada@example.com' }, 'Ben', 'Cor'] },
+    { name: 'Dinsdag', exchangeDate: '2026-12-15', participants: [{ name: 'Ada', email: 'ADA@example.com' }, 'Dirk', 'Eva'] },
+  ];
+  const { errors, warnings, plan } = read(file({ groups }));
+  assert.deepEqual(errors, []);
+  assert.deepEqual(warnings, [{
+    where: [{ group: 2, name: 'Dinsdag' }, { participant: 1, name: 'Ada' }],
+    code: 'email-elsewhere',
+    vars: { email: 'ada@example.com', group: 'Maandag' },
+  }]);
+  assert.ok(plan);
+  const t = await setup();
+  const check = await t.adminPost('/admin/events/import', { text: JSON.stringify(file({ groups })) });
+  assert.equal(check.statusCode, 200);
+  assert.match(textOf(check.body), /Groep 2 \(Dinsdag\), deelnemer 1 \(Ada\): ada@example\.com staat ook in groep Maandag\./);
+  const res = await t.adminPost('/admin/events/import', confirmForm(check.body));
+  assert.equal(res.statusCode, 303);
+  assert.equal(t.ctx.repo.listEventParticipants(t.ctx.repo.listEvents()[0].id).length, 6);
 });
 
 test('a file has at most so many groups and participants per group', () => {

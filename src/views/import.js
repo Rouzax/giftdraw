@@ -62,13 +62,18 @@ function problemVars(lang, vars) {
 }
 
 // Labels open with an article ("de ruildatum"), which may start the
-// sentence.
-const capitalised = (text) => text.charAt(0).toUpperCase() + text.slice(1);
+// sentence. Only a label is capitalised there: a message may also start
+// with an email address, which must stay as written.
+function capitalised(text, vars) {
+  if (typeof vars.field !== 'string' || !text.startsWith(vars.field)) return text;
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
 
 function problemList(lang, problems, kind) {
   const hidden = problems.length - PROBLEMS_SHOWN;
   return html`<ul>${problems.slice(0, PROBLEMS_SHOWN).map((p) => {
-    const message = capitalised(t(lang, `import.${kind}.${p.code}`, problemVars(lang, p.vars)));
+    const vars = problemVars(lang, p.vars);
+    const message = capitalised(t(lang, `import.${kind}.${p.code}`, vars), vars);
     return html`<li>${p.where.length ? html`<strong>${whereText(lang, p.where)}:</strong> ` : ''}${message}</li>`;
   })}</ul>
 ${hidden > 0 ? html`<p>${t(lang, 'import.more', { count: hidden })}</p>` : ''}`;
