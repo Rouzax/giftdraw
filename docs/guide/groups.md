@@ -41,7 +41,7 @@ Henk; henk@example.com
 
 When every line is fine, the people are added straight away and the dashboard says **Added.** (*Toegevoegd.*). Otherwise you first see a **Check the list** (*Controleer de lijst*) page:
 
-![The check page: two skipped lines, one with an invalid address and one with an address already on line 2, then an address already used in another group, and the people to add](../images/organiser-paste-confirm.webp){ .shot }
+![The check page: one skipped line with an invalid address, a warning that one address is already used in another group and another appears twice in the list, and the six people to add](../images/organiser-paste-confirm.webp){ .shot }
 
 **These lines are skipped** (*Deze regels worden overgeslagen*)
 :   Lines that cannot be added, each with its line number and the reason:
@@ -58,7 +58,7 @@ When every line is fine, the people are added straight away and the dashboard sa
     An address with an accented letter or emoji before the `@`, such as `josé@example.com`, is refused because mail servers and the email field on the participant's page do not accept it. An accented domain such as `ada@café.nl` is fine: it is stored and shown in its punycode form, `ada@xn--caf-dma.nl`, which is the same address written the way mail servers read it.
 
 **This email address is already known** (*Dit e-mailadres is al bekend*)
-:   The address is already used by someone in another group of this event, or appears twice in the list. This is a warning only: those people are still in the list to add. Leave them in if, for example, one person joins two classes or a couple shares one address; otherwise fix the list.
+:   The address is already used by someone in another group of this event (*staat al in groep ...*), or appears under two different names in the list (*staat twee keer in de lijst*). This is a warning only: those people are still in the list to add. Leave them in if, for example, one person joins two classes or a couple shares one address; otherwise fix the list.
 
 **To add** (*Toevoegen*)
 :   Everyone who will be added. Press **Yes, add these ...** (*Ja, voeg deze ... toe*) to add them, or change the list in the box at the bottom and press **Check and add** again.
