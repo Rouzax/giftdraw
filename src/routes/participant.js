@@ -58,6 +58,7 @@ export function participantRoutes(app, ctx, { sendPage, sendError, isParticipant
       formAction: `${base}/about`,
       drawAction: `${base}/draw`,
       signupAction: `${base}/signup`,
+      pageHref: base,
       langAction: `${base}/lang`,
       showLangSwitch: true,
       emailOn: mailOn(ctx),
@@ -85,14 +86,15 @@ export function participantRoutes(app, ctx, { sendPage, sendError, isParticipant
       return render(reply, data.lang, resultView({ ...data, receiver, reveal: true }));
     }
     const ask = ANSWERS.has(request.query.a) ? request.query.a : null;
-    return render(reply, data.lang, currentScreen(data, ask));
+    return render(reply, data.lang, currentScreen(data, { ask, change: request.query.change === '1' }));
   });
 
   // While the event is signing up, that step replaces every other screen.
-  function currentScreen(data, ask = null) {
+  // signup holds what only the sign-up screen reads (ask, change, notSaved).
+  function currentScreen(data, signup = {}) {
     const { participant, event } = data;
     if (signupActive(event, ctx.now(), config.tz)) {
-      return signupView({ ...data, state: signupState(event, ctx.now(), config.tz), ask });
+      return signupView({ ...data, ...signup, state: signupState(event, ctx.now(), config.tz) });
     }
     const screen = participantScreen({
       hasWishes: hasWishes(participant.wishes, wishForm(event)),
@@ -113,7 +115,7 @@ export function participantRoutes(app, ctx, { sendPage, sendError, isParticipant
     if (!ANSWERS.has(answer)) return sendError(reply, 400, participant.language);
     const data = screenData(participant);
     if (signupState(data.event, ctx.now(), config.tz) !== 'open') {
-      return render(reply.code(409), data.lang, currentScreen(data));
+      return render(reply.code(409), data.lang, currentScreen(data, { notSaved: true }));
     }
     repo.updateParticipant(participant.id, { signup: answer, signupAt: ctx.nowIso() });
     request.log.info({ participant_id: participant.id }, 'signup_answer');

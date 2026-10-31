@@ -30,11 +30,17 @@ const answer = (t, who, value) => t.post(`/p/${who.token}/signup`, { answer: val
 const msgs = (t) => t.logs.map((line) => JSON.parse(line));
 const has = (body, key, vars) => textOf(body).includes(tr('nl', key, vars));
 
-// The value of each answer button, in page order.
+// The value of each answer button, in page order, and how it looks: the
+// main button, the quieter second button, or the small link-style one.
 function buttons(body) {
   return [...body.matchAll(/<button type="submit" class="([^"]*)" name="answer" value="(yes|no)"/g)]
-    .map(([, cls, value]) => ({ value, primary: !cls.includes('secondary') }));
+    .map(([, cls, value]) => {
+      if (cls.includes('link-button')) return { value, kind: 'link' };
+      return { value, kind: cls.includes('secondary') ? 'secondary' : 'main' };
+    });
 }
+
+const changeHref = (who) => `href="/p/${who.token}?change=1"`;
 
 test('an open sign-up asks with the event, theme, exchange, deadline and two buttons', async () => {
   const t = await setup();
@@ -50,12 +56,15 @@ test('an open sign-up asks with the event, theme, exchange, deadline and two but
 });
 
 for (const method of ['GET', 'HEAD']) {
-  test(`${method} of a link with ?a=yes shows yes first and records no answer`, async () => {
+  test(`${method} of a link with ?a=yes asks to confirm yes with one large button and records no answer`, async () => {
     const t = await setup();
     const res = await t.app.inject({ method, url: `/p/${t.ada.token}?a=yes` });
     assert.equal(res.statusCode, 200);
     if (method === 'GET') {
-      assert.deepEqual(buttons(res.body), [{ value: 'yes', primary: true }, { value: 'no', primary: false }]);
+      assert.ok(has(res.body, 'signup.confirm'));
+      assert.deepEqual(buttons(res.body), [{ value: 'yes', kind: 'main' }, { value: 'no', kind: 'link' }]);
+      assert.ok(res.body.includes(escape(tr('nl', 'signup.yes'))));
+      assert.ok(res.body.includes(escape(tr('nl', 'signup.otherNo'))));
     }
     const after = stored(t, t.ada.id);
     assert.equal(after.signup, null);
@@ -64,19 +73,35 @@ for (const method of ['GET', 'HEAD']) {
   });
 }
 
-test('a link with ?a=no shows no first as the main button', async () => {
+test('a link with ?a=no asks to confirm no, with yes as the small link', async () => {
   const t = await setup();
   const res = await t.app.inject(`/p/${t.ada.token}?a=no`);
-  assert.deepEqual(buttons(res.body), [{ value: 'no', primary: true }, { value: 'yes', primary: false }]);
+  assert.ok(has(res.body, 'signup.confirm'));
+  assert.deepEqual(buttons(res.body), [{ value: 'no', kind: 'main' }, { value: 'yes', kind: 'link' }]);
+  assert.ok(res.body.includes(escape(tr('nl', 'signup.otherYes'))));
   const odd = await t.app.inject(`/p/${t.ada.token}?a=maybe`);
-  assert.deepEqual(buttons(odd.body).map((b) => b.value), ['yes', 'no']);
+  assert.ok(!has(odd.body, 'signup.confirm'));
+  assert.deepEqual(buttons(odd.body), [{ value: 'yes', kind: 'main' }, { value: 'no', kind: 'secondary' }]);
   assert.equal(stored(t, t.ada.id).signup, null);
 });
 
-test('the last answer counts and the page says what was answered', async () => {
+test('a mail link for the other answer asks to confirm it and says what the answer is now', async () => {
   const t = await setup();
-  const steps = [['yes', 'signup.joined', 'no'], ['no', 'signup.notJoined', 'yes'], ['yes', 'signup.joined', 'no']];
-  for (const [value, textKey, switchTo] of steps) {
+  await answer(t, t.ada, 'yes');
+  const res = await t.app.inject(`/p/${t.ada.token}?a=no`);
+  assert.ok(has(res.body, 'signup.confirm'));
+  assert.ok(has(res.body, 'signup.nowYes'));
+  assert.deepEqual(buttons(res.body), [{ value: 'no', kind: 'main' }, { value: 'yes', kind: 'link' }]);
+  const same = await t.app.inject(`/p/${t.ada.token}?a=yes`);
+  assert.ok(!has(same.body, 'signup.confirm'));
+  assert.deepEqual(buttons(same.body), []);
+  assert.equal(stored(t, t.ada.id).signup, 'yes');
+});
+
+test('the last answer counts and the page says plainly what was answered and what comes next', async () => {
+  const t = await setup();
+  const steps = [['yes', 'signup.joined', 'signup.nextYes'], ['no', 'signup.notJoined', 'signup.nextNo'], ['yes', 'signup.joined', 'signup.nextYes']];
+  for (const [value, textKey, nextKey] of steps) {
     t.clock.ms += 60_000;
     const res = await answer(t, t.ada, value);
     assert.equal(res.statusCode, 303, res.body);
@@ -86,7 +111,9 @@ test('the last answer counts and the page says what was answered', async () => {
     assert.equal(after.signupAt, new Date(t.clock.ms).toISOString());
     const page = await t.app.inject(`/p/${t.ada.token}`);
     assert.ok(has(page.body, textKey));
-    assert.deepEqual(buttons(page.body).map((b) => b.value), [switchTo]);
+    assert.ok(has(page.body, nextKey), textOf(page.body));
+    assert.ok(has(page.body, 'signup.changeUntil', { date: 'vrijdag 20 november' }));
+    assert.ok(!has(page.body, 'signup.question', { event: 'Gifts 2026' }), 'no longer reads as a question');
   }
   const lines = msgs(t).filter((l) => l.msg === 'signup_answer');
   assert.equal(lines.length, 3);
@@ -94,6 +121,65 @@ test('the last answer counts and the page says what was answered', async () => {
     assert.equal(line.participant_id, t.ada.id);
     assert.ok(!JSON.stringify(line).includes('yes') && !JSON.stringify(line).includes('"no"'), JSON.stringify(line));
   }
+});
+
+test('without an email address the yes page says the next step happens on this page', async () => {
+  const clock = { ms: T0 };
+  const t = await makeTestApp({ clock: () => new Date(clock.ms) });
+  const { event, people } = seedGroup(t.ctx, { names: ['Ada', 'Ben', 'Cor'], invited: false, withEmail: false });
+  await t.adminPost(`/admin/events/${event.id}/signup`, { deadline: DEADLINE });
+  await t.adminPost(`/admin/events/${event.id}/signup/send`, { formToken: newFormToken() });
+  await answer(t, people[0], 'yes');
+  const page = await t.app.inject(`/p/${people[0].token}`);
+  assert.ok(has(page.body, 'signup.nextYesNoEmail'), textOf(page.body));
+  assert.ok(!has(page.body, 'signup.nextYes'));
+});
+
+// A slow double tap: the second tap lands where the first one was, on the
+// page the answer redirected to. That page holds no answer button at all,
+// so the second tap cannot store the opposite answer.
+for (const first of ['yes', 'no']) {
+  test(`after answering ${first} the page has no answer button, only the step to change it`, async () => {
+    const t = await setup();
+    const question = await t.app.inject(`/p/${t.ada.token}?a=${first}`);
+    assert.equal(buttons(question.body)[0].value, first);
+    const res = await answer(t, t.ada, first);
+    const page = await t.app.inject(res.headers.location);
+    assert.deepEqual(buttons(page.body), []);
+    assert.ok(page.body.includes(changeHref(t.ada)));
+    assert.ok(page.body.includes(escape(tr('nl', 'signup.change'))));
+    assert.equal(stored(t, t.ada.id).signup, first);
+  });
+}
+
+test('the change step shows both answers and records nothing by itself', async () => {
+  const t = await setup();
+  await answer(t, t.ada, 'no');
+  const before = stored(t, t.ada.id);
+  for (const method of ['GET', 'HEAD']) {
+    const res = await t.app.inject({ method, url: `/p/${t.ada.token}?change=1` });
+    assert.equal(res.statusCode, 200);
+    if (method === 'GET') {
+      assert.ok(has(res.body, 'signup.notJoined'));
+      assert.ok(has(res.body, 'signup.changeLead'));
+      assert.deepEqual(buttons(res.body), [{ value: 'yes', kind: 'main' }, { value: 'no', kind: 'secondary' }]);
+      assert.ok(!res.body.includes(changeHref(t.ada)));
+      assert.ok(res.body.includes(`href="/p/${t.ada.token}"`), 'a way back without changing');
+    }
+  }
+  const after = stored(t, t.ada.id);
+  assert.deepEqual([after.signup, after.signupAt], [before.signup, before.signupAt]);
+  assert.equal(msgs(t).filter((l) => l.msg === 'signup_answer').length, 1);
+  const switched = await answer(t, t.ada, 'yes');
+  assert.equal(switched.statusCode, 303);
+  assert.equal(stored(t, t.ada.id).signup, 'yes');
+});
+
+test('the change step for someone who has not answered is the plain question', async () => {
+  const t = await setup();
+  const res = await t.app.inject(`/p/${t.ada.token}?change=1`);
+  assert.ok(has(res.body, 'signup.question', { event: 'Gifts 2026' }));
+  assert.deepEqual(buttons(res.body), [{ value: 'yes', kind: 'main' }, { value: 'no', kind: 'secondary' }]);
 });
 
 test('an answer other than yes or no is refused', async () => {
@@ -111,7 +197,9 @@ test('an answer after the deadline gets the closed page and changes nothing, and
   const res = await answer(t, t.ada, 'yes');
   assert.equal(res.statusCode, 409);
   assert.ok(has(res.body, 'signup.closed'));
+  assert.ok(has(res.body, 'signup.notSaved'));
   assert.ok(has(res.body, 'signup.notJoined'));
+  assert.ok(has(res.body, 'signup.askToJoin'));
   assert.deepEqual(buttons(res.body), []);
   const after = stored(t, t.ada.id);
   assert.equal(after.signup, 'no');
@@ -133,7 +221,19 @@ test('the closed page shows no answer as not joining and that the organiser can 
   assert.ok(has(res.body, 'signup.closed'));
   assert.ok(has(res.body, 'signup.notJoined'));
   assert.ok(has(res.body, 'signup.askToJoin'));
+  assert.ok(!has(res.body, 'signup.notSaved'), 'only a refused answer says it was not saved');
+  assert.ok(textOf(res.body).includes('bijvoorbeeld in de les'));
   assert.deepEqual(buttons(res.body), []);
+});
+
+test('the closed page for someone who joined says how to leave', async () => {
+  const t = await setup();
+  await answer(t, t.ada, 'yes');
+  await t.adminPost(`/admin/events/${t.eventId}/signup/close`);
+  const res = await t.app.inject(`/p/${t.ada.token}`);
+  assert.ok(has(res.body, 'signup.joined'));
+  assert.ok(has(res.body, 'signup.askToLeave'));
+  assert.ok(textOf(res.body).includes('bijvoorbeeld in de les'));
 });
 
 test('a sign-up not sent yet tells the participant to wait and offers no answer', async () => {

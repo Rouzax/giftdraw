@@ -88,14 +88,16 @@ export function renderEmail(kind, { lang, participant, receiver, event, group, l
     if (!(now instanceof Date)) throw new Error('remind-signup needs the send time');
     vars.days = daysLeft(event.signupDeadline, now, tz);
   }
-  // The catalogue has no plural forms, so the last day has its own subject.
-  const subjectKey = vars.days === 1 ? 'subjectOne' : 'subject';
+  // The catalogue has no plural forms, so one day left has its own subject;
+  // on the closing day itself subject and body say it is the last day.
+  const today = vars.days === 0 ? 'Today' : '';
+  const subjectKey = vars.days === 1 ? 'subjectOne' : `subject${today}`;
   const appName = t(lang, 'app.name');
   const subject = `${appName}: ${t(lang, `email.${key}.${subjectKey}`, vars)}`;
   const greeting = t(lang, 'email.greeting', { name: participant.name });
-  const body = t(lang, `email.${key}.body`, vars);
+  const body = t(lang, `email.${key}.body${today}`, vars);
   // The text part has no button, so its wording points at the link.
-  const bodyText = t(lang, `email.${key}.bodyText`, vars);
+  const bodyText = t(lang, `email.${key}.bodyText${today}`, vars);
   const buttons = ANSWER_KINDS.has(kind)
     ? [
       { href: `${link}?a=yes`, label: t(lang, `email.${key}.button`) },

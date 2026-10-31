@@ -162,10 +162,11 @@ for (const [name, change, at, history, nudgeHistory, want] of DUE) {
   });
 }
 
-test('daysLeft counts the deadline day itself', () => {
-  assert.equal(daysLeft('2026-11-20', new Date('2026-11-13T08:00:00.000Z'), TZ), 8);
-  assert.equal(daysLeft('2026-11-20', new Date('2026-11-18T08:00:00.000Z'), TZ), 3);
-  assert.equal(daysLeft('2026-11-20', new Date('2026-11-20T22:59:00.000Z'), TZ), 1);
+test('daysLeft counts whole days until the closing day, which itself is 0', () => {
+  assert.equal(daysLeft('2026-11-20', new Date('2026-11-13T08:00:00.000Z'), TZ), 7);
+  assert.equal(daysLeft('2026-11-20', new Date('2026-11-18T08:00:00.000Z'), TZ), 2);
+  assert.equal(daysLeft('2026-11-20', new Date('2026-11-19T08:00:00.000Z'), TZ), 1);
+  assert.equal(daysLeft('2026-11-20', new Date('2026-11-20T22:59:00.000Z'), TZ), 0);
   // Local midnight, not UTC: 23:30Z on the 19th is already the 20th in Amsterdam.
-  assert.equal(daysLeft('2026-11-20', new Date('2026-11-19T23:30:00.000Z'), TZ), 1);
+  assert.equal(daysLeft('2026-11-20', new Date('2026-11-19T23:30:00.000Z'), TZ), 0);
 });

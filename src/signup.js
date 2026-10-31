@@ -32,10 +32,10 @@ export function joins(participant) {
   return participant.signup === 'yes';
 }
 
-// Days left to answer, the deadline day itself included, so it reads 1 on
-// the last day.
+// Whole days until the closing day, so a week before reads 7 and the closing
+// day itself 0: people count to the date in the mail, not past it.
 export function daysLeft(deadline, now, tz) {
-  return (Date.parse(deadline) - Date.parse(todayIn(now, tz))) / DAY_MS + 1;
+  return (Date.parse(deadline) - Date.parse(todayIn(now, tz))) / DAY_MS;
 }
 
 // The reminders count every remind-signup the person ever got for this

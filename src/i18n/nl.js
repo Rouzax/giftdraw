@@ -66,12 +66,23 @@ export default {
   'signup.no': 'Nee, deze keer niet',
   'signup.joined': 'Je doet mee.',
   'signup.notJoined': 'Je doet deze keer niet mee.',
-  'signup.switchToYes': 'Toch meedoen',
-  'signup.switchToNo': 'Toch niet meedoen',
+  'signup.confirm': 'Bijna klaar: tik hieronder om het te bevestigen',
+  'signup.otherYes': 'Ik doe toch mee',
+  'signup.otherNo': 'Toch niet? Nee, deze keer niet',
+  'signup.nowYes': 'Nu staat er dat je meedoet.',
+  'signup.nowNo': 'Nu staat er dat je niet meedoet.',
+  'signup.nextYes': 'Als het aanmelden klaar is, krijg je een e-mail. Daarin vertel je wat je leuk vindt. Later trek je een naam.',
+  'signup.nextYesNoEmail': 'Als het aanmelden klaar is, kun je op deze pagina vertellen wat je leuk vindt. Later trek je hier een naam.',
+  'signup.nextNo': 'Je hoeft verder niets te doen.',
+  'signup.changeUntil': 'Bedenk je je? Je kunt je antwoord veranderen tot en met {date}.',
+  'signup.change': 'Antwoord veranderen',
+  'signup.changeLead': 'Kies je nieuwe antwoord.',
+  'signup.keep': 'Laat mijn antwoord zo',
   'signup.setup': 'De organisator vraagt je binnenkort of je meedoet.',
   'signup.closed': 'Aanmelden is gesloten.',
-  'signup.askToJoin': 'Wil je toch meedoen? Vraag het aan de organisator. Die kan je nog toevoegen.',
-  'signup.askToLeave': 'Wil je toch niet meedoen? Laat het de organisator weten.',
+  'signup.notSaved': 'Je antwoord is niet bewaard, want aanmelden is gesloten.',
+  'signup.askToJoin': 'Wil je toch meedoen? Vraag het aan de organisator, bijvoorbeeld in de les. Die kan je nog toevoegen.',
+  'signup.askToLeave': 'Wil je toch niet meedoen? Zeg het tegen de organisator, bijvoorbeeld in de les.',
 
   'draw.title': 'Je mag een naam trekken',
   'draw.intro': 'Druk op de knop. Dan zie je voor wie jij een cadeautje geeft.',
@@ -139,13 +150,18 @@ export default {
   'email.signup.button2': 'Nee, deze keer niet',
   'email.remindSignup.subject': 'Nog {days} dagen om te zeggen of je meedoet aan {event}',
   'email.remindSignup.subjectOne': 'Nog 1 dag om te zeggen of je meedoet aan {event}',
+  'email.remindSignup.subjectToday': 'Vandaag nog: zeg of je meedoet aan {event}',
+  'email.remindSignup.bodyToday':
+    'Je hebt nog niet gezegd of je meedoet met {event}. Vandaag is de laatste dag. Kies hieronder ja of nee. Je eigen pagina opent dan, en daar bevestig je je keuze.',
+  'email.remindSignup.bodyTextToday':
+    'Je hebt nog niet gezegd of je meedoet met {event}. Vandaag is de laatste dag. Open hieronder de link bij je antwoord. Je eigen pagina opent dan, en daar bevestig je je keuze.',
   'email.remindSignup.body':
     'Je hebt nog niet gezegd of je meedoet met {event}. Kies hieronder ja of nee. Je eigen pagina opent dan, en daar bevestig je je keuze. Dat kan tot en met {deadline}.',
   'email.remindSignup.bodyText':
     'Je hebt nog niet gezegd of je meedoet met {event}. Open hieronder de link bij je antwoord. Je eigen pagina opent dan, en daar bevestig je je keuze. Dat kan tot en met {deadline}.',
   'email.remindSignup.button': 'Ja, ik doe mee',
   'email.remindSignup.button2': 'Nee, deze keer niet',
-  'email.signupNudge.subject': 'Weet je het zeker?',
+  'email.signupNudge.subject': 'Weet je zeker dat je niet meedoet met {event}?',
   'email.signupNudge.body':
     'Je hebt gezegd dat je niet meedoet met {event}. Dat is helemaal goed. Bedenk je je toch? Dat kan nog tot en met {deadline}, op je eigen pagina.',
   'email.signupNudge.bodyText':

@@ -142,6 +142,48 @@ h1 {
   font-weight: 700;
 }
 
+/* The stored sign-up answer, set apart so it reads as done, not as a
+   question still open. */
+.answered {
+  margin: 0 0 1.25rem;
+  padding: 1rem 1.25rem;
+  background: var(--card);
+  border: 2px solid var(--accent);
+  border-radius: 0.75rem;
+}
+
+.answered .answer {
+  margin: 0 0 0.5rem;
+}
+
+.answered p:last-child {
+  margin: 0;
+}
+
+.confirm {
+  margin: 1.5rem 0 0;
+  font-size: 1.5rem;
+  line-height: 1.3;
+}
+
+/* The choice the mail link did not suggest: still a full-width target of
+   at least 48px, but plainly second to the large button above it. */
+.link-button {
+  display: block;
+  width: 100%;
+  min-height: 3rem;
+  margin: -0.5rem 0 1.5rem;
+  padding: 0.5rem 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent-dark);
+  font: inherit;
+  font-size: 1.375rem;
+  text-align: center;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 @media (min-width: 48rem) {
   .button {
     display: inline-block;
