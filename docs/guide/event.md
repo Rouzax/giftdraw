@@ -93,7 +93,7 @@ Typing in a follow-up field ticks its box, so an answer is never lost because so
 
 ### What happens to the answers
 
-Participants see the changed form the next time they open their page. Nobody gets a mail about it. A wish page someone opened before your change saves nothing: they get the current form back with what they typed listed above it, so no answer is lost without your confirmation.
+Participants see the changed form the next time they open their page. Nobody gets a mail about it. A wish page someone opened before your change is always refused when they press **Save**, even if nothing they typed would change: nothing is stored, and they get the current form back with what they typed listed above it. So no answer is lost without your confirmation; see [If something goes wrong for a participant](../participants.md#if-something-goes-wrong-for-a-participant).
 
 - **Changing wording keeps the answers.** That goes for a question's wording, a choice's text and a follow-up question: ticks and typed answers stay with the question or choice.
 - **Switching a follow-up question to None** (*Geen*) hides what participants typed in it from their giver. It is kept, and shows again when you switch the follow-up question back on.

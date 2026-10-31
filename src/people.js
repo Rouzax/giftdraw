@@ -1,5 +1,5 @@
 import { domainToASCII } from 'node:url';
-import { isStaleWishesPost, parseWishesForm, readAnswers } from './answers.js';
+import { parseWishesForm, readAnswers, staleWishesPost } from './answers.js';
 import { chooseInsertGiver, insertIntoCycle, makeCycle, planRemoval, validateAssignment } from './draw/cycle.js';
 import { NAME_MAX } from './limits.js';
 import { errorCode, kickDrain } from './mail/outbox.js';
@@ -79,11 +79,16 @@ export function saveWishes(ctx, participantId, body) {
     const form = wishForm(event);
     const wishes = parseWishesForm(body, form, participant.wishes);
     if (!wishes) return 'outdated';
+    const stale = staleWishesPost(body, participant.wishes, form);
+    // After a form change the post may hold input the current form cannot
+    // read (a removed or hidden question, a removed choice), so it is
+    // refused even when it changes nothing stored.
+    if (stale === 'form') return 'stale';
     // A save without a change must not mark a printed card out of date or
-    // mail the giver about nothing. From an old page it would lose nothing
-    // either, so only an old page that changes something is refused.
+    // mail the giver about nothing. From a page older than the stored
+    // answers it loses nothing either, so a double tap on Save passes.
     if (sameWishes(participant.wishes, wishes, form)) return 'unchanged';
-    if (isStaleWishesPost(body, participant.wishes, form)) return 'stale';
+    if (stale === 'answers') return 'stale';
     const fields = { wishes, wishesUpdatedAt: ctx.nowIso() };
     // Saves within the window share one mail to the giver: the flag is set by
     // the first save and the scheduler sends once it is due.

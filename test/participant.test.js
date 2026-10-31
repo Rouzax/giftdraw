@@ -361,6 +361,45 @@ test('an about page opened before the organiser changed the questions stores not
   assert.equal(res.body.includes('name="q_likes" value="candles"'), false);
 });
 
+// A form change is refused even when the post changes nothing stored: its
+// only input may sit where the current form no longer reads it.
+test('an about page opened before a form change is refused when its only input is in a removed or hidden question or a removed choice', async () => {
+  const builtIn = (overrides = {}) => [
+    { id: 'hobbies', type: 'text' },
+    { id: 'likes', type: 'choices', choices: ['chocolate', 'tea', 'coffee', 'bath', 'candles', 'books', 'plants', 'wine'].map((id) => ({ id, ...(id === 'chocolate' ? { detail: true } : {}) })) },
+    { id: 'pets', type: 'choices', choices: ['cat', 'dog', 'other'].map((id) => ({ id, ...(id === 'other' ? { detail: true } : {}) })) },
+    { id: 'avoid', type: 'text' },
+    { id: 'other', type: 'text' },
+  ].map((q) => overrides[q.id] === null ? null : { ...q, ...overrides[q.id] }).filter(Boolean);
+  const cases = [
+    { change: { other: null }, typed: { q_other: 'Ik heb een kat.' }, shows: 'Ik heb een kat.' },
+    { change: { pets: { show: false } }, typed: { q_pets: ['cat'] }, shows: 'Kat' },
+    { change: { likes: { choices: ['chocolate', 'tea'].map((id) => ({ id })) } }, typed: { q_likes: ['candles'] }, shows: null },
+  ];
+  for (const { change, typed, shows } of cases) {
+    const { app, ctx, post, ada, group } = await setup();
+    const old = await openAbout(app, `/p/${ada.token}/about`);
+    ctx.repo.updateEvent(group.eventId, { formConfig: { questions: builtIn(change) } }, ctx.nowIso());
+    const res = await post(`/p/${ada.token}/about`, { ...old, ...typed });
+    assert.equal(res.statusCode, 200, JSON.stringify(typed));
+    assert.ok(textOf(res.body).includes(tr('nl', 'about.stale')));
+    if (shows) assert.ok(textOf(typedBlock(res.body)).includes(shows), shows);
+    assert.equal(ctx.repo.getParticipant(ada.id).wishes, null);
+  }
+});
+
+test('a double tap on Save stores once and the second tap is no change', async () => {
+  const { app, ctx, post, ada, clock } = await setup();
+  const page = await openAbout(app, `/p/${ada.token}/about`);
+  const first = await post(`/p/${ada.token}/about`, { ...page, q_hobbies: 'Breien' });
+  const saved = ctx.repo.getParticipant(ada.id);
+  clock.ms += 1_000;
+  const second = await post(`/p/${ada.token}/about`, { ...page, q_hobbies: 'Breien' });
+  assert.equal(first.statusCode, 303);
+  assert.equal(second.statusCode, 303);
+  assert.equal(ctx.repo.getParticipant(ada.id).wishesUpdatedAt, saved.wishesUpdatedAt);
+});
+
 test('switching language on an about page opened before a newer save stores nothing and shows it in the new language', async () => {
   const { app, ctx, post, ada } = await setup();
   const old = await openAbout(app, `/p/${ada.token}/about`);
@@ -380,7 +419,7 @@ test('switching language on an about page opened before a newer save stores noth
 test('a current about page saves as before, and saved unchanged is no change', async () => {
   const { app, ctx, post, ada, clock } = await setup();
   const page = await app.inject(`/p/${ada.token}/about`);
-  assert.match(page.body, /<input type="hidden" name="version" value="[0-9a-f]{16}">/);
+  assert.match(page.body, /<input type="hidden" name="version" value="[0-9a-f]{16}\.[0-9a-f]{16}">/);
   const res = await post(`/p/${ada.token}/about`, { ...hiddenFields(page.body), q_hobbies: 'Breien' });
   assert.equal(res.statusCode, 303);
   const saved = ctx.repo.getParticipant(ada.id);
