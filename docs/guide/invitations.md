@@ -12,7 +12,7 @@ You have to do this step once per group, even when nobody in it has email: drawi
 
 On the group dashboard, the **Invitations** (*Uitnodigingen*) panel says how many participants with email have no invitation yet. Press **Send invitations** (*Uitnodigingen versturen*).
 
-![The Invitations panel with the Send invitations button, and the Drawing panel below it](../images/organiser-invite.webp){ .shot }
+![The Invitations panel with the Send invitations button, and the Drawing panel below it with the "Ja, ik weet het zeker" tick box above Open drawing](../images/organiser-invite.webp){ .shot }
 
 What happens:
 

@@ -41,7 +41,7 @@ Henk; henk@example.com
 
 When every line is fine, the people are added straight away and the dashboard says **Added.** (*Toegevoegd.*). Otherwise you first see a **Check the list** (*Controleer de lijst*) page:
 
-![The check page: one skipped line, one address already used in another group, and the people to add](../images/organiser-paste-confirm.webp){ .shot }
+![The check page: two skipped lines, one with an invalid address and one with an address already on line 2, then an address already used in another group, and the people to add](../images/organiser-paste-confirm.webp){ .shot }
 
 **These lines are skipped** (*Deze regels worden overgeslagen*)
 :   Lines that cannot be added, each with its line number and the reason:
