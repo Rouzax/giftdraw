@@ -539,7 +539,6 @@ export default {
   'admin.signup.open': 'Aanmelden is open tot en met {date}.',
   'admin.signup.closeHint': 'Na het sluiten kan niemand zich meer aanmelden. Je kunt het later opnieuw openen.',
   'admin.signup.close': 'Aanmelden nu sluiten',
-  'admin.signup.closed': 'Aanmelden is gesloten. Wie niet heeft geantwoord, doet niet mee.',
   'admin.signup.reopen': 'Opnieuw openen',
   'admin.signup.done': 'Aanmelden is afgerond.',
   'admin.signup.counts': '{yes} ja, {no} nee, {none} nog niet',

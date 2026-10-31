@@ -84,7 +84,10 @@ export function answerSeen(participant) {
 }
 
 // The day a closed sign-up closed: the day the organiser closed it by hand,
-// which can only be before the deadline ran out, or else the deadline.
+// or else the deadline. The scheduler also stamps signupClosedAt, at its first
+// tick after the deadline ran out, which falls on the day after; only a stamp
+// from before then is a close by hand.
 export function closedOn(event, tz) {
-  return event.signupClosedAt ? todayIn(new Date(event.signupClosedAt), tz) : event.signupDeadline;
+  const byHand = event.signupClosedAt && new Date(event.signupClosedAt) < closesAt(event.signupDeadline, tz);
+  return byHand ? todayIn(new Date(event.signupClosedAt), tz) : event.signupDeadline;
 }

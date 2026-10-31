@@ -66,7 +66,7 @@ The buttons in the mail open the person's own page, with the answer they chose a
 
 After answering, the page says **You are taking part.** (*Je doet mee.*) or **You are not taking part this time.** (*Je doet deze keer niet mee.*), with one button to change their mind. They can change their answer as often as they like until the end of the closing date. [What participants see](../participants.md#signing-up) shows the pages.
 
-The panel on the event page shows per group how many said yes, no and not yet, and each person's answer. A group with fewer than 3 yes answers shows **At least 3 participants are needed for drawing.** (*Er zijn minstens 3 deelnemers nodig om te kunnen trekken.*)
+The panel on the event page shows per group how many said yes, no and not yet, and each person's answer. A group with 1 or 2 yes answers shows **At least 3 participants are needed for drawing.** (*Er zijn minstens 3 deelnemers nodig om te kunnen trekken.*)
 
 ![The open sign-up: counts and answers per group, with buttons to set an answer](../images/organiser-signup-open.webp){ .shot }
 
@@ -76,7 +76,7 @@ Each group's dashboard shows the answers too, from the moment sign-up is on unti
 
 - The **Participants** table gets a **Sign-up** (*Aanmelding*) column with each person's answer: **Yes** (*Ja*), **No** (*Nee*) or **Not yet** (*Nog niet*); after closing, **No answer, not taking part** (*Geen antwoord, doet niet mee*). This column is there with email off too.
 - With email on, the **Invited** (*Uitgenodigd*) column is replaced by **Sign-up mail** (*Aanmeldmail*): the state of their sign-up mail (**Queued**, **Sent**, **Failed, retrying** or **Failed**), **Not yet** before you send, **Not needed, already answered** (*Niet nodig, al geantwoord*) for someone whose answer you set before sending, and **Not applicable** without an address.
-- The counts at the top add the answers, for example **Sign-up: 2 yes, 1 no, 4 not yet** (*Aanmelding: 2 ja, 1 nee, 4 nog niet*), and with email on count the sign-up mails instead of the invitations: **6 of 7 with email were sent the sign-up mail** (*6 van 7 met e-mail kregen de aanmeldmail*). Only delivered mails count.
+- The counts at the top add the answers, for example **Sign-up: 2 yes, 1 no, 4 not yet** (*Aanmelding: 2 ja, 1 nee, 4 nog niet*), and with email on count the sign-up mails instead of the invitations: **6 of 7 with email were sent the sign-up mail** (*6 van 7 met e-mail kregen de aanmeldmail*). Only delivered mails count, and people whose answer you set before sending are left out of the total, because they need no mail.
 
 To set an answer, use the event page or the person's own page. Once you start the draw, the dashboard goes back to the usual columns and counts of [Follow up](follow-up.md#read-the-dashboard).
 
@@ -104,7 +104,7 @@ The **Last reminder** (*Laatste herinnering*) column on the group dashboard incl
 
 Each person in the panel has **Set to yes** (*Zet op ja*) and **Set to no** (*Zet op nee*), minus the answer they already have; the same buttons are in the **Sign-up** panel on their own page. Use them for someone who told you their answer in person, or who has no email or phone. You can do this from the moment sign-up is on until you start the draw, also after sign-up has closed.
 
-If the answer changed after you opened the page, because the person answered in the meantime or you set it on another page, your press is refused and nothing is saved: the page says **...'s answer has changed in the meantime, by them or on another page. Nothing was saved. Below you see the answer as it is now.** (*Het antwoord van ... is intussen veranderd, door die persoon zelf of op een andere pagina. Er is niets opgeslagen. Hieronder zie je het antwoord van nu.*) Check the answer shown and press again if you still want to change it.
+If you press the answer they already have, for example by tapping twice, nothing changes and the page simply comes back. If the answer changed after you opened the page, because the person answered in the meantime or you set it on another page, your press is refused and nothing is saved: the page says **...'s answer has changed in the meantime, by them or on another page. Nothing was saved. Below you see the answer as it is now.** (*Het antwoord van ... is intussen veranderd, door die persoon zelf of op een andere pagina. Er is niets opgeslagen. Hieronder zie je het antwoord van nu.*) Check the answer shown and press again if you still want to change it.
 
 An answer you set counts like their own, so it also stops the reminders. Someone you set before pressing **Send now** gets no sign-up mail at all: no question, no reminders and no "Are you sure?" mail. A person who was sent the sign-up mail and whose answer is no two days before the closing date gets the "Are you sure?" mail, also when you set that no.
 
@@ -143,7 +143,7 @@ Until you start the draw, you can open sign-up again: fill in a new closing date
 
 ## Start the draw
 
-Once sign-up has closed and the lists are right, press **Make the pairs** (*Lootjes maken*) in the panel. You first see a confirmation page, **Make the pairs with everyone taking part** (*Lootjes maken met wie meedoet*), with per group who takes part and who **Will be removed** (*Worden verwijderd*). Above the groups it lists the people without an email address who did not answer, who will be removed unless you set them to yes first.
+Once sign-up has closed and the lists are right, press **Make the pairs** (*Lootjes maken*) in the panel. You first see a confirmation page, **Make the pairs with everyone taking part** (*Lootjes maken met wie meedoet*), with the day sign-up closed and per group who takes part and who **Will be removed** (*Worden verwijderd*). Above the groups it lists the people without an email address who did not answer, who will be removed unless you set them to yes first.
 
 A group whose automatic opening date is today or has passed is marked **Drawing in this group opens right after you make the pairs: its automatic opening day is today or has passed.** (*Het trekken gaat in deze groep meteen open als je de lootjes maakt: de dag om automatisch te openen is vandaag of al voorbij.*) A group where nobody takes part is named with **...: nobody is taking part, the group will be empty.** (*...: niemand doet mee, de groep wordt leeg.*); you can still go ahead, and that group ends up without anyone in it.
 

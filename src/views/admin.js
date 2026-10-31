@@ -142,7 +142,8 @@ ${button('no', 'admin.signup.setNo')}
 const counted = (lang, key, count) => t(lang, count === 1 ? `${key}One` : key, { count });
 
 // Per group: the counts, and everyone with their answer. Before sending
-// nobody could answer yet, so the too-small warning waits until then.
+// nobody could answer yet, so the too-small warning waits until then. A group
+// nobody joins may start the draw empty, so only one or two joining warn.
 // Once closed, not answering is a no, so the counts become who joins.
 function answerCounts(lang, people, state) {
   const yes = people.filter(joins).length;
@@ -156,7 +157,7 @@ function answerLists(lang, groups, state) {
   return groups.map(({ group, people }) => {
     const yes = people.filter(joins).length;
     const counts = answerCounts(lang, people, state);
-    const warn = state !== 'setup' && yes < MIN_GROUP
+    const warn = state !== 'setup' && yes > 0 && yes < MIN_GROUP
       ? html`<p class="notice warn">${t(lang, 'admin.warning.below-minimum')}</p>`
       : '';
     return html`<h3>${group.name}</h3>
@@ -233,8 +234,7 @@ ${deadlineForm('admin.signup.newDeadline', 'admin.signup.move', value || event.s
 ${answerLists(lang, groups, state)}
 ${stepForm('close', 'admin.signup.close', 'admin.signup.closeHint')}`;
   } else if (state === 'closed') {
-    steps = html`<p>${t(lang, 'admin.signup.closed')}</p>
-${closedNotice(lang, { event, people: everyone(groups), tz })}
+    steps = html`${closedNotice(lang, { event, people: everyone(groups), tz })}
 ${answerLists(lang, groups, state)}
 <p class="hint">${t(lang, 'admin.signup.finishHint')}</p>
 <p><a class="button-link" href="${action}/finish">${t(lang, 'admin.signup.finish')}</a></p>
@@ -313,7 +313,7 @@ ${deleteForm(lang, `/admin/events/${event.id}/delete`, { label: t(lang, 'admin.e
 // with one or two people taking part could not be paired, so the draw cannot
 // start until the organiser fixes it and the confirmation is left out; a
 // group where nobody takes part is allowed and is left empty.
-export function signupFinishView(lang, { event, groups, today, mailEnabled }) {
+export function signupFinishView(lang, { event, groups, today, mailEnabled, tz }) {
   const title = t(lang, 'admin.signup.finish.title');
   const names = (people) => (people.length
     ? html`<ul>${people.map((p) => html`<li>${p.name}</li>`)}</ul>`
@@ -342,6 +342,7 @@ ${formToken()}
   const body = html`${backLink(`/admin/events/${event.id}#signup`, t(lang, 'admin.signup.finish.back'))}
 <h1>${title}</h1>
 ${refusal}
+<p>${t(lang, 'admin.signup.closedOn', { date: formatDate(lang, closedOn(event, tz), tz) })}</p>
 <p>${t(lang, mailEnabled ? 'admin.signup.finish.intro' : 'admin.signup.finish.introNoMail')}</p>
 ${unasked.length ? html`<div class="notice warn">
 <p>${t(lang, 'admin.signup.finish.noEmail')}</p>
@@ -520,10 +521,16 @@ function summary(lang, rows, mailEnabled, signupState) {
   if (signing) {
     items.push(t(lang, 'admin.summary.signup', { counts: answerCounts(lang, rows.map((r) => r.participant), signupState) }));
   }
-  if (mailEnabled) {
-    const mail = signing ? 'signup' : 'invite';
-    items.push(t(lang, signing ? 'admin.summary.signupMailed' : 'admin.summary.invited', {
-      count: withEmail.filter((r) => r.mail[mail] === 'sent').length, total: withEmail.length,
+  // Someone the organiser answered for before sending was never mailed and
+  // needs not be, so the sign-up count leaves them out.
+  if (mailEnabled && signing) {
+    const asked = withEmail.filter((r) => r.mail.signup || !r.participant.signup);
+    items.push(t(lang, 'admin.summary.signupMailed', {
+      count: asked.filter((r) => r.mail.signup === 'sent').length, total: asked.length,
+    }));
+  } else if (mailEnabled) {
+    items.push(t(lang, 'admin.summary.invited', {
+      count: withEmail.filter((r) => r.mail.invite === 'sent').length, total: withEmail.length,
     }));
   }
   return html`<ul class="summary">${items.map((item) => html`<li>${item}</li>`)}</ul>`;

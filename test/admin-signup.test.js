@@ -807,7 +807,7 @@ test('the class table shows each sign-up answer and the sign-up mail while sign-
   assert.equal(cell(ben).trim(), tr('nl', 'admin.signup.answer.no'));
   assert.equal(cell(cor).trim(), tr('nl', 'admin.signup.answer.none'));
   for (const p of [ada, ben, cor]) assert.ok(textOf(rowOf(open, p)).includes(tr('nl', 'admin.invite.sent')), p.name);
-  assert.ok(open.includes(words('nl', 'admin.summary.signupMailed', { count: 3, total: 4 })));
+  assert.ok(open.includes(words('nl', 'admin.summary.signupMailed', { count: 3, total: 3 })));
   assert.ok(open.includes(words('nl', 'admin.summary.signup', { counts: tr('nl', 'admin.signup.counts', { yes: 1, no: 2, none: 1 }) })));
   assert.ok(!open.includes(words('nl', 'admin.summary.invited', { count: 0, total: 4 })));
 
@@ -902,6 +902,8 @@ test('a group where nobody takes part is named on the confirmation and left empt
   assert.equal(people(t, none).length, 0);
   assert.equal(people(t, three).length, 3);
   assert.ok(people(t, three).every((p) => p.receiverId));
+  const line = msgs(t).find((l) => l.msg === 'signup_finished');
+  assert.equal(line.groups_unpaired, 1);
 });
 
 test('a closed sign-up names on the event and class pages who did not answer and has no address', async () => {
@@ -988,4 +990,67 @@ test('an organiser answer from a page older than the stored answer is refused an
 
   assert.equal((await setAnswer(t, ada, 'yes')).statusCode, 303);
   assert.equal(t.ctx.repo.getParticipant(ada.id).signup, 'yes');
+});
+
+test('a sign-up closed by the scheduler after its deadline shows the deadline as the closing date', async () => {
+  const t = await setup();
+  const { eventId, groupIds: [a] } = await eventWithGroups(t, [3]);
+  await turnOn(t, eventId);
+  await send(t, eventId);
+  t.clock.ms = Date.parse('2026-11-21T00:30:00.000Z');
+  await tick(t.ctx);
+  assert.ok(event(t, eventId).signupClosedAt);
+  const notice = words('nl', 'admin.signup.closedOn', { date: formatDate('nl', DEADLINE, TZ) });
+  assert.ok((await t.adminGet(`/admin/events/${eventId}`)).body.includes(notice));
+  assert.ok((await t.adminGet(`/admin/groups/${a}`)).body.includes(notice));
+  assert.ok((await t.adminGet(`/admin/events/${eventId}/signup/finish`)).body.includes(notice));
+});
+
+test('the organiser tapping the same answer twice gets the saved answer, not a refusal', async () => {
+  const t = await setup();
+  const { eventId, groupIds: [a] } = await eventWithGroups(t, [3]);
+  await turnOn(t, eventId);
+  const [ada] = people(t, a);
+  const seen = answerSeen(t.ctx.repo.getParticipant(ada.id));
+  const first = await t.adminPost(`/admin/participants/${ada.id}/signup`, { answer: 'yes', back: 'event', seen });
+  assert.equal(first.statusCode, 303);
+  const savedAt = t.ctx.repo.getParticipant(ada.id).signupAt;
+  t.clock.ms += 1000;
+  const second = await t.adminPost(`/admin/participants/${ada.id}/signup`, { answer: 'yes', back: 'event', seen });
+  assert.equal(second.statusCode, 303);
+  assert.equal(second.headers.location, `/admin/events/${eventId}#signup`);
+  assert.equal(t.ctx.repo.getParticipant(ada.id).signupAt, savedAt);
+  assert.equal(msgs(t).filter((l) => l.msg === 'signup_set').length, 1);
+  const person = await t.adminPost(`/admin/participants/${ada.id}/signup`, { answer: 'yes', back: 'person', seen });
+  assert.equal(person.headers.location, `/admin/participants/${ada.id}`);
+});
+
+test('the sign-up mail count leaves out who needed no mail because they had answered', async () => {
+  const t = await setup();
+  const { eventId, groupIds: [a] } = await eventWithGroups(t, [3]);
+  await turnOn(t, eventId);
+  const [ada] = people(t, a);
+  await setAnswer(t, ada, 'yes');
+  await send(t, eventId);
+  await t.drain();
+  const page = (await t.adminGet(`/admin/groups/${a}`)).body;
+  assert.ok(page.includes(words('nl', 'admin.summary.signupMailed', { count: 2, total: 2 })), textOf(page).slice(0, 600));
+});
+
+test('the closed panel shows the closing notice once and warns only for groups of one or two', async () => {
+  const t = await setup();
+  const { eventId, groupIds: [none, two] } = await eventWithGroups(t, [3, 3]);
+  await turnOn(t, eventId);
+  await send(t, eventId);
+  const [eva, fem] = people(t, two);
+  for (const p of [eva, fem]) await answerAs(t, p, 'yes');
+  await t.adminPost(`/admin/events/${eventId}/signup/close`);
+  const page = (await t.adminGet(`/admin/events/${eventId}`)).body;
+  assert.ok(!page.includes('Aanmelden is gesloten. Wie niet heeft geantwoord'));
+  assert.ok(page.includes(words('nl', 'admin.signup.closedOn', { date: formatDate('nl', '2026-11-01', TZ) })));
+  const panel = page.split('id="signup"')[1];
+  const [groupOne, groupTwo] = panel.split('<h3>').slice(1);
+  assert.ok(groupOne.startsWith('Groep 1') && !groupOne.includes(words('nl', 'admin.warning.below-minimum')));
+  assert.ok(groupTwo.startsWith('Groep 2') && groupTwo.includes(words('nl', 'admin.warning.below-minimum')));
+  assert.equal(people(t, none).length, 3);
 });

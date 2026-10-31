@@ -110,7 +110,8 @@ export function adminSignupRoutes(app, ctx, {
   // field cannot be used as an open redirect. seen is the answer the page
   // showed: a form from before the person or another page changed it would
   // silently overrule a newer answer, so it is refused, as is a form
-  // without it.
+  // without it. An answer already stored as posted is the requested result,
+  // for instance after a double tap, so it leads back without a write.
   app.post('/admin/participants/:id/signup', loadParticipant, async (request, reply) => {
     const participant = request.record;
     const answer = request.body?.answer;
@@ -124,12 +125,14 @@ export function adminSignupRoutes(app, ctx, {
       return render(request, reply, view, 409);
     };
     if (!signupActive(event, ctx.now(), config.tz)) return refuseHere('state', 'admin.signup.error.state');
+    const back = fromPerson ? `/admin/participants/${participant.id}` : `${eventUrl(event)}#signup`;
+    if (participant.signup === answer) return reply.redirect(back, 303);
     if (request.body?.seen !== answerSeen(participant)) {
       return refuseHere('changed', ['admin.signup.error.changed', { name: participant.name }]);
     }
     repo.updateParticipant(participant.id, { signup: answer, signupAt: ctx.nowIso() });
     request.log.info({ participant_id: participant.id, event_id: event.id }, 'signup_set');
-    return reply.redirect(fromPerson ? `/admin/participants/${participant.id}` : `${eventUrl(event)}#signup`, 303);
+    return reply.redirect(back, 303);
   });
 
   // status is 409 when a press was refused because a group is too small;
@@ -143,7 +146,7 @@ export function adminSignupRoutes(app, ctx, {
       return { group, joining: people.filter(joins), leaving: people.filter((p) => !joins(p)) };
     });
     const today = todayIn(ctx.now(), config.tz);
-    const view = signupFinishView(adminLang(request), { event, groups, today, mailEnabled: ctx.mailer.enabled });
+    const view = signupFinishView(adminLang(request), { event, groups, today, mailEnabled: ctx.mailer.enabled, tz: config.tz });
     return render(request, reply, view, status);
   }
 

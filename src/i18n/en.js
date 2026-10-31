@@ -537,7 +537,6 @@ export default {
   'admin.signup.open': 'Sign-up is open until the end of {date}.',
   'admin.signup.closeHint': 'After closing, nobody can sign up any more. You can open it again later.',
   'admin.signup.close': 'Close sign-up now',
-  'admin.signup.closed': 'Sign-up is closed. Anyone who did not answer does not take part.',
   'admin.signup.reopen': 'Open again',
   'admin.signup.done': 'Sign-up is finished.',
   'admin.signup.counts': '{yes} yes, {no} no, {none} not yet',
