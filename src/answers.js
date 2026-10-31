@@ -1,7 +1,11 @@
-import { questionText } from './questions.js';
+import { createHash } from 'node:crypto';
+import { formKey, questionText } from './questions.js';
 import { clipText, unixLines } from './text.js';
 
 const TEXT_MAX = 1000;
+const VERSION_LENGTH = 16;
+// The shape of a choice id, built in or made by the editor.
+const CHOICE_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 const isObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 const strings = (value) => (Array.isArray(value) ? value.filter((v) => typeof v === 'string' && v) : []);
@@ -130,6 +134,61 @@ export function parseWishesForm(body, form, previous = null) {
   return { answers };
 }
 
+// What an about page was rendered from: the stored answers exactly as
+// stored, and the form as participants read it. A page opened before
+// another save or a question change carries another version; storing its
+// post would put older answers back, or drop answers the organiser's
+// confirmation never counted.
+export function wishesVersion(wishes, form) {
+  return createHash('sha256')
+    .update(JSON.stringify([wishes ?? null, formKey(form)]))
+    .digest('hex')
+    .slice(0, VERSION_LENGTH);
+}
+
+// A post without a version comes from a page rendered before pages carried
+// one, and is read as before.
+export function isStaleWishesPost(body, wishes, form) {
+  const posted = field(body ?? {}, 'version');
+  return posted !== undefined && posted !== wishesVersion(wishes, form);
+}
+
+// What a refused post held where it differs from the saved answers, so the
+// page can show it beside the form and nothing typed is lost. Text posted
+// for a question or follow-up no longer on the form has no label left and
+// gets label null. A tick of a removed choice posts only its id, which
+// says nothing to the reader, so it is not listed; neither is a removed
+// question's text that reads like such an id.
+export function typedLines(body, form, wishes, lang) {
+  const b = body ?? {};
+  const posted = field(b, 'questions');
+  const onPage = new Set(typeof posted === 'string' ? posted.split(/\s+/) : []);
+  const saved = readAnswers(wishes);
+  const read = new Set();
+  const lines = [];
+  for (const question of form.questions) {
+    if (!onPage.has(question.id)) continue;
+    read.add(`q_${question.id}`);
+    let answer;
+    if (question.type === 'text') {
+      answer = text(field(b, `q_${question.id}`)) || null;
+    } else {
+      for (const choice of question.choices) if (choice.detail) read.add(`d_${question.id}_${choice.id}`);
+      answer = readAnswer(parseChoices(b, question, null));
+    }
+    const value = lineValue(question, answer, lang);
+    if (value && value !== lineValue(question, saved[question.id], lang)) {
+      lines.push({ label: questionText(question, lang, 'line'), value });
+    }
+  }
+  for (const [name, value] of Object.entries(b)) {
+    if (!/^[qd]_/.test(name) || read.has(name)) continue;
+    const typed = text(value);
+    if (typed && !(name.startsWith('q_') && CHOICE_ID.test(typed))) lines.push({ label: null, value: typed });
+  }
+  return lines;
+}
+
 // Answers kept in hidden questions are not shown to anyone, so they do not
 // count as filled in; without a form every answer counts.
 export function hasWishes(wishes, form = null) {
@@ -155,16 +214,19 @@ function choicesLine(question, answer, lang) {
     .join(', ');
 }
 
+// An answer of the other kind cannot be the one this question asked for.
+function lineValue(question, answer, lang) {
+  if (!answer) return '';
+  if (question.type === 'text') return typeof answer === 'string' ? answer : '';
+  return typeof answer === 'string' ? '' : choicesLine(question, answer, lang);
+}
+
 export function wishLines(wishes, form, lang) {
   const answers = readAnswers(wishes);
   const lines = [];
   for (const question of form.questions) {
-    const answer = answers[question.id];
-    if (!question.show || !answer) continue;
-    // An answer of the other kind cannot be the one this question asked for.
-    const value = question.type === 'text'
-      ? (typeof answer === 'string' ? answer : '')
-      : (typeof answer === 'string' ? '' : choicesLine(question, answer, lang));
+    if (!question.show) continue;
+    const value = lineValue(question, answers[question.id], lang);
     if (value) lines.push({ label: questionText(question, lang, 'line'), value });
   }
   return lines;

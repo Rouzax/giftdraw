@@ -1,4 +1,5 @@
 import qrcode from 'qrcode-generator';
+import { typedLines } from '../answers.js';
 import { html } from '../html.js';
 import { isLang, t } from '../i18n/index.js';
 import {
@@ -6,6 +7,7 @@ import {
   resendSignup, saveWishes,
 } from '../people.js';
 import { NAME_MAX } from '../limits.js';
+import { wishForm } from '../questions.js';
 import { cardOutOfDate } from '../status.js';
 import { newToken } from '../tokens.js';
 import { cardTools, messageView, PERSON_DONE, removeView } from '../views/admin.js';
@@ -152,12 +154,20 @@ export function adminPeopleRoutes(app, ctx, {
 
   app.post('/admin/participants/:id/about', loadParticipant, async (request, reply) => {
     const participant = request.record;
-    // A page loaded before an update posts fields this version cannot read;
-    // the form comes back with the stored answers, as for the participant.
-    if (!saveWishes(ctx, participant.id, request.body)) {
-      request.log.info({ group_id: participant.groupId }, 'wishes_form_outdated');
-      const view = aboutFormView({ ...screenData(participant), wishes: participant.wishes, outdated: true });
-      return renderBehalf(request, reply, participant, view, behalfFrame(request, participant));
+    // A page loaded before an update posts fields this version cannot read,
+    // and one opened before a newer save or a question change would put
+    // older answers back; either way the form comes back with the stored
+    // answers, as for the participant.
+    const result = saveWishes(ctx, participant.id, request.body);
+    if (result === 'outdated' || result === 'stale') {
+      request.log.info({ group_id: participant.groupId }, result === 'stale' ? 'wishes_form_stale' : 'wishes_form_outdated');
+      const current = repo.getParticipant(participant.id);
+      const data = screenData(current);
+      const stale = result === 'stale'
+        ? typedLines(request.body, wishForm(data.event), current.wishes, data.lang)
+        : null;
+      const view = aboutFormView({ ...data, wishes: current.wishes, outdated: result === 'outdated', stale });
+      return renderBehalf(request, reply, current, view, behalfFrame(request, current));
     }
     // No participant id, like wishes_saved: it would tie this receiver to
     // the giver described by the wish-update lines that follow.

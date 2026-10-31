@@ -16,6 +16,8 @@ Click **Fill in the wishes of ...** (*De wensen van ... invullen*). You get the 
 
 Everything is optional, as it is for participants. If the person who gives to them has already drawn, that giver gets a "wishes updated" mail, just as when the participant changes them; see [Follow up](follow-up.md#mail-the-app-sends-by-itself).
 
+If the participant saved their own page after you opened the form, or you changed the questions in between, your save is refused and the form comes back with what is saved now and what you typed listed above it; see [If something goes wrong for a participant](../participants.md#if-something-goes-wrong-for-a-participant).
+
 ## Draw together
 
 Once drawing is open for the group, press **Draw for ...** (*Trekken voor ...*). Ideally the person sits beside you: the slip comes out of the bowl with the same animation as on their own page, and the name appears on your screen. The bar at the top reads **You are looking on with ...** (*Je kijkt mee met ...*).

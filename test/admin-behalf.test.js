@@ -214,3 +214,46 @@ test('the participant page keeps the receiver hidden until drawn, then behind a 
   assert.ok(disclosure[2].includes(tr('nl', 'admin.person.givesTo', { name: receiver.name })));
   assert.equal(after.body.split(receiver.name).length - 1, 1, 'the name appears only inside the disclosure');
 });
+
+function hiddenFields(body) {
+  const fields = {};
+  for (const [, name, value] of body.matchAll(/<input type="hidden" name="([^"]*)" value="([^"]*)">/g)) fields[name] = value;
+  return fields;
+}
+
+// The organiser's page and the participant's own share the stored answers:
+// whichever was opened before the other saved must not overwrite it.
+test('an on-behalf page opened before the participant saved stores nothing and shows both versions', async () => {
+  const t = await setup({ names: ['Ada', 'Ben', 'Cor'], opened: true });
+  const ada = t.people[0];
+  const giver = t.people.find((p) => p.receiverId === ada.id);
+  t.ctx.repo.updateParticipant(giver.id, { drawnAt: t.ctx.nowIso() });
+  const behalf = hiddenFields((await t.adminGet(`/admin/participants/${ada.id}/about`)).body);
+  const own = hiddenFields((await t.app.inject(`/p/${ada.token}/about`)).body);
+  assert.equal((await t.post(`/p/${ada.token}/about`, { ...own, q_hobbies: 'Breien', q_likes: ['candles'] })).statusCode, 303);
+  t.ctx.repo.updateParticipant(ada.id, { notifyGiverDueAt: null });
+  const before = t.ctx.repo.getParticipant(ada.id);
+  t.clock.ms += MINUTE;
+
+  const res = await t.adminPost(`/admin/participants/${ada.id}/about`, { ...behalf, q_hobbies: 'Tuinieren' });
+  assert.equal(res.statusCode, 200);
+  assert.ok(res.body.includes(tr('nl', 'about.stale')));
+  assert.ok(res.body.includes('>Breien</textarea>'));
+  assert.match(res.body, /name="q_likes" value="candles" checked/);
+  const typed = /<section class="typed"[\s\S]*?<\/section>/.exec(res.body)?.[0] ?? '';
+  assert.ok(typed.includes('Tuinieren'));
+  assert.ok(res.body.includes(`action="/admin/participants/${ada.id}/about"`));
+  const after = t.ctx.repo.getParticipant(ada.id);
+  assert.deepEqual(after.wishes, before.wishes);
+  assert.equal(after.wishesUpdatedAt, before.wishesUpdatedAt);
+  assert.equal(after.notifyGiverDueAt, null);
+
+  // The participant's own page opened before the organiser's save is refused the same way.
+  const ownOld = hiddenFields((await t.app.inject(`/p/${ada.token}/about`)).body);
+  const current = hiddenFields(res.body);
+  const saved = await t.adminPost(`/admin/participants/${ada.id}/about`, { ...current, q_hobbies: 'Breien en tuinieren', q_likes: ['candles'] });
+  assert.equal(saved.statusCode, 303);
+  const stale = await t.post(`/p/${ada.token}/about`, { ...ownOld, q_hobbies: 'Breien' });
+  assert.equal(stale.statusCode, 200);
+  assert.equal(t.ctx.repo.getParticipant(ada.id).wishes.answers.hobbies, 'Breien en tuinieren');
+});

@@ -1,4 +1,4 @@
-import { hasWishes } from '../answers.js';
+import { hasWishes, typedLines } from '../answers.js';
 import { isLang } from '../i18n/index.js';
 import { createLimiter } from '../limiter.js';
 import { drawFor, mailOn, saveWishes } from '../people.js';
@@ -134,12 +134,24 @@ export function participantRoutes(app, ctx, { sendPage, sendError, isParticipant
     return render(reply, data.lang, aboutFormView({ ...data, wishes: participant.wishes, outdated: true }));
   }
 
+  // A page opened before a newer save or a question change: the form comes
+  // back with what is saved now, and what the post held is listed above it.
+  function staleForm(request, reply, participant) {
+    request.log.info({ group_id: participant.groupId }, 'wishes_form_stale');
+    const data = screenData(participant);
+    const stale = typedLines(request.body, wishForm(data.event), participant.wishes, data.lang);
+    return render(reply, data.lang, aboutFormView({ ...data, wishes: participant.wishes, stale }));
+  }
+
   app.post('/p/:token/about', { onRequest: loadParticipant }, async (request, reply) => {
-    if (!saveWishes(ctx, request.participant.id, request.body)) return outdatedForm(request, reply, request.participant);
+    const participant = request.participant;
+    const result = saveWishes(ctx, participant.id, request.body);
+    if (result === 'outdated') return outdatedForm(request, reply, participant);
+    if (result === 'stale') return staleForm(request, reply, repo.getParticipant(participant.id));
     // No participant id: the wish-update lines that follow say something
     // about this person's giver, and together they would reveal the pair.
-    request.log.info({ group_id: request.participant.groupId }, 'wishes_saved');
-    return reply.redirect(`/p/${request.participant.token}`, 303);
+    request.log.info({ group_id: participant.groupId }, 'wishes_saved');
+    return reply.redirect(`/p/${participant.token}`, 303);
   });
 
   app.post('/p/:token/draw', { onRequest: loadParticipant }, async (request, reply) => {
@@ -159,13 +171,14 @@ export function participantRoutes(app, ctx, { sendPage, sendError, isParticipant
     // questions existed sends its sections instead, which cannot be read.
     const withWishes = fromAbout && typeof request.body?.questions === 'string';
     const outdated = fromAbout && !withWishes && typeof request.body?.sections === 'string';
-    if (withWishes) saveWishes(ctx, participant.id, request.body);
+    const stale = withWishes && saveWishes(ctx, participant.id, request.body) === 'stale';
     repo.updateParticipant(participant.id, { language: lang });
     // No participant id next to a wish save, as for wishes_saved: it would
     // tie this receiver to the giver the wish-update lines describe.
-    if (withWishes) request.log.info({ group_id: participant.groupId, lang }, 'language_changed_wishes_saved');
+    if (withWishes && !stale) request.log.info({ group_id: participant.groupId, lang }, 'language_changed_wishes_saved');
     else request.log.info({ participant_id: participant.id, lang }, 'language_changed');
     if (outdated) return outdatedForm(request, reply, repo.getParticipant(participant.id));
+    if (stale) return staleForm(request, reply, repo.getParticipant(participant.id));
     // Only known targets, so the form cannot be used as an open redirect.
     const back = fromAbout ? '/about' : '';
     return reply.redirect(`/p/${participant.token}${back}`, 303);
