@@ -22,6 +22,10 @@ export default {
   'about.save': 'Save',
   'about.saved': 'Your answers are saved.',
   'about.outdated': 'This page was out of date, so nothing was saved. Check your answers and save again.',
+  'about.stale': 'This page was out of date: your answers or the questions changed in the meantime. Nothing was saved.',
+  'about.staleForm': 'The form below shows what is saved now. Want to keep something you had just filled in? Put it in the form and press Save. What is in the form is what gets saved.',
+  'about.typedTitle': 'What you had just filled in (not saved)',
+  'about.typedGone': 'A question that is no longer on the form',
 
   'wish.hobbies': 'Hobbies and interests',
   'wish.likes': 'I like...',

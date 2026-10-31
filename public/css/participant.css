@@ -40,6 +40,47 @@ h1 {
   border-left: 4px solid var(--warn);
 }
 
+.notice p {
+  margin: 0 0 0.5rem;
+}
+
+.notice p:last-child {
+  margin: 0;
+}
+
+/* What a refused save held. Typed line breaks are kept, so a long answer
+   reads as it was written. */
+.typed {
+  margin: 0 0 1.5rem;
+  padding: 1rem 1.25rem;
+  background: var(--card);
+  border: 2px solid var(--line);
+  border-radius: 0.75rem;
+}
+
+.typed h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.5rem;
+}
+
+.typed dl {
+  margin: 0;
+}
+
+.typed dl div {
+  margin: 0.375rem 0;
+}
+
+.typed dt {
+  font-weight: 700;
+}
+
+.typed dd {
+  margin: 0;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
 .theme {
   margin: 0 0 1.5rem;
   padding: 1rem 1.25rem;

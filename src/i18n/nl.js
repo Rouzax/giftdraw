@@ -23,6 +23,10 @@ export default {
   'about.save': 'Opslaan',
   'about.saved': 'Je antwoorden zijn bewaard.',
   'about.outdated': 'Deze pagina was verouderd, dus er is niets opgeslagen. Bekijk je antwoorden en sla opnieuw op.',
+  'about.stale': 'Deze pagina was niet meer actueel: je antwoorden of de vragen zijn intussen veranderd. Er is niets opgeslagen.',
+  'about.staleForm': 'Het formulier hieronder laat zien wat nu bewaard is. Wil je iets houden van wat je net had ingevuld? Zet het in het formulier en druk op Opslaan. Wat in het formulier staat, wordt bewaard.',
+  'about.typedTitle': 'Dit had je net ingevuld (niet opgeslagen)',
+  'about.typedGone': 'Vraag die er niet meer is',
 
   'wish.hobbies': "Hobby's en interesses",
   'wish.likes': 'Ik houd van...',

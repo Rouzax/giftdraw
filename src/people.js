@@ -1,5 +1,5 @@
 import { domainToASCII } from 'node:url';
-import { parseWishesForm, readAnswers } from './answers.js';
+import { isStaleWishesPost, parseWishesForm, readAnswers } from './answers.js';
 import { chooseInsertGiver, insertIntoCycle, makeCycle, planRemoval, validateAssignment } from './draw/cycle.js';
 import { NAME_MAX } from './limits.js';
 import { errorCode, kickDrain } from './mail/outbox.js';
@@ -66,8 +66,11 @@ function sameWishes(a, b, form) {
   return JSON.stringify(canonical(onForm(a, form))) === JSON.stringify(canonical(onForm(b, form)));
 }
 
-// Gives null, storing nothing, for a post from a page whose fields cannot
-// be read (see parseWishesForm).
+// Stores nothing for a post from a page whose fields cannot be read
+// ('outdated', see parseWishesForm) or from a page rendered from other
+// answers or another form ('stale', see wishesVersion). The version is
+// checked inside the transaction, so of two pages rendered alike only the
+// first save is stored.
 export function saveWishes(ctx, participantId, body) {
   const { repo } = ctx;
   return repo.tx(() => {
@@ -75,10 +78,12 @@ export function saveWishes(ctx, participantId, body) {
     const event = repo.getEvent(repo.getGroup(participant.groupId).eventId);
     const form = wishForm(event);
     const wishes = parseWishesForm(body, form, participant.wishes);
-    if (!wishes) return null;
+    if (!wishes) return 'outdated';
     // A save without a change must not mark a printed card out of date or
-    // mail the giver about nothing.
-    if (sameWishes(participant.wishes, wishes, form)) return wishes;
+    // mail the giver about nothing. From an old page it would lose nothing
+    // either, so only an old page that changes something is refused.
+    if (sameWishes(participant.wishes, wishes, form)) return 'unchanged';
+    if (isStaleWishesPost(body, participant.wishes, form)) return 'stale';
     const fields = { wishes, wishesUpdatedAt: ctx.nowIso() };
     // Saves within the window share one mail to the giver: the flag is set by
     // the first save and the scheduler sends once it is due.
@@ -86,7 +91,7 @@ export function saveWishes(ctx, participantId, body) {
       fields.notifyGiverDueAt = new Date(ctx.now().getTime() + WISH_UPDATE_DELAY_MS).toISOString();
     }
     repo.updateParticipant(participantId, fields);
-    return wishes;
+    return 'saved';
   });
 }
 

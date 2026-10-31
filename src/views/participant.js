@@ -1,4 +1,4 @@
-import { hasWishes, readAnswers, wishLines } from '../answers.js';
+import { hasWishes, readAnswers, wishesVersion, wishLines } from '../answers.js';
 import { html, raw } from '../html.js';
 import { icon, iconInline } from '../icons.js';
 import { exchangeLine, formatDate, LANGS, t, themeText } from '../i18n/index.js';
@@ -165,18 +165,44 @@ ${tickList(question, typeof answer === 'object' ? answer : null, lang)}
 </fieldset>`;
 }
 
+// The answers a refused post held, shown above the form that holds the
+// saved ones, so it is plain which of the two a press on Save stores.
+function typedBlock(lines, lang) {
+  if (!lines.length) return '';
+  return html`<section class="typed">
+<h2>${t(lang, 'about.typedTitle')}</h2>
+<dl>${lines.map((line) => html`<div><dt>${line.label ?? t(lang, 'about.typedGone')}</dt><dd>${line.value}</dd></div>`)}</dl>
+</section>`;
+}
+
 // outdated says the post came from a page whose fields cannot be read, so
-// nothing was saved and the stored answers are shown again.
-export function aboutFormView({ event, group, wishes, lang, tz, formAction, langAction, showLangSwitch, outdated = false }) {
+// nothing was saved and the stored answers are shown again. stale holds
+// the lines of a post refused because its page was rendered from other
+// answers or another form (see typedLines).
+export function aboutFormView({
+  event, group, wishes, lang, tz, formAction, langAction, showLangSwitch, outdated = false, stale = null,
+}) {
   const answers = readAnswers(wishes);
-  const shown = wishForm(event).questions.filter((question) => question.show);
+  const form = wishForm(event);
+  const shown = form.questions.filter((question) => question.show);
+  let notice = '';
+  if (stale) {
+    notice = html`<div class="notice" role="alert">
+<p>${t(lang, 'about.stale')}</p>
+<p>${t(lang, 'about.staleForm')}</p>
+</div>
+${typedBlock(stale, lang)}`;
+  } else if (outdated) {
+    notice = html`<p class="notice" role="alert">${t(lang, 'about.outdated')}</p>`;
+  }
   const body = html`<h1>${t(lang, 'about.title')}</h1>
-${outdated ? html`<p class="notice" role="alert">${t(lang, 'about.outdated')}</p>` : ''}
+${notice}
 <p class="lead">${t(lang, 'about.intro')}</p>
 ${themeBlock({ event, group, lang, tz })}
 <form class="about" id="about-form" method="post" action="${formAction}">
 <input type="hidden" name="from" value="about">
 <input type="hidden" name="questions" value="${shown.map((question) => question.id).join(' ')}">
+<input type="hidden" name="version" value="${wishesVersion(wishes, form)}">
 ${shown.map((question) => questionField(question, answers[question.id], lang))}
 <button type="submit" class="button">${t(lang, 'about.save')}</button>
 </form>

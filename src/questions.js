@@ -241,7 +241,7 @@ export function wishForm(event) {
 
 const choiceKey = (c) => [c.id, c.own, c.detail, c.question];
 const questionKey = (q) => [q.id, q.type, q.text, q.show, q.choices.map(choiceKey)];
-const formKey = (form) => JSON.stringify(form.questions.map(questionKey));
+export const formKey = (form) => JSON.stringify(form.questions.map(questionKey));
 
 // Whether two forms read the same to participants. A built-in wording or
 // choice follows the reader's language, so only own text counts.

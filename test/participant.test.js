@@ -1,5 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { t as tr } from '../src/i18n/index.js';
+import { tick } from '../src/scheduler.js';
 import { aboutBody, makeTestApp, seedGroup, textOf } from './helpers.js';
 
 const T0 = Date.parse('2026-11-01T10:00:00.000Z');
@@ -240,6 +242,155 @@ test('a post from an outdated about page stores nothing and shows the form again
   assert.deepEqual(ctx.repo.getParticipant(ada.id).wishes, before.wishes);
   const fresh = await app.inject(`/p/${ada.token}/about`);
   assert.equal(textOf(fresh.body).includes('out of date'), false);
+});
+
+// The hidden fields an about page posts back, as a browser sends them.
+function hiddenFields(body) {
+  const fields = {};
+  for (const [, name, value] of body.matchAll(/<input type="hidden" name="([^"]*)" value="([^"]*)">/g)) fields[name] = value;
+  return fields;
+}
+
+async function openAbout(app, url) {
+  const res = await app.inject(url);
+  assert.equal(res.statusCode, 200);
+  return hiddenFields(res.body);
+}
+
+const typedBlock = (body) => /<section class="typed"[\s\S]*?<\/section>/.exec(body)?.[0] ?? '';
+
+// A page left open while the same person saved on another page: storing its
+// post would put the older answers back and mail the giver about it.
+test('an about page opened before a newer save stores nothing and shows the saved answers next to what was typed', async () => {
+  const { app, ctx, post, ada, clock } = await setup();
+  const giver = ctx.repo.giverOf(ada.id);
+  ctx.repo.updateParticipant(giver.id, { drawnAt: ctx.nowIso() });
+  const old = await openAbout(app, `/p/${ada.token}/about`);
+  clock.ms += 86_400_000;
+  const fresh = await openAbout(app, `/p/${ada.token}/about`);
+  const saved = await post(`/p/${ada.token}/about`, { ...fresh, q_likes: ['candles'], q_other: 'Ik heb een kat.' });
+  assert.equal(saved.statusCode, 303);
+  ctx.repo.updateParticipant(ada.id, { notifyGiverDueAt: null });
+  const before = ctx.repo.getParticipant(ada.id);
+  clock.ms += 3_600_000;
+
+  const res = await post(`/p/${ada.token}/about`, { ...old, q_avoid: 'Geen parfum.' });
+  assert.equal(res.statusCode, 200);
+  const text = textOf(res.body);
+  assert.ok(text.includes(tr('nl', 'about.stale')));
+  assert.ok(text.includes(tr('nl', 'about.staleForm')));
+  // The form holds what is saved now; what was typed is listed beside it.
+  assert.match(res.body, /name="q_likes" value="candles" checked/);
+  assert.ok(res.body.includes('>Ik heb een kat.</textarea>'));
+  assert.equal(res.body.includes('>Geen parfum.</textarea>'), false);
+  const typed = typedBlock(res.body);
+  assert.ok(textOf(typed).includes(tr('nl', 'about.typedTitle')));
+  assert.ok(textOf(typed).includes('Liever niet'));
+  assert.ok(textOf(typed).includes('Geen parfum.'));
+  const after = ctx.repo.getParticipant(ada.id);
+  assert.deepEqual(after.wishes, before.wishes);
+  assert.equal(after.wishesUpdatedAt, before.wishesUpdatedAt);
+  assert.equal(after.notifyGiverDueAt, null);
+
+  // The page it came back with is current: saving it stores what it holds.
+  const again = await post(`/p/${ada.token}/about`, {
+    ...hiddenFields(res.body), q_likes: ['candles'], q_other: 'Ik heb een kat.', q_avoid: 'Geen parfum.',
+  });
+  assert.equal(again.statusCode, 303);
+  assert.deepEqual(ctx.repo.getParticipant(ada.id).wishes.answers, {
+    likes: { ticked: ['candles'], details: {} }, avoid: 'Geen parfum.', other: 'Ik heb een kat.',
+  });
+});
+
+test('a refused about post logs the group and mails nobody', async () => {
+  const { app, ctx, post, ada, logs, drain, mails, clock } = await setup();
+  const giver = ctx.repo.giverOf(ada.id);
+  ctx.repo.updateParticipant(giver.id, { drawnAt: ctx.nowIso() });
+  const old = await openAbout(app, `/p/${ada.token}/about`);
+  await post(`/p/${ada.token}/about`, { ...(await openAbout(app, `/p/${ada.token}/about`)), q_hobbies: 'Breien' });
+  const updated = () => mails.filter((m) => m.to === giver.email).length;
+  clock.ms += 20 * 60_000;
+  await tick(ctx);
+  await drain();
+  assert.equal(updated(), 1, 'the newer save mails the giver');
+  await post(`/p/${ada.token}/about`, { ...old, q_hobbies: 'Lezen' });
+  assert.equal(ctx.repo.getParticipant(ada.id).notifyGiverDueAt, null);
+  clock.ms += 20 * 60_000;
+  await tick(ctx);
+  await drain();
+  assert.equal(updated(), 1);
+  const line = logs.map((l) => JSON.parse(l)).find((l) => l.msg === 'wishes_form_stale');
+  assert.ok(line, 'stale line logged');
+  assert.equal(line.group_id, ada.groupId);
+  assert.equal(line.participant_id, undefined);
+});
+
+// X7: the organiser's confirmation counted only saved answers, so a page
+// open during a question change must not drop what it held either.
+test('an about page opened before the organiser changed the questions stores nothing and keeps every typed text visible', async () => {
+  const { app, ctx, post, adminPost, ada, group } = await setup();
+  const old = await openAbout(app, `/p/${ada.token}/about`);
+  const questions = [
+    { id: 'hobbies', type: 'text', text: 'Waar word je blij van?' },
+    { id: 'likes', type: 'choices', choices: ['chocolate', 'tea', 'coffee', 'bath', 'books', 'plants', 'wine'].map((id) => ({ id })) },
+    { id: 'pets', type: 'choices', show: false, choices: ['cat', 'dog', 'other'].map((id) => ({ id, ...(id === 'other' ? { detail: true } : {}) })) },
+    { id: 'avoid', type: 'text' },
+    { id: 'other', type: 'text' },
+  ];
+  ctx.repo.updateEvent(group.eventId, { formConfig: { questions } }, ctx.nowIso());
+  const removed = await adminPost(`/admin/events/${group.eventId}/questions/other/delete`, { confirm: '1' });
+  assert.equal(removed.statusCode, 303);
+
+  const res = await post(`/p/${ada.token}/about`, {
+    ...old, q_hobbies: 'Wandelen.', q_likes: ['tea', 'candles'], q_pets: ['cat'], q_other: 'Ik heb een kat.',
+  });
+  assert.equal(res.statusCode, 200);
+  assert.ok(textOf(res.body).includes(tr('nl', 'about.stale')));
+  assert.equal(ctx.repo.getParticipant(ada.id).wishes, null);
+  assert.equal(ctx.repo.getParticipant(ada.id).wishesUpdatedAt, null);
+  const typed = textOf(typedBlock(res.body));
+  assert.ok(typed.includes('Waar word je blij van?'));
+  assert.ok(typed.includes('Wandelen.'));
+  assert.ok(typed.includes('Thee'));
+  assert.ok(typed.includes('Huisdieren'));
+  assert.ok(typed.includes(tr('nl', 'about.typedGone')));
+  assert.ok(typed.includes('Ik heb een kat.'));
+  // The current form, renamed question and all, with nothing filled in.
+  assert.ok(textOf(res.body).includes('Waar word je blij van?'));
+  assert.equal(res.body.includes('name="q_other"'), false);
+  assert.equal(res.body.includes('name="q_likes" value="candles"'), false);
+});
+
+test('switching language on an about page opened before a newer save stores nothing and shows it in the new language', async () => {
+  const { app, ctx, post, ada } = await setup();
+  const old = await openAbout(app, `/p/${ada.token}/about`);
+  await post(`/p/${ada.token}/about`, { ...(await openAbout(app, `/p/${ada.token}/about`)), q_hobbies: 'Breien' });
+  const before = ctx.repo.getParticipant(ada.id);
+  const res = await post(`/p/${ada.token}/lang`, { lang: 'en', from: 'about', ...old, q_hobbies: 'Lezen' });
+  assert.equal(res.statusCode, 200);
+  assert.ok(textOf(res.body).includes(tr('en', 'about.stale')));
+  assert.ok(res.body.includes('>Breien</textarea>'));
+  assert.ok(textOf(typedBlock(res.body)).includes('Lezen'));
+  const after = ctx.repo.getParticipant(ada.id);
+  assert.equal(after.language, 'en');
+  assert.deepEqual(after.wishes, before.wishes);
+  assert.equal(after.wishesUpdatedAt, before.wishesUpdatedAt);
+});
+
+test('a current about page saves as before, and saved unchanged is no change', async () => {
+  const { app, ctx, post, ada, clock } = await setup();
+  const page = await app.inject(`/p/${ada.token}/about`);
+  assert.match(page.body, /<input type="hidden" name="version" value="[0-9a-f]{16}">/);
+  const res = await post(`/p/${ada.token}/about`, { ...hiddenFields(page.body), q_hobbies: 'Breien' });
+  assert.equal(res.statusCode, 303);
+  const saved = ctx.repo.getParticipant(ada.id);
+  assert.equal(saved.wishes.answers.hobbies, 'Breien');
+  clock.ms += 60_000;
+  const same = await post(`/p/${ada.token}/about`, { ...(await openAbout(app, `/p/${ada.token}/about`)), q_hobbies: 'Breien' });
+  assert.equal(same.statusCode, 303);
+  assert.equal(ctx.repo.getParticipant(ada.id).wishesUpdatedAt, saved.wishesUpdatedAt);
+  // The version follows the stored answers and the form, nothing else.
+  assert.deepEqual(await openAbout(app, `/p/${ada.token}/about`), await openAbout(app, `/p/${ada.token}/about`));
 });
 
 // Rows saved by v0.3.1 keep their own shape until an answer changes.
