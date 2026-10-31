@@ -29,16 +29,19 @@ function themeBlock({ event, group, lang, tz }) {
 // Under the about form the buttons submit that form to the switch, so the
 // answers typed so far are saved rather than lost on the way to the other
 // language.
-function langSwitch({ lang, langAction, from }) {
+// changeStep keeps the sign-up change step open across the switch; the
+// route only accepts its one known value.
+function langSwitch({ lang, langAction, from, changeStep }) {
   const others = LANGS.filter((l) => l !== lang);
   const owner = from === 'about' ? raw(` form="about-form" formaction="${langAction}"`) : '';
+  const step = changeStep ? html`<input type="hidden" name="change" value="1">\n` : '';
   return html`<form class="lang-switch" method="post" action="${langAction}" aria-label="${t(lang, 'lang.switch')}">
-${others.map((l) => html`<button type="submit" name="lang" value="${l}" lang="${l}"${owner}>${t(l, `lang.${l}`)}</button>`)}
+${step}${others.map((l) => html`<button type="submit" name="lang" value="${l}" lang="${l}"${owner}>${t(l, `lang.${l}`)}</button>`)}
 </form>`;
 }
 
-function footer({ lang, langAction, showLangSwitch, from }) {
-  return showLangSwitch ? langSwitch({ lang, langAction, from }) : '';
+function footer({ lang, langAction, showLangSwitch, from, changeStep }) {
+  return showLangSwitch ? langSwitch({ lang, langAction, from, changeStep }) : '';
 }
 
 export function welcomeView({ participant, event, group, lang, tz, editHref, langAction, showLangSwitch }) {
@@ -101,6 +104,7 @@ export function signupView({
   signupAction, pageHref, langAction, showLangSwitch, emailOn,
 }) {
   let content;
+  let changeStep = false;
   if (state === 'setup') {
     content = html`<p class="lead">${t(lang, 'signup.setup')}</p>
 ${themeBlock({ event, group, lang, tz })}`;
@@ -125,6 +129,7 @@ ${answerForm(lang, signupAction, [
 <p>${t(lang, 'signup.deadline', { date: formatDate(lang, event.signupDeadline, tz) })}</p>
 ${themeBlock({ event, group, lang, tz })}`;
   } else if (participant.signup && change) {
+    changeStep = true;
     content = html`<p class="answer">${t(lang, joins(participant) ? 'signup.joined' : 'signup.notJoined')}</p>
 <p class="lead">${t(lang, 'signup.changeLead')}</p>
 ${answerForm(lang, signupAction, BOTH)}
@@ -141,7 +146,7 @@ ${answerForm(lang, signupAction, BOTH)}`;
   }
   const body = html`<h1>${t(lang, 'welcome.greeting', { name: participant.name })}</h1>
 ${content}
-${footer({ lang, langAction, showLangSwitch })}`;
+${footer({ lang, langAction, showLangSwitch, changeStep })}`;
   return { title: t(lang, 'signup.title'), body };
 }
 
@@ -326,8 +331,8 @@ ${footer({ lang, langAction, showLangSwitch })}
 // it. Every wish line, every line break within a wish and every paragraph
 // starts a printed row of its own, so each counts in whole rows of CARD_ROW
 // characters: fifteen one-word answers fill as much paper as a few long
-// ones. A blank line within a wish prints as an empty row, so it counts as
-// one too. The limits were measured by printing cards with long wishes, many
+// ones. A blank line within a wish or the theme prints as an empty row, so it
+// counts as one too. The limits were measured by printing cards with long wishes, many
 // short answers, a long theme and a long exchange place to A5 PDF in Chrome.
 const CARD_TEXT_STEPS = [[1300, 'card-tiny'], [950, 'card-smallest'], [700, 'card-smaller']];
 const CARD_ROW = 50;
@@ -336,7 +341,7 @@ const rowsOf = (text) => text.split(/\r\n?|\n/);
 
 function cardSize(lines, ...texts) {
   const wishRows = lines.flatMap((line) => rowsOf(`${line.label}: ${line.value}`)).map((text) => inRows(Math.max(text.length, 1)));
-  const textRows = texts.flatMap(rowsOf).map((text) => inRows(text.length));
+  const textRows = texts.flatMap(rowsOf).map((text) => inRows(Math.max(text.length, 1)));
   const length = [...wishRows, ...textRows].reduce((sum, rows) => sum + rows, 0);
   return CARD_TEXT_STEPS.find(([limit]) => length > limit)?.[1] ?? '';
 }

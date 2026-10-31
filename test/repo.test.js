@@ -305,6 +305,7 @@ test('markFailed retries or gives up, markSent and requeueLastFailed', () => {
     lastFailure: { kind: 'invite', errorCode: 'ECONNREFUSED', at: T1, retrying: true },
     pendingCount: 1,
     invite: 'retrying',
+    inviteDelivered: false,
     signup: null,
   });
   assert.deepEqual(repo.claimDue(T0, 10), []);
@@ -318,6 +319,7 @@ test('markFailed retries or gives up, markSent and requeueLastFailed', () => {
     lastFailure: { kind: 'invite', errorCode: 'smtp-550', at: T1, retrying: false },
     pendingCount: 0,
     invite: 'failed',
+    inviteDelivered: false,
     signup: null,
   });
 
@@ -329,6 +331,7 @@ test('markFailed retries or gives up, markSent and requeueLastFailed', () => {
   assert.equal(again.id, id);
   repo.markSent(again.id, T2);
   assert.equal(repo.mailStatus(ada.id).invite, 'sent');
+  assert.equal(repo.mailStatus(ada.id).inviteDelivered, true);
   assert.equal(repo.requeueLastFailed(ada.id, T2), false);
   assert.equal(repo.mailStatus(ada.id).pendingCount, 0);
 });

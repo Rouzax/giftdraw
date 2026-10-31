@@ -182,7 +182,9 @@ export function participantRoutes(app, ctx, { sendPage, sendError, isParticipant
     if (outdated) return outdatedForm(request, reply, repo.getParticipant(participant.id));
     if (stale) return staleForm(request, reply, repo.getParticipant(participant.id));
     // Only known targets, so the form cannot be used as an open redirect.
-    const back = fromAbout ? '/about' : '';
+    let back = '';
+    if (fromAbout) back = '/about';
+    else if (request.body?.change === '1') back = '?change=1';
     return reply.redirect(`/p/${participant.token}${back}`, 303);
   });
 }

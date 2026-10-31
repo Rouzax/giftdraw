@@ -129,3 +129,14 @@ test('a blank line in a wish answer fills a printed row like a line of text', ()
   assert.equal(size('Rood\n\n\n\nRood'), size('Rood\nx\nx\nx\nRood'));
   assert.equal(size('Rood\r\r\r\rRood'), size('Rood\nx\nx\nx\nRood'));
 });
+
+test('a blank line in the theme fills a printed row, while the default theme keeps its card size', () => {
+  const wishes = { hobbies: 'x'.repeat(250), likes: [], likeDetails: {}, pets: [], petsOther: '', avoid: '', other: '' };
+  const size = (themeText) => /<article class="([^"]*)"/.exec(cardView({
+    participant: ada, receiver: { ...ben, wishes }, event: { ...event, themeText }, group, lang: 'nl', tz: TZ,
+  }).body.toString())[1];
+  assert.equal(size(null), 'card');
+  assert.equal(size('Ruilen\nEinde'), 'card');
+  assert.equal(size(`Ruilen${'\n'.repeat(8)}Einde`), 'card card-smaller');
+  assert.equal(size(`Ruilen${'\r\n'.repeat(8)}Einde`), 'card card-smaller');
+});
