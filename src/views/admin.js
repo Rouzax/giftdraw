@@ -522,12 +522,14 @@ ${rows.map((row) => participantRow(lang, row, tz, mailEnabled, signupState))}
 </div>`;
 }
 
-// Counts what inviteCell shows as invited: an invitation that reached the
-// mail server, or invitedAt with no invitation mail on record, as for links
+// Counts the people invited: an invitation that reached the mail server at
+// some point, or invitedAt with no invitation mail on record, as for links
 // shared while email was off or an invitation dropped because the person had
-// already drawn. A queued one is not counted until it is sent.
+// already drawn. A first invitation still queued is not counted until it is
+// sent; a resend queued after one got through does not uncount the person,
+// though inviteCell shows that resend as queued.
 function invitedCount(rows) {
-  return rows.filter((r) => r.participant.email && (r.mail.invite === 'sent' || (!r.mail.invite && r.participant.invitedAt))).length;
+  return rows.filter((r) => r.participant.email && (r.mail.inviteDelivered || (!r.mail.invite && r.participant.invitedAt))).length;
 }
 
 function summary(lang, rows, mailEnabled, signupState) {

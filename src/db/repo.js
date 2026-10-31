@@ -354,17 +354,20 @@ export function createRepo(db) {
   // applied is no failure, so the state is of the mail before it, if any.
   // Once one has reached the person, a later resend that fails does not undo
   // that; the failure shows in the failure column only.
+  function delivered(participantId, kind) {
+    return db
+      .prepare(`SELECT 1 FROM outbox WHERE participant_id = ? AND kind = ? AND status = 'sent' LIMIT 1`)
+      .get(participantId, kind) !== undefined;
+  }
+
   function deliveryState(participantId, kind) {
     const row = db
       .prepare(`SELECT status, error_code FROM outbox WHERE participant_id = ? AND kind = ?
                 AND NOT (status IN ('failed', 'gaveup') AND ifnull(error_code, '') IN (${SKIP_LIST}))
                 ORDER BY id DESC LIMIT 1`)
       .get(participantId, kind);
-    const delivered = db
-      .prepare(`SELECT 1 FROM outbox WHERE participant_id = ? AND kind = ? AND status = 'sent' LIMIT 1`)
-      .get(participantId, kind) !== undefined;
     const state = deliveryOf(row);
-    return delivered && (state === 'failed' || state === 'retrying') ? 'sent' : state;
+    return delivered(participantId, kind) && (state === 'failed' || state === 'retrying') ? 'sent' : state;
   }
 
   function mailStatus(participantId) {
@@ -393,6 +396,9 @@ export function createRepo(db) {
         : null,
       pendingCount: pending.n,
       invite: deliveryState(participantId, 'invite'),
+      // invite is of the latest attempt, so a resend still in the outbox
+      // reads queued; this says whether any invitation got through.
+      inviteDelivered: delivered(participantId, 'invite'),
       signup: deliveryState(participantId, 'signup'),
     };
   }

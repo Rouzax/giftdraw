@@ -257,3 +257,27 @@ test('the answer page shows in English for an English participant', async () => 
   assert.ok(textOf(res.body).includes(tr('en', 'signup.question', { event: 'Gifts 2026' })));
   assert.ok(res.body.includes(escape(tr('en', 'signup.yes'))));
 });
+
+test('switching language on the change step stays on the change step', async () => {
+  const t = await setup();
+  await answer(t, t.ada, 'no');
+  const page = await t.app.inject(`/p/${t.ada.token}?change=1`);
+  const form = /<form class="lang-switch"[\s\S]*?<\/form>/.exec(page.body)[0];
+  const hidden = Object.fromEntries([...form.matchAll(/<input type="hidden" name="([^"]+)" value="([^"]*)">/g)].map(([, k, v]) => [k, v]));
+  const res = await t.post(`/p/${t.ada.token}/lang`, { ...hidden, lang: 'en' });
+  assert.equal(res.statusCode, 303);
+  const next = await t.app.inject(res.headers.location);
+  assert.ok(textOf(next.body).includes(tr('en', 'signup.changeLead')));
+  assert.deepEqual(buttons(next.body), [{ value: 'yes', kind: 'main' }, { value: 'no', kind: 'secondary' }]);
+  assert.equal(stored(t, t.ada.id).signup, 'no');
+});
+
+test('the language switch only carries the known change step into its redirect', async () => {
+  const t = await setup();
+  for (const change of ['2', '//example.com', '1?x=1']) {
+    const res = await t.post(`/p/${t.ada.token}/lang`, { lang: 'en', change });
+    assert.equal(res.headers.location, `/p/${t.ada.token}`, change);
+  }
+  const plain = await t.app.inject(`/p/${t.ada.token}`);
+  assert.ok(!/<form class="lang-switch"[\s\S]*?name="change"[\s\S]*?<\/form>/.test(plain.body));
+});

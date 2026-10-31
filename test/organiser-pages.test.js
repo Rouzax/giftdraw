@@ -179,3 +179,19 @@ test('no reminder is offered or sent while the invitation has not got through', 
   const page = await t.adminGet(`/admin/participants/${dirk.id}`);
   assert.ok(page.body.includes(`action="/admin/participants/${dirk.id}/remind"`));
 });
+
+test('a resend waiting in the outbox does not hide the reminder once an invitation has arrived', async () => {
+  const t = await setup();
+  const ada = t.people[0];
+  inviteRow(t, ada.id, 'sent');
+  const resend = await t.adminPost(`/admin/participants/${ada.id}/resend-invite`);
+  assert.equal(resend.headers.location, `/admin/participants/${ada.id}?done=invite-queued`);
+  assert.equal(t.ctx.repo.mailStatus(ada.id).invite, 'queued');
+  const dashboard = await t.adminGet(`/admin/groups/${t.groupId}`);
+  assert.ok(dashboard.body.includes('4 van 4 met e-mail uitgenodigd'));
+  const page = await t.adminGet(`/admin/participants/${ada.id}`);
+  assert.ok(page.body.includes(`action="/admin/participants/${ada.id}/remind"`));
+  assert.equal(t.ctx.repo.mailStatus(ada.id).invite, 'queued');
+  const res = await t.adminPost(`/admin/participants/${ada.id}/remind`);
+  assert.equal(res.headers.location, `/admin/participants/${ada.id}?done=remind-queued`);
+});

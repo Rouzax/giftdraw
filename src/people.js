@@ -580,10 +580,11 @@ export function resendInvite(ctx, participantId) {
   return outcome;
 }
 
-// mail is repo.mailStatus of the participant. Only a queued or failing
-// invitation is known not to have arrived.
+// mail is repo.mailStatus of the participant. An invitation that got
+// through once has arrived, whatever a later resend is doing; otherwise only
+// a queued or failing one is known not to have.
 export function inviteArrived(mail) {
-  return !['queued', 'retrying', 'failed'].includes(mail.invite);
+  return Boolean(mail.inviteDelivered) || !['queued', 'retrying', 'failed'].includes(mail.invite);
 }
 
 // Manual reminders are flagged so they do not use up the automatic ones.
