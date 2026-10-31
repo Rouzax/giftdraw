@@ -179,11 +179,23 @@ test('right after the invitations are sent, the counter and the invitation panel
   const queued = textOf((await t.adminGet(`/admin/groups/${t.groupId}`)).body);
   assert.match(queued, /0 van 5 met e-mail uitgenodigd/);
   assert.doesNotMatch(queued, /Iedereen met e-mail is uitgenodigd/);
-  assert.match(queued, /0 van 5 uitnodigingen zijn verstuurd/);
+  assert.match(queued, /0 van 5 uitnodigingen zijn verstuurd\./);
+  assert.doesNotMatch(queued, /mislukt; kijk in de tabel/);
   await settle(t);
   const sent = textOf((await t.adminGet(`/admin/groups/${t.groupId}`)).body);
   assert.match(sent, /5 van 5 met e-mail uitgenodigd/);
   assert.match(sent, /Iedereen met e-mail is uitgenodigd/);
+});
+
+test('when an invitation failed for good, the invitation panel points at the table', async () => {
+  const t = await setup({ invited: false });
+  sendInvitations(t.ctx, t.groupId);
+  const rows = t.db.prepare("SELECT id FROM outbox WHERE kind = 'invite' ORDER BY id").all();
+  t.ctx.repo.markFailed(rows[0].id, 'EENVELOPE-550', null, t.ctx.nowIso());
+  for (const row of rows.slice(1)) t.ctx.repo.markSent(row.id, t.ctx.nowIso());
+  const page = textOf((await t.adminGet(`/admin/groups/${t.groupId}`)).body);
+  assert.match(page, /4 van 5 met e-mail uitgenodigd/);
+  assert.match(page, /4 van 5 uitnodigingen zijn verstuurd\. Bij 1 is het versturen mislukt; kijk in de tabel hieronder\./);
 });
 
 test('opening before the invitations went out is refused', async () => {

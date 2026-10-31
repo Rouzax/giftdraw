@@ -569,7 +569,7 @@ function groupStatus(lang, group, tz, mailEnabled) {
 
 // With email off the button only records that the organiser shared the
 // links; once pressed there is nothing left to do here.
-function invitePanelBody(lang, { group, mailEnabled, uninvited, withEmail, delivered }) {
+function invitePanelBody(lang, { group, mailEnabled, uninvited, withEmail, delivered, failed }) {
   if (!mailEnabled && group.invitationsSentAt) return html`<p>${t(lang, 'admin.invite.sharedNoMail')}</p>`;
   // The button stays until it was pressed once, even with nobody to mail:
   // the draw opens only after that.
@@ -578,7 +578,8 @@ function invitePanelBody(lang, { group, mailEnabled, uninvited, withEmail, deliv
   if (mailEnabled && group.invitationsSentAt && uninvited === 0) {
     if (!withEmail) return html`<p>${t(lang, 'admin.invite.nobodyEmail')}</p>`;
     if (delivered === withEmail) return html`<p>${t(lang, 'admin.invite.allInvited')}</p>`;
-    return html`<p>${t(lang, 'admin.invite.sending', { count: delivered, total: withEmail })}</p>`;
+    const counts = { count: delivered, total: withEmail, failed };
+    return html`<p>${t(lang, failed ? 'admin.invite.sendingFailed' : 'admin.invite.sending', counts)}</p>`;
   }
   return html`<p>${mailEnabled ? t(lang, 'admin.invite.pending', { count: uninvited }) : t(lang, 'admin.invite.mailOff')}</p>
 <form method="post" action="/admin/groups/${group.id}/invite">
@@ -663,7 +664,12 @@ ${signupState === 'closed' ? closedNotice(lang, { event, people: rows.map((r) =>
 ${signing ? signupLine(lang, event) : html`<section class="panel">
 <h2>${t(lang, 'admin.invite.title')}</h2>
 ${invitePanelBody(lang, {
-    group, mailEnabled, uninvited, withEmail: rows.filter((r) => r.participant.email).length, delivered: invitedCount(rows),
+    group,
+    mailEnabled,
+    uninvited,
+    withEmail: rows.filter((r) => r.participant.email).length,
+    delivered: invitedCount(rows),
+    failed: rows.filter((r) => r.participant.email && r.mail.invite === 'failed').length,
   })}
 </section>
 ${drawPanel(lang, { group, rows, openError, mailEnabled })}`}

@@ -117,11 +117,16 @@ function buildQuestion(draft, current) {
 // question gives the form a fresh token and keeps the typed text, so saving
 // again would otherwise add the question twice. Wording is compared as
 // each language shows it, so typing a built-in question's text counts too.
-function sameWording(form, question) {
-  const key = (text) => text.trim().toLowerCase();
-  const own = question.text && key(question.text);
-  if (!own) return false;
-  return form.questions.some((q) => q.id !== question.id && ['nl', 'en'].some((l) => key(questionText(q, l)) === own));
+// A saved question that keeps its wording is not checked: an imported file
+// can hold two alike, and each must stay editable. Returns the error, or
+// null.
+function wordingError(form, question, current) {
+  const key = (text) => (text ?? '').trim().toLowerCase();
+  const own = key(question.text);
+  if (!own || (current.id && own === key(current.text))) return null;
+  const twin = form.questions.find((q) => q.id !== question.id && ['nl', 'en'].some((l) => key(questionText(q, l)) === own));
+  if (!twin) return null;
+  return { key: twin.show ? 'admin.question.error.duplicate' : 'admin.question.error.duplicateHidden' };
 }
 
 export function adminQuestionRoutes(app, ctx, { render, sendError, loadEvent, resubmitted, redirectDone }) {
@@ -164,10 +169,8 @@ export function adminQuestionRoutes(app, ctx, { render, sendError, loadEvent, re
     }
     const { question, errors } = buildQuestion(draft, isNew ? { ...current, id: newQuestionId(form) } : current);
     if (errors) return page(request, reply, { form, question: current, draft, errors, status: 400 });
-    if (sameWording(form, question)) {
-      const duplicate = { text: { key: 'admin.question.error.duplicate' } };
-      return page(request, reply, { form, question: current, draft, errors: duplicate, status: 400 });
-    }
+    const wording = wordingError(form, question, current);
+    if (wording) return page(request, reply, { form, question: current, draft, errors: { text: wording }, status: 400 });
 
     const kept = new Set(question.choices.map((c) => c.id));
     const removed = current.choices.filter((c) => !kept.has(c.id));

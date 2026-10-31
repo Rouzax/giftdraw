@@ -455,10 +455,11 @@ function readParticipant(out, value, where) {
   return { name, email };
 }
 
-// Within one file a second participant with an address already used, or
-// with a name already used in the same group, is refused and points at the
-// first: one person twice gets two links and two pairs. emails holds the
-// first place of each address across the file's groups.
+// Within one group a second participant with an address or a name already
+// used is refused and points at the first: one person twice in a group gets
+// two links and two pairs. An address already used in another group of the
+// file is a warning, as for a paste: one person may join two classes.
+// emails holds the first place of each address across the file's groups.
 function checkRepeats(out, people, places, groupWhere, emails) {
   const names = new Map();
   people.forEach((person, index) => {
@@ -471,10 +472,8 @@ function checkRepeats(out, people, places, groupWhere, emails) {
     if (!person.email) return;
     const firstEmail = emails.get(person.email);
     if (!firstEmail) emails.set(person.email, { group: groupWhere[0], participant });
-    else {
-      const earlier = firstEmail.group === groupWhere[0] ? [firstEmail.participant] : [firstEmail.group, firstEmail.participant];
-      out.error(at, 'email-twice', { email: person.email, earlier });
-    }
+    else if (firstEmail.group === groupWhere[0]) out.error(at, 'email-twice', { email: person.email, earlier: [firstEmail.participant] });
+    else out.warn(at, 'email-elsewhere', { email: person.email, group: firstEmail.group.name });
   });
 }
 

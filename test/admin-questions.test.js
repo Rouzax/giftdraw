@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { t as tr } from '../src/i18n/index.js';
 import { drawFor, saveWishes } from '../src/people.js';
-import { SECTION_IDS, wishForm } from '../src/questions.js';
+import { formValue, SECTION_IDS, wishForm } from '../src/questions.js';
 import { aboutBody, makeTestApp, seedGroup, textOf } from './helpers.js';
 
 const T0 = Date.parse('2026-11-01T10:00:00.000Z');
@@ -561,6 +561,37 @@ test('Back and save a new question again, with the fresh token Back gives, adds 
   const builtIn = await post(tr('nl', 'wish.hobbies'));
   assert.equal(builtIn.statusCode, 400, 'the wording of a built-in question counts too');
   assert.equal(ids(t).length, 6);
+});
+
+test('a question worded like a hidden one says it is hidden', async () => {
+  const t = await setup();
+  const page = await t.adminGet(`/admin/events/${t.eventId}/questions/new?type=text`);
+  const fields = { ...shownFields(page.body, `/admin/events/${t.eventId}/questions/new`), text: 'Lievelingskleur', action: 'save' };
+  assert.equal((await t.adminPost(`/admin/events/${t.eventId}/questions/new`, fields)).statusCode, 303);
+  const id = wishForm(t.ctx.repo.getEvent(t.eventId)).questions.find((q) => q.text === 'Lievelingskleur').id;
+  const { fields: edit } = await editPage(t, id);
+  delete edit.show;
+  assert.equal((await t.adminPost(editUrl(t, id), { ...edit, action: 'save' })).statusCode, 303);
+  assert.equal(question(t, id).show, false);
+  const again = await t.adminGet(`/admin/events/${t.eventId}/questions/new?type=text`);
+  const res = await t.adminPost(`/admin/events/${t.eventId}/questions/new`, {
+    ...shownFields(again.body, `/admin/events/${t.eventId}/questions/new`), text: 'lievelingskleur', action: 'save',
+  });
+  assert.equal(res.statusCode, 400);
+  assert.match(textOf(res.body), /die vraag staat verborgen; zet Tonen aan bij die vraag/);
+});
+
+test('a question that keeps its wording can still be saved next to one worded the same', async () => {
+  const t = await setup();
+  // As an imported file can leave it: two questions with one wording.
+  const form = wishForm(t.ctx.repo.getEvent(t.eventId));
+  const twin = (id) => ({ id, type: 'text', text: 'Lievelingskleur', show: true, choices: [] });
+  t.ctx.repo.updateEvent(t.eventId, { formConfig: formValue({ questions: [...form.questions, twin('q-aaaa'), twin('q-bbbb')] }) }, t.ctx.nowIso());
+  const { fields } = await editPage(t, 'q-bbbb');
+  delete fields.show;
+  const res = await t.adminPost(editUrl(t, 'q-bbbb'), { ...fields, action: 'save' });
+  assert.equal(res.statusCode, 303, res.body);
+  assert.equal(question(t, 'q-bbbb').show, false);
 });
 
 test('posting a type does not change the kind of a question', async () => {
