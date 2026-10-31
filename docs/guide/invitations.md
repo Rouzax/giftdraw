@@ -20,6 +20,8 @@ What happens:
 - The dashboard notes **Invitations sent on ...** and the **Invited** (*Uitgenodigd*) column shows each mail's state: **Queued** (*In de wachtrij*), **Sent** (*Verstuurd*), **Failed, retrying** (*Mislukt, wordt opnieuw geprobeerd*) or **Failed** (*Mislukt*). People without email show **Not applicable** (*Niet van toepassing*).
 - Nothing is sent to people without email. Give them their link yourself, see below, or [help them in person](in-person.md).
 
+Right after the press, the panel says **All invitations are ready.** with how many have been sent so far, the same number as **... of ... with email invited** (*... van ... met e-mail uitgenodigd*) above it; both count only mails that have actually gone out. Reload the page after a minute: once every invitation is sent, the panel says **Everyone with email has been invited.** (*Iedereen met e-mail is uitgenodigd.*). An invitation that fails keeps the panel on the count; see [When a mail fails](follow-up.md#when-a-mail-fails).
+
 People you add to the group after this get their invitation automatically when you add them. The button comes back only when someone with email is still uninvited, for example after you gave a person an email address later; pressing it again sends only those missing invitations, never a second copy to people already invited.
 
 ## With email off

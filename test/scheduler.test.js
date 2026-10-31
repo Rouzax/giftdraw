@@ -479,7 +479,7 @@ test('sign-up reminders and the nudge go out once each, and reopening sends no m
   const subjects = mails.map((m) => m.subject);
   assert.ok(subjects.includes('Lootjes trekken: Nog 7 dagen om te zeggen of je meedoet aan Gifts 2026'), subjects.join('\n'));
   assert.ok(subjects.includes('Lootjes trekken: Nog 2 dagen om te zeggen of je meedoet aan Gifts 2026'), subjects.join('\n'));
-  assert.ok(subjects.includes('Lootjes trekken: Weet je zeker dat je niet meedoet met Gifts 2026?'), subjects.join('\n'));
+  assert.ok(subjects.includes('Lootjes trekken: Weet je zeker dat je niet meedoet aan Gifts 2026?'), subjects.join('\n'));
 
   // The organiser reopens with a new deadline ten days on; the new slots
   // fall on 23 and 28 November, but everyone has had their reminders.

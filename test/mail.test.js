@@ -52,9 +52,9 @@ const ANSWERS = {
 };
 const SIGNUP = {
   nl: {
-    signup: 'Doe je mee met Gifts 2026?',
+    signup: 'Doe je mee aan Gifts 2026?',
     'remind-signup': 'Nog 7 dagen om te zeggen of je meedoet aan Gifts 2026',
-    'signup-nudge': 'Weet je zeker dat je niet meedoet met Gifts 2026?',
+    'signup-nudge': 'Weet je zeker dat je niet meedoet aan Gifts 2026?',
     deadline: 'tot en met vrijdag 20 november',
   },
   en: {
@@ -64,6 +64,25 @@ const SIGNUP = {
     deadline: 'until the end of Friday 20 November',
   },
 };
+
+// Someone who only tapped a mail button has not confirmed yet, so the
+// reminder must not tell them they never answered.
+test('the sign-up reminder says the answer has not come in, and every sign-up mail says "meedoet aan"', () => {
+  const want = { nl: 'We hebben je antwoord voor Gifts 2026 nog niet ontvangen.', en: 'We have not received your answer for Gifts 2026 yet.' };
+  for (const lang of ['nl', 'en']) {
+    for (const now of [undefined, new Date('2026-11-20T08:00:00.000Z')]) {
+      const mail = render('remind-signup', lang, now ? { now } : {});
+      for (const body of [mail.html, mail.text]) {
+        assert.ok(body.includes(want[lang]), body);
+        assert.doesNotMatch(body, /nog niet gezegd|not yet said/);
+      }
+    }
+  }
+  for (const kind of ['signup', 'remind-signup', 'signup-nudge']) {
+    const mail = render(kind, 'nl');
+    for (const text of [mail.subject, mail.html, mail.text]) assert.doesNotMatch(text, /mee met Gifts/, kind);
+  }
+});
 
 for (const lang of ['nl', 'en']) {
   for (const kind of ANSWER_KINDS) {

@@ -26,6 +26,8 @@ test('once everyone with email is invited the dashboard says so instead of offer
   let page = await t.adminGet(`/admin/groups/${t.groupId}`);
   assert.ok(page.body.includes(`action="/admin/groups/${t.groupId}/invite"`));
   await t.adminPost(`/admin/groups/${t.groupId}/invite`);
+  await new Promise((resolve) => setImmediate(resolve));
+  await t.drain();
   page = await t.adminGet(`/admin/groups/${t.groupId}`);
   assert.equal(page.body.includes(`action="/admin/groups/${t.groupId}/invite"`), false);
   assert.ok(page.body.includes('Iedereen met e-mail is uitgenodigd.'));
@@ -71,7 +73,7 @@ test('an invitation that never got through still shows as failed', async () => {
   assert.equal(t.ctx.repo.mailStatus(t.people[0].id).invite, 'failed');
 });
 
-test('a mail failure is explained in words, with its code beside it', async () => {
+test('a mail failure is explained in words; its code only shows under technical details on the person page', async () => {
   const t = await setup();
   const [ada, ben, cor] = t.people;
   inviteRow(t, ada.id, 'ECONNECTION');
@@ -81,9 +83,10 @@ test('a mail failure is explained in words, with its code beside it', async () =
   assert.ok(page.body.includes('De mailserver was niet te bereiken'));
   assert.ok(page.body.includes('Inloggen bij de mailserver lukte niet'));
   assert.ok(page.body.includes('De mail kon niet worden verstuurd'));
-  for (const code of ['ECONNECTION', 'EAUTH', 'EWEIRD']) assert.ok(page.body.includes(`<code>${code}</code>`), code);
+  for (const code of ['ECONNECTION', 'EAUTH', 'EWEIRD']) assert.equal(page.body.includes(code), false, code);
   const person = await t.adminGet(`/admin/participants/${ben.id}`);
   assert.ok(person.body.includes('Inloggen bij de mailserver lukte niet'));
+  assert.match(person.body, /<details class="small"><summary>Technische melding<\/summary><code>EAUTH<\/code><\/details>/);
 });
 
 test('a failure reason follows the SMTP reply and tells a refused sender from a refused address', async () => {
@@ -92,7 +95,7 @@ test('a failure reason follows the SMTP reply and tells a refused sender from a 
     ['EMESSAGE-554', 'De mailserver weigerde de mail.'],
     ['EMESSAGE', 'De mailserver weigerde de mail.'],
     ['EENVELOPE-553-FROM', 'De mailserver weigerde het afzenderadres.'],
-    ['EENVELOPE-550', 'De mailserver weigerde het adres.'],
+    ['EENVELOPE-550', 'De mailserver weigerde het e-mailadres. Kijk of het goed is geschreven.'],
     ['EENVELOPE-450', 'De mailserver kon de mail even niet aannemen.'],
     ['smtp-421', 'De mailserver kon de mail even niet aannemen.'],
     ['EAUTH-535', 'Inloggen bij de mailserver lukte niet.'],
@@ -151,4 +154,28 @@ test('opening a group still sends a draw-open to someone whose invitation is mid
   assert.deepEqual(openGroup(t.ctx, t.groupId), { opened: true });
   const kinds = t.db.prepare('SELECT kind FROM outbox WHERE participant_id = ? ORDER BY id').all(ada.id).map((r) => r.kind);
   assert.deepEqual(kinds, ['invite', 'draw-open']);
+});
+
+test('no reminder is offered or sent while the invitation has not got through', async () => {
+  const t = await setup();
+  const [ada, ben, cor] = t.people;
+  inviteRow(t, ada.id, 'EENVELOPE-550');
+  const retrying = t.ctx.repo.enqueue(ben.id, 'invite', t.ctx.nowIso());
+  t.ctx.repo.markFailed(retrying, 'ECONNREFUSED', t.ctx.nowIso(), t.ctx.nowIso());
+  t.ctx.repo.enqueue(cor.id, 'invite', t.ctx.nowIso());
+  for (const p of [ada, ben, cor]) {
+    const page = await t.adminGet(`/admin/participants/${p.id}`);
+    assert.equal(page.body.includes(`action="/admin/participants/${p.id}/remind"`), false, p.name);
+    assert.ok(page.body.includes('Een herinnering kan pas als de uitnodiging is aangekomen.'), p.name);
+    const res = await t.adminPost(`/admin/participants/${p.id}/remind`);
+    assert.equal(res.headers.location, `/admin/participants/${p.id}?done=invite-not-delivered`);
+  }
+  assert.equal(t.db.prepare("SELECT count(*) AS n FROM outbox WHERE kind LIKE 'remind-%'").get().n, 0);
+  const notice = await t.adminGet(`/admin/participants/${ada.id}?done=invite-not-delivered`);
+  assert.ok(notice.body.includes('Er is niets verstuurd: de uitnodiging is nog niet aangekomen.'));
+
+  const dirk = t.people[3];
+  inviteRow(t, dirk.id, 'sent');
+  const page = await t.adminGet(`/admin/participants/${dirk.id}`);
+  assert.ok(page.body.includes(`action="/admin/participants/${dirk.id}/remind"`));
 });

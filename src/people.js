@@ -25,6 +25,7 @@ export const PLAN_JSON_MAX = 64 + PASTE_ROWS_MAX * ((NAME_MAX + EMAIL_MAX) * 6 +
 // whose email field the browser checks.
 const EMAIL = /^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$/;
 const SEPARATOR = /[\t;,]/;
+const TRAILING_SEPARATORS = /[\s;,]+$/;
 
 // Ticked choices are sets, so their order does not make a change, and
 // texts stored with CRLF line breaks read the same as with LF.
@@ -140,23 +141,40 @@ export function normaliseEmail(value) {
   return email.length <= EMAIL_MAX && EMAIL.test(email) ? email : null;
 }
 
+// Each skipped line names its own problem, so the organiser looks for the
+// right mistake. Within one paste a second line with an address or a name
+// already taken by an earlier line is skipped and names that line: two
+// people with one address or one name in a group would get two links and
+// two pairs for what is most likely one person.
 export function parsePasteList(text) {
   const rows = [];
   const errors = [];
+  const emails = new Map();
+  const names = new Map();
   String(text ?? '').split(/\r?\n/).forEach((original, index) => {
-    const line = original.trim();
+    // A spreadsheet export often ends a line with an empty column.
+    const line = original.replace(TRAILING_SEPARATORS, '').trim();
     if (!line) return;
     const at = line.search(SEPARATOR);
     // In UTF-16 units, as the name fields' maxlength counts, so a pasted name
     // always fits the form that edits it.
     const name = clipText((at === -1 ? line : line.slice(0, at)).trim(), NAME_MAX).trim();
     const rawEmail = at === -1 ? '' : line.slice(at + 1).trim();
-    const error = (reason) => errors.push({ line: index + 1, text: line, reason });
-    // A bare address is a name missing, not a person called "a@b.c".
-    if (!name || (at === -1 && name.includes('@'))) return error('no-name');
-    if (!rawEmail) return rows.push({ name, email: null });
-    const email = normaliseEmail(rawEmail);
-    if (!email) return error('invalid-email');
+    const error = (reason, earlier) => errors.push({ line: index + 1, text: line, reason, ...(earlier ? { earlier } : {}) });
+    if (at === -1 && name.includes('@')) {
+      // A bare address is a name missing, not a person called "a@b.c".
+      return error(/\s/.test(name) ? 'no-separator' : 'no-name');
+    }
+    if (!name) return error('no-name');
+    if (name.includes('@')) return error('email-first');
+    if (SEPARATOR.test(rawEmail)) return error('extra-field');
+    const email = rawEmail ? normaliseEmail(rawEmail) : null;
+    if (rawEmail && !email) return error('invalid-email');
+    const nameKey = name.toLowerCase();
+    if (email && emails.has(email)) return error('duplicate-email', emails.get(email));
+    if (names.has(nameKey)) return error('duplicate-name', names.get(nameKey));
+    if (email) emails.set(email, index + 1);
+    names.set(nameKey, index + 1);
     rows.push({ name, email });
   });
   return { rows, errors };
@@ -189,14 +207,11 @@ export function planAddParticipants(ctx, groupId, rows) {
       if (p.email && !known.has(p.email.toLowerCase())) known.set(p.email.toLowerCase(), other.name);
     }
   }
-  // otherGroupName null means the address came earlier in the same list.
+  // A repeat within the list itself is skipped by parsePasteList.
   const duplicates = [];
-  const inList = new Set();
   const planned = rows.map((row, index) => {
     const email = row.email?.toLowerCase();
     if (email && known.has(email)) duplicates.push({ row: index, otherGroupName: known.get(email) });
-    else if (email && inList.has(email)) duplicates.push({ row: index, otherGroupName: null });
-    if (email) inList.add(email);
     return { name: row.name, email: row.email ?? null, insertGiverId: open ? chooseInsertGiver(map, notDrawn) : null };
   });
   const changedGivers = [...new Set(planned.map((r) => r.insertGiverId).filter((id) => id !== null))];
@@ -563,6 +578,12 @@ export function resendInvite(ctx, participantId) {
   return outcome;
 }
 
+// mail is repo.mailStatus of the participant. Only a queued or failing
+// invitation is known not to have arrived.
+export function inviteArrived(mail) {
+  return !['queued', 'retrying', 'failed'].includes(mail.invite);
+}
+
 // Manual reminders are flagged so they do not use up the automatic ones.
 export function remindNow(ctx, participantId) {
   const { repo } = ctx;
@@ -571,8 +592,11 @@ export function remindNow(ctx, participantId) {
     const participant = repo.getParticipant(participantId);
     if (signingUp(ctx, participant)) return 'signup-active';
     if (!participant.email) return 'no-email';
-    // A reminder before the invitation would be the first mail they get.
+    // A reminder before the invitation would be the first mail they get,
+    // also while the invitation waits in the outbox or keeps failing: the
+    // two would arrive together, or the reminder alone.
     if (!participant.invitedAt) return 'not-invited';
+    if (!inviteArrived(repo.mailStatus(participantId))) return 'invite-not-delivered';
     const group = repo.getGroup(participant.groupId);
     const kind = reminderKind(participant, group, wishForm(repo.getEvent(group.eventId)));
     if (!kind) return 'nothing-to-remind';

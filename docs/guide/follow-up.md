@@ -42,7 +42,7 @@ For both:
 
 ### Send a reminder yourself
 
-On a person's page, the **Email** (*E-mail*) panel has **Send a reminder now** (*Nu een herinnering sturen*). It sends the reminder that fits: to fill in wishes before drawing opens, to draw after. The hint below the button says which. It only appears when there is something to remind about and after the invitation has gone out, and not while the event's [sign-up](signup.md) runs.
+On a person's page, the **Email** (*E-mail*) panel has **Send a reminder now** (*Nu een herinnering sturen*). It sends the reminder that fits: to fill in wishes before drawing opens, to draw after. The hint below the button says which. It only appears when there is something to remind about and after the invitation has arrived, and not while the event's [sign-up](signup.md) runs. While the invitation is still queued or failing, the button is not there and the hint says the reminder can only go once the invitation has arrived: otherwise the reminder would reach the person together with the invitation, or on its own. Fix or resend the invitation first.
 
 A reminder you send by hand does not count toward the two automatic ones, but the next automatic one keeps its spacing after it.
 
@@ -62,7 +62,7 @@ The app works through its mail queue every minute. A mail that cannot be sent is
 
 ![Wim's page: his invitation was refused by the mail server, with buttons to send it again](../images/organiser-person-mail.webp){ .shot }
 
-The **Mail failure** column says in words what went wrong, with the technical code in small print beside it for whoever runs the mail server:
+The **Mail failure** column says in words what went wrong. The technical code, for whoever runs the mail server, is not on the dashboard: on the person's page, open **Technical message** (*Technische melding*) under the failure to see it.
 
 | Reason shown | Usual cause |
 | --- | --- |
@@ -70,7 +70,7 @@ The **Mail failure** column says in words what went wrong, with the technical co
 | The mail server did not answer in time. | Network trouble or an overloaded server. |
 | Logging in to the mail server failed. | Wrong `SMTP_USER` or `SMTP_PASS`. |
 | A secure connection to the mail server failed. | The server's encryption setup, or the wrong port. |
-| The mail server refused the address. | A typo in the address, or a mailbox that does not exist (code such as `EENVELOPE-550`). |
+| The mail server refused the email address. Check that it is spelled correctly. | A typo in the address, or a mailbox that does not exist (code such as `EENVELOPE-550`). |
 | The mail server refused the sender address. | The server will not send from `SMTP_FROM`. |
 | The mail server refused the mail. | The server rejected the message itself. |
 | The mail server could not take the mail just now. | A temporary refusal; sending again later usually works. |

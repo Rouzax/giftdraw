@@ -124,6 +124,14 @@ for (const [deadline, code] of [['soon', 'signup-date'], ['2026-10-31', 'signup-
   });
 }
 
+test('a closing date on or after the first exchange is refused with a sentence that says before', async () => {
+  const t = await setup();
+  const { eventId } = await eventWithGroups(t, [3]);
+  const res = await t.adminPost(`/admin/events/${eventId}/signup`, { deadline: '2026-12-18' });
+  assert.equal(res.statusCode, 400);
+  assert.ok(res.body.includes('Kies een sluitdatum die eerder is dan de eerste ruildatum.'));
+});
+
 test('people pasted while sign-up is active are not paired or invited, mailed only once it was sent', async () => {
   const t = await setup();
   const eventId = await createEvent(t);
@@ -172,7 +180,7 @@ test('invitations and opening are refused while sign-up is active', async () => 
   t.ctx.repo.setAssignment(groupId, makeCycle(ids), t.ctx.nowIso());
   t.ctx.repo.markInvitationsSent(groupId, t.ctx.nowIso());
   assert.deepEqual(openGroup(t.ctx, groupId), { opened: false, reason: 'signup' });
-  const open = await t.adminPost(`/admin/groups/${groupId}/open`);
+  const open = await t.adminPost(`/admin/groups/${groupId}/open`, { confirm: '1' });
   assert.equal(open.statusCode, 409);
 
   t.ctx.repo.updateGroup(groupId, { autoOpenAt: '2026-11-01' });

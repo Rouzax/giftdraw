@@ -86,9 +86,9 @@ With email on, every mail has the participant's name, one big button to their pa
 
 | Mail | Subject (English / Dutch) | When |
 | --- | --- | --- |
-| Sign-up | Are you taking part in ...? / Doe je mee met ...? | With sign-up on, when you send the question, or when you add them while sign-up is open. |
+| Sign-up | Are you taking part in ...? / Doe je mee aan ...? | With sign-up on, when you send the question, or when you add them while sign-up is open. |
 | Sign-up reminder | 7 days left to say whether you are taking part in ... / Nog 7 dagen om te zeggen of je meedoet aan ... (2 days in the second) | Up to two, to people who have not answered. |
-| Are you sure? | Are you sure you are not taking part in ...? / Weet je zeker dat je niet meedoet met ...? | At most once, to people who said no. |
+| Are you sure? | Are you sure you are not taking part in ...? / Weet je zeker dat je niet meedoet aan ...? | At most once, to people who said no. |
 | Invitation | Tell us a little about yourself / Vertel iets over jezelf | When you send the invitations, or start the draw after sign-up. |
 | Invitation into an open group | You can draw a name straight away / Je kunt meteen een naam trekken | A newcomer added after drawing opened. |
 | Drawing is open | You can draw a name now / Je kunt nu een naam trekken | When the group opens. |

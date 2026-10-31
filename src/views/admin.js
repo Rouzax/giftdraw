@@ -2,7 +2,7 @@ import { html, raw } from '../html.js';
 import { iconText } from '../icons.js';
 import { exchangeWhen, formatDate, LANGS, t } from '../i18n/index.js';
 import { NAME_MAX, PLACE_MAX, THEME_MAX } from '../limits.js';
-import { PASTE_TEXT_MAX } from '../people.js';
+import { inviteArrived, PASTE_TEXT_MAX } from '../people.js';
 import { answerSeen, closedOn, joins } from '../signup.js';
 import { newFormToken } from '../submit-log.js';
 
@@ -60,7 +60,11 @@ export function backLink(href, label) {
   return html`<p class="back"><a href="${href}">${label}</a></p>`;
 }
 
-export function eventsView(lang, events, { error = null, values = {} } = {}) {
+// duplicate: an event already called the entered name. Back after creating
+// one gives the form a fresh token and keeps the typed name, so pressing the
+// button again would otherwise make a second event; a second one of the
+// same name needs the tick.
+export function eventsView(lang, events, { error = null, values = {}, duplicate = null } = {}) {
   const title = t(lang, 'admin.events.title');
   const list = events.length
     ? html`<ul class="link-list">${events.map((event) => html`<li><a href="/admin/events/${event.id}">${event.name}</a></li>`)}</ul>`
@@ -71,12 +75,14 @@ ${list}
 <section class="panel">
 <h2>${t(lang, 'admin.events.new')}</h2>
 ${errorNotice(lang, error)}
+${duplicate ? html`<p class="notice warn" role="alert">${t(lang, 'admin.event.duplicate', { name: duplicate.name })} <a href="/admin/events/${duplicate.id}">${t(lang, 'admin.event.duplicateOpen', { name: duplicate.name })}</a></p>` : ''}
 <form method="post" action="/admin/events" class="stack">
 ${formToken()}
 <label for="event-name">${t(lang, 'admin.event.name')}</label>
 <input id="event-name" name="name" type="text" maxlength="${NAME_MAX}" required value="${values.name ?? ''}">
 <label for="event-language">${t(lang, 'admin.event.language')}</label>
 ${languageSelect('event-language', values.language ?? 'nl')}
+${duplicate ? html`<label class="check"><input type="checkbox" name="confirmDuplicate" value="1" required> <span>${t(lang, 'admin.event.duplicateConfirm')}</span></label>` : ''}
 <button type="submit" class="primary">${t(lang, 'admin.events.create')}</button>
 </form>
 </section>`;
@@ -424,13 +430,19 @@ function failureReason(code) {
   return 'other';
 }
 
-// The code stays beside the reason, small, for whoever runs the mail server.
+// The reason in words; the raw code means nothing to the organiser, so it
+// only appears folded away on the person page, for whoever runs the mail
+// server.
 function failureText(lang, failure, tz) {
   const kind = t(lang, `admin.mailKind.${failure.kind}`);
   const reason = t(lang, `admin.failure.reason.${failureReason(failure.errorCode)}`);
   const state = failure.retrying ? t(lang, 'admin.failure.retrying') : t(lang, 'admin.failure.gaveUp', { date: shortDate(lang, failure.at, tz) });
   return status(failure.retrying ? 'warn' : 'failed',
-    html`<span class="state-failed">${kind}:</span> ${reason} <span class="small"><code>${failure.errorCode}</code> ${state}</span>`);
+    html`<span class="state-failed">${kind}:</span> ${reason} <span class="small">${state}</span>`);
+}
+
+function failureCode(lang, failure) {
+  return html`<details class="small"><summary>${t(lang, 'admin.failure.code')}</summary><code>${failure.errorCode}</code></details>`;
 }
 
 // A mail still being retried goes out by itself; only one given up on can be
@@ -508,6 +520,12 @@ ${rows.map((row) => participantRow(lang, row, tz, mailEnabled, signupState))}
 </div>`;
 }
 
+// People whose invitation reached the mail server; a queued one is not
+// counted until it is sent.
+function invitedCount(rows) {
+  return rows.filter((r) => r.participant.email && r.mail.invite === 'sent').length;
+}
+
 function summary(lang, rows, mailEnabled, signupState) {
   const signing = SIGNUP_ACTIVE.has(signupState);
   const total = rows.length;
@@ -529,9 +547,7 @@ function summary(lang, rows, mailEnabled, signupState) {
       count: asked.filter((r) => r.mail.signup === 'sent').length, total: asked.length,
     }));
   } else if (mailEnabled) {
-    items.push(t(lang, 'admin.summary.invited', {
-      count: withEmail.filter((r) => r.mail.invite === 'sent').length, total: withEmail.length,
-    }));
+    items.push(t(lang, 'admin.summary.invited', { count: invitedCount(rows), total: withEmail.length }));
   }
   return html`<ul class="summary">${items.map((item) => html`<li>${item}</li>`)}</ul>`;
 }
@@ -553,12 +569,16 @@ function groupStatus(lang, group, tz, mailEnabled) {
 
 // With email off the button only records that the organiser shared the
 // links; once pressed there is nothing left to do here.
-function invitePanelBody(lang, { group, mailEnabled, uninvited, withEmail }) {
+function invitePanelBody(lang, { group, mailEnabled, uninvited, withEmail, delivered }) {
   if (!mailEnabled && group.invitationsSentAt) return html`<p>${t(lang, 'admin.invite.sharedNoMail')}</p>`;
   // The button stays until it was pressed once, even with nobody to mail:
   // the draw opens only after that.
+  // Invited counts as the summary counts it, by invitations delivered, so
+  // the two never disagree while the outbox is still sending.
   if (mailEnabled && group.invitationsSentAt && uninvited === 0) {
-    return html`<p>${t(lang, withEmail ? 'admin.invite.allInvited' : 'admin.invite.nobodyEmail')}</p>`;
+    if (!withEmail) return html`<p>${t(lang, 'admin.invite.nobodyEmail')}</p>`;
+    if (delivered === withEmail) return html`<p>${t(lang, 'admin.invite.allInvited')}</p>`;
+    return html`<p>${t(lang, 'admin.invite.sending', { count: delivered, total: withEmail })}</p>`;
   }
   return html`<p>${mailEnabled ? t(lang, 'admin.invite.pending', { count: uninvited }) : t(lang, 'admin.invite.mailOff')}</p>
 <form method="post" action="/admin/groups/${group.id}/invite">
@@ -580,7 +600,8 @@ function drawPanel(lang, { group, rows, openError, mailEnabled }) {
     ? html`<p>${t(lang, 'admin.draw.isOpen')}</p>`
     : html`<p>${t(lang, mailEnabled ? 'admin.draw.openIntro' : 'admin.draw.openIntroNoMail')}</p>
 ${!group.invitationsSentAt && openError !== 'no-invitations' ? html`<p class="hint">${t(lang, openErrorKey('no-invitations', mailEnabled))}</p>` : ''}
-<form method="post" action="/admin/groups/${group.id}/open">
+<form method="post" action="/admin/groups/${group.id}/open" class="stack">
+<label class="check"><input type="checkbox" name="confirm" value="1" required> <span>${t(lang, 'admin.delete.confirm')}</span></label>
 <button type="submit" class="primary with-icon">${iconText('door-open', t(lang, 'admin.draw.openButton'))}</button>
 </form>`;
   return html`<section class="panel" id="draw">
@@ -641,7 +662,9 @@ ${groupStatus(lang, group, tz, mailEnabled)}
 ${signupState === 'closed' ? closedNotice(lang, { event, people: rows.map((r) => ({ p: r.participant })), tz }) : ''}
 ${signing ? signupLine(lang, event) : html`<section class="panel">
 <h2>${t(lang, 'admin.invite.title')}</h2>
-${invitePanelBody(lang, { group, mailEnabled, uninvited, withEmail: rows.some((r) => r.participant.email) })}
+${invitePanelBody(lang, {
+    group, mailEnabled, uninvited, withEmail: rows.filter((r) => r.participant.email).length, delivered: invitedCount(rows),
+  })}
 </section>
 ${drawPanel(lang, { group, rows, openError, mailEnabled })}`}
 <section class="panel wide">
@@ -697,15 +720,13 @@ export function pasteConfirmView(lang, { group, plan, errors, changes, text, mai
   const errorList = errors.length
     ? html`<section class="panel">
 <h2>${t(lang, 'admin.paste.skipped')}</h2>
-<ul>${errors.map((e) => html`<li>${t(lang, 'admin.paste.line', { line: e.line })}: <code>${e.text}</code> (${t(lang, `admin.paste.reason.${e.reason}`)})</li>`)}</ul>
+<ul>${errors.map((e) => html`<li>${t(lang, 'admin.paste.line', { line: e.line })}: <code>${e.text}</code> (${t(lang, `admin.paste.reason.${e.reason}`, { earlier: e.earlier })})</li>`)}</ul>
 </section>`
     : '';
   const duplicates = plan.duplicates.length
     ? html`<section class="panel">
 <h2>${t(lang, 'admin.paste.duplicatesTitle')}</h2>
-<ul>${plan.duplicates.map((d) => html`<li>${d.otherGroupName === null
-    ? t(lang, 'admin.paste.duplicateInList', { email: plan.rows[d.row].email })
-    : t(lang, 'admin.paste.duplicate', { email: plan.rows[d.row].email, group: d.otherGroupName })}</li>`)}</ul>
+<ul>${plan.duplicates.map((d) => html`<li>${t(lang, 'admin.paste.duplicate', { email: plan.rows[d.row].email, group: d.otherGroupName })}</li>`)}</ul>
 </section>`
     : '';
   const openNotice = changes
@@ -835,11 +856,12 @@ const DONE_OK = new Set([
 // Done, but with something left for the organiser to do.
 const SIGNUP_WARN = ['signup-active', 'signup-answered', 'signup-not-open'];
 const DONE_WARN = new Set([
-  'nothing-to-remind', 'no-email', 'not-invited', 'mail-off', 'no-failure', 'already-queued', 'added-tell', 'removed-tell',
-  'already-imported', ...SIGNUP_WARN,
+  'nothing-to-remind', 'no-email', 'not-invited', 'invite-not-delivered', 'mail-off', 'no-failure', 'already-queued',
+  'added-tell', 'removed-tell', 'already-imported', ...SIGNUP_WARN,
 ]);
 export const PERSON_DONE = new Set([
-  ...DONE_OK, 'nothing-to-remind', 'no-email', 'not-invited', 'mail-off', 'no-failure', 'already-queued', ...SIGNUP_WARN,
+  ...DONE_OK, 'nothing-to-remind', 'no-email', 'not-invited', 'invite-not-delivered', 'mail-off', 'no-failure',
+  'already-queued', ...SIGNUP_WARN,
 ]);
 
 export function doneNotice(lang, done) {
@@ -894,16 +916,17 @@ function linkPanel(lang, { participant: p, link, mailEnabled }) {
 </section>`;
 }
 
-function remindHint(lang, p, remindKind) {
+function remindHint(lang, p, remindKind, arrived) {
   if (!remindKind) return t(lang, 'admin.person.mail.nothingToRemind');
   if (!p.invitedAt) return t(lang, 'admin.person.mail.notInvited');
+  if (!arrived) return t(lang, 'admin.person.mail.inviteNotDelivered');
   return t(lang, `admin.person.mail.remindHint.${remindKind}`);
 }
 
 // While the event signs up, invitations and reminders wait for the draw;
 // only the sign-up mail can go again, to someone who has not answered while
 // it is open.
-function mailButtons(lang, p, remindKind, signupState) {
+function mailButtons(lang, p, remindKind, signupState, mail) {
   const form = (path, icon, key) => html`<form method="post" action="/admin/participants/${p.id}/${path}" class="inline-form">
 <button type="submit" class="with-icon">${iconText(icon, t(lang, key))}</button>
 </form>`;
@@ -914,10 +937,11 @@ function mailButtons(lang, p, remindKind, signupState) {
       hint: t(lang, resend ? 'admin.person.mail.resendSignupHint' : 'admin.person.mail.signupHint'),
     };
   }
+  const arrived = inviteArrived(mail);
   return {
     buttons: html`${form('resend-invite', 'mail', 'admin.person.mail.resendInvite')}
-${remindKind && p.invitedAt ? form('remind', 'bell', 'admin.person.mail.remind') : ''}`,
-    hint: remindHint(lang, p, remindKind),
+${remindKind && p.invitedAt && arrived ? form('remind', 'bell', 'admin.person.mail.remind') : ''}`,
+    hint: remindHint(lang, p, remindKind, arrived),
   };
 }
 
@@ -927,8 +951,9 @@ function mailPanel(lang, { participant: p, mail, remindKind, mailEnabled, tz, si
   else if (!mailEnabled) content = html`<p class="muted">${t(lang, 'admin.mailOff')}</p>`;
   else {
     const failure = mail.lastFailure;
-    const { buttons, hint } = mailButtons(lang, p, remindKind, signupState);
-    content = html`${failure ? html`<p>${t(lang, 'admin.person.mail.failure')} ${failureText(lang, failure, tz)}</p>` : ''}
+    const { buttons, hint } = mailButtons(lang, p, remindKind, signupState, mail);
+    content = html`${failure ? html`<p>${t(lang, 'admin.person.mail.failure')} ${failureText(lang, failure, tz)}</p>
+${failureCode(lang, failure)}` : ''}
 <div class="button-row">
 ${buttons}
 ${failure && !failure.retrying ? resendFailedForm(lang, p.id) : ''}

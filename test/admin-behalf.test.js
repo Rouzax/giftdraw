@@ -274,3 +274,30 @@ test('the on-behalf stale notice follows the organiser language, not the partici
   assert.equal(res.body.includes(tr('en', 'about.stale')), false);
   assert.ok(res.body.includes('Tuinieren'));
 });
+
+test('the on-behalf notices follow the organiser language and name no button of the other language', async () => {
+  const t = await setup({ names: ['Ada', 'Ben', 'Cor'] });
+  const ada = t.people[0];
+  t.ctx.repo.updateParticipant(ada.id, { language: 'en' });
+  const behalf = hiddenFields((await t.adminGet(`/admin/participants/${ada.id}/about`)).body);
+  await t.adminPost(`/admin/participants/${ada.id}/about`, { ...behalf, q_hobbies: 'Breien' });
+  const stale = await t.adminPost(`/admin/participants/${ada.id}/about`, { ...behalf, q_hobbies: 'Tuinieren' });
+  const notice = /<div class="notice" role="alert">[\s\S]*?<\/div>/.exec(stale.body)[0];
+  assert.ok(notice.includes(tr('nl', 'admin.behalf.staleForm', { name: 'Ada' })));
+  assert.equal(notice.includes('Opslaan'), false, 'the button on this page reads Save');
+
+  const outdated = await t.adminPost(`/admin/participants/${ada.id}/about`, { sections: 'hobbies likes', hobbies: 'Nieuw' });
+  assert.equal(outdated.statusCode, 200);
+  assert.ok(outdated.body.includes(tr('nl', 'admin.behalf.outdated', { name: 'Ada' })));
+  assert.equal(outdated.body.includes(tr('en', 'about.outdated')), false);
+});
+
+test('opening the draw address directly leads to the person page', async () => {
+  const t = await setup({ names: ['Ada', 'Ben', 'Cor'], opened: true });
+  const ada = t.people[0];
+  const res = await t.adminGet(`/admin/participants/${ada.id}/draw`);
+  assert.equal(res.statusCode, 303);
+  assert.equal(res.headers.location, `/admin/participants/${ada.id}`);
+  assert.equal(t.ctx.repo.getParticipant(ada.id).drawnAt, null, 'a GET reveals nothing');
+  assert.equal((await t.adminGet('/admin/participants/999/draw')).statusCode, 404);
+});

@@ -138,7 +138,7 @@ Check that the container is running; the queue is worked through every minute. T
 
 ### The dashboard shows a mail failure
 
-The mail server refused the message or could not be reached, and the automatic retries ran out. The Mail failure column says what went wrong in words, with the technical code in small print beside it, such as `EENVELOPE-550`.
+The mail server refused the message or could not be reached, and the automatic retries ran out. The Mail failure column says what went wrong in words. The technical code, such as `EENVELOPE-550`, is under **Technical message** (*Technische melding*) on the person's page.
 
 - **One person fails, the server refused the address**: check the address on the participant's page, correct it, then press **Send again** (*Opnieuw sturen*).
 - **Every mail fails, or the reason is a refused sender**: check `SMTP_HOST`, `SMTP_PORT`, the login, and that the server accepts `SMTP_FROM` as sender. After fixing and restarting, press **Send all failed mail again** on each group.
@@ -147,7 +147,7 @@ An invitation that reached the person earlier stays marked as sent; only the fai
 
 ### Someone did not get a reminder
 
-Reminders go only to people with an email address who received an invitation, at most two of each kind, between 09:00 and 20:00, and never on or after the exchange date. The first wishes reminder comes no sooner than 3 days after the invitation (5 days when the group has no automatic opening date), the first draw reminder 3 days after opening. With email off, or with every question of the wish form hidden, no wish reminders are sent at all. You can always send one by hand with **Send a reminder now** on their page, except while the event's sign-up runs: then no wish or draw reminders go out at all.
+Reminders go only to people with an email address who received an invitation, at most two of each kind, between 09:00 and 20:00, and never on or after the exchange date. The first wishes reminder comes no sooner than 3 days after the invitation (5 days when the group has no automatic opening date), the first draw reminder 3 days after opening. With email off, or with every question of the wish form hidden, no wish reminders are sent at all. You can always send one by hand with **Send a reminder now** on their page, except while the event's sign-up runs (then no wish or draw reminders go out at all) and while their invitation is still queued or failing (fix or resend the invitation first).
 
 ### Someone did not get a sign-up reminder
 

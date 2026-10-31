@@ -33,8 +33,9 @@ Gerda
 Henk; henk@example.com
 ```
 
-- **Name, then email address.** A comma, a semicolon or a tab separates the two, so a list copied from a spreadsheet works too.
+- **Name, then email address.** A comma, a semicolon or a tab separates the two, so a list copied from a spreadsheet works too. A separator at the end of a line, as a spreadsheet export often leaves, is ignored.
 - **Someone without email** is just their name, like `Gerda` above.
+- **Each person once.** A line with an address or a name that an earlier line of the same list already has is skipped, so one person never gets two links and two pairs. Names count as the same whatever their capitals or surrounding spaces. If two different people share a name, make the names differ, for example `Anne de Vries` and `Anne Bakker`.
 - Names may contain emoji and accents, up to 100 characters.
 - Up to 500 people per paste.
 
@@ -43,10 +44,21 @@ When every line is fine, the people are added straight away and the dashboard sa
 ![The check page: one skipped line, one address already used in another group, and the people to add](../images/organiser-paste-confirm.webp){ .shot }
 
 **These lines are skipped** (*Deze regels worden overgeslagen*)
-:   Lines that cannot be added, with the reason: *the email address is not valid* or *the name is missing* (a line with only an address). An address with an accented letter or emoji before the `@`, such as `josé@example.com`, is refused because mail servers and the email field on the participant's page do not accept it. An accented domain such as `ada@café.nl` is fine: it is stored and shown in its punycode form, `ada@xn--caf-dma.nl`, which is the same address written the way mail servers read it.
+:   Lines that cannot be added, each with its line number and the reason:
+
+    - *the name is missing*: the line has only an address, or nothing before the separator;
+    - *put a comma between the name and the email address*: the name and the address are there, but nothing separates them;
+    - *the email address comes before the name*: swap them;
+    - *this line holds more than a name and an email address*: there is a third column;
+    - *the email address is not valid*: the part after the separator is not an address;
+    - *this email address is already on line ...* or *this name is already on line ...*: the person is already in the list on that line.
+
+    Nothing from a skipped line is added. Fix it in the box at the bottom and check again, or add the others first and paste the fixed line afterwards.
+
+    An address with an accented letter or emoji before the `@`, such as `josé@example.com`, is refused because mail servers and the email field on the participant's page do not accept it. An accented domain such as `ada@café.nl` is fine: it is stored and shown in its punycode form, `ada@xn--caf-dma.nl`, which is the same address written the way mail servers read it.
 
 **This email address is already known** (*Dit e-mailadres is al bekend*)
-:   The address is already used by someone in another group of this event, or appears twice in the list. This is a warning only: those people are still in the list to add. Leave them in if, for example, one person joins two classes; otherwise fix the list.
+:   The address is already used by someone in another group of this event. This is a warning only: those people are still in the list to add. Leave them in if, for example, one person joins two classes; otherwise fix the list. (The same address twice within the list itself is skipped, see above.)
 
 **To add** (*Toevoegen*)
 :   Everyone who will be added. Press **Yes, add these ...** (*Ja, voeg deze ... toe*) to add them, or change the list in the box at the bottom and press **Check and add** again.
