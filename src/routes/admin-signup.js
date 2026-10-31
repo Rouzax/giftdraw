@@ -1,7 +1,7 @@
 import { makeCycle } from '../draw/cycle.js';
 import { signupDeadlineError } from '../limits.js';
 import { finishSignup, sendSignup } from '../people.js';
-import { joins, signupActive, signupState } from '../signup.js';
+import { answerSeen, joins, signupActive, signupState } from '../signup.js';
 import { todayIn } from '../time.js';
 import { signupFinishView, tooLateForSignup } from '../views/admin.js';
 import { adminLang } from './admin-auth.js';
@@ -107,25 +107,34 @@ export function adminSignupRoutes(app, ctx, {
 
   // The organiser records an answer given to her, from the sign-up lists or
   // the person page. back returns to one of those two pages only, so the
-  // field cannot be used as an open redirect.
+  // field cannot be used as an open redirect. seen is the answer the page
+  // showed: a form from before the person or another page changed it would
+  // silently overrule a newer answer, so it is refused, as is a form
+  // without it.
   app.post('/admin/participants/:id/signup', loadParticipant, async (request, reply) => {
     const participant = request.record;
     const answer = request.body?.answer;
     if (!ANSWERS.has(answer)) return sendError(reply, 400, adminLang(request));
     const event = repo.getEvent(repo.getGroup(participant.groupId).eventId);
     const fromPerson = request.body?.back === 'person';
-    if (!signupActive(event, ctx.now(), config.tz)) {
-      if (!fromPerson) return refuse(request, reply, event, 'state', 409);
-      request.log.info({ event_id: event.id, reason: 'state' }, 'signup_refused');
-      const view = personPage(adminLang(request), participant, { signupError: 'admin.signup.error.state' });
+    const refuseHere = (reason, signupError) => {
+      request.log.info({ event_id: event.id, participant_id: participant.id, reason }, 'signup_refused');
+      const lang = adminLang(request);
+      const view = fromPerson ? personPage(lang, participant, { signupError }) : eventPage(lang, event, { signupError });
       return render(request, reply, view, 409);
+    };
+    if (!signupActive(event, ctx.now(), config.tz)) return refuseHere('state', 'admin.signup.error.state');
+    if (request.body?.seen !== answerSeen(participant)) {
+      return refuseHere('changed', ['admin.signup.error.changed', { name: participant.name }]);
     }
     repo.updateParticipant(participant.id, { signup: answer, signupAt: ctx.nowIso() });
     request.log.info({ participant_id: participant.id, event_id: event.id }, 'signup_set');
     return reply.redirect(fromPerson ? `/admin/participants/${participant.id}` : `${eventUrl(event)}#signup`, 303);
   });
 
-  function finishPage(request, reply, event) {
+  // status is 409 when a press was refused because a group is too small;
+  // the page then says why and offers no confirmation.
+  function finishPage(request, reply, event, status = 200) {
     const state = stateOf(event);
     if (state === 'done') return reply.redirect(eventUrl(event), 303);
     if (state !== 'closed') return refuse(request, reply, event, 'state', 409);
@@ -134,7 +143,8 @@ export function adminSignupRoutes(app, ctx, {
       return { group, joining: people.filter(joins), leaving: people.filter((p) => !joins(p)) };
     });
     const today = todayIn(ctx.now(), config.tz);
-    return render(request, reply, signupFinishView(adminLang(request), { event, groups, today, mailEnabled: ctx.mailer.enabled }));
+    const view = signupFinishView(adminLang(request), { event, groups, today, mailEnabled: ctx.mailer.enabled });
+    return render(request, reply, view, status);
   }
 
   app.get('/admin/events/:id/signup/finish', loadEvent, async (request, reply) => finishPage(request, reply, request.record));
@@ -148,6 +158,10 @@ export function adminSignupRoutes(app, ctx, {
     if (request.body?.confirm !== '1') return finishPage(request, reply, event);
     const result = finishSignup(ctx, event.id);
     if (result.refused === 'done') return redirectDone(request, reply, eventUrl(event));
+    if (result.refused === 'too-small') {
+      request.log.info({ event_id: event.id, reason: 'too-small', groups: result.groupIds.length }, 'signup_refused');
+      return finishPage(request, reply, event, 409);
+    }
     if (result.refused) return refuse(request, reply, event, 'state', 409);
     request.log.info({
       event_id: event.id, joined: result.joined, removed: result.removed, groups_unpaired: result.unpairedGroupIds.length,

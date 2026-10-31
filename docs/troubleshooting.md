@@ -118,9 +118,17 @@ Their page says **Sign-up is closed.** and asks them to contact you.
 - **Before you start the draw**: press **Set to yes** next to their name in the Sign-up panel, or open sign-up again with a new closing date so everyone can still answer.
 - **After you start the draw**: if they had not said yes, they were removed. Add them to their group again as in [Someone joins late](guide/changes.md#someone-joins-late). They get a new link and, with email on, their invitation straight away.
 
+### "You cannot make the pairs yet" and there is no confirm button
+
+(*Je kunt de lootjes nog niet maken.*) A group has only one or two people taking part, and drawing needs at least 3. The page names each such group. Set more people in it to yes, add someone to it (after closing a newcomer counts as yes), or remove the group on its dashboard if it is not taking part this time. Then press **Make the pairs** again. Nobody was removed and nothing was sent. See [When a group has only one or two people taking part](guide/signup.md#when-a-group-has-only-one-or-two-people-taking-part).
+
+### "...'s answer has changed in the meantime" after Set to yes or Set to no
+
+(*Het antwoord van ... is intussen veranderd.*) The person answered, or the answer was set on another page, after you opened yours. Nothing was saved, so their newer answer stands. The page shows the answer as it is now; press again if you still want to change it.
+
 ### A group has no pairs after starting the draw
 
-Fewer than 3 people in it take part, so it could not be paired. The confirmation page warned about it. Add people to the group: from 3 people on it is paired at once, and with email on the newcomers get their invitation straight away.
+Nobody in it took part, so it was left empty. Add people to the group: from 3 people on it is paired at once, and with email on the newcomers get their invitation straight away.
 
 ## Mail
 

@@ -3,12 +3,12 @@ import assert from 'node:assert/strict';
 import { makeCycle, validateAssignment } from '../src/draw/cycle.js';
 import { openGroup } from '../src/drawing.js';
 import { escape } from '../src/html.js';
-import { t as tr } from '../src/i18n/index.js';
+import { formatDate, t as tr } from '../src/i18n/index.js';
 import { commitRemoveParticipant, planRemoveParticipant, sendInvitations, sendSignup } from '../src/people.js';
 import { tick } from '../src/scheduler.js';
-import { signupState } from '../src/signup.js';
+import { answerSeen, signupState } from '../src/signup.js';
 import { newFormToken } from '../src/submit-log.js';
-import { makeTestApp } from './helpers.js';
+import { makeTestApp, textOf } from './helpers.js';
 
 const T0 = Date.parse('2026-11-01T10:00:00.000Z');
 const TZ = 'Europe/Amsterdam';
@@ -399,9 +399,18 @@ test('while sign-up is active a group cannot exchange on or before the closing d
 
 const answerAs = (t, p, value) => t.post(`/p/${p.token}/signup`, { answer: value });
 
-// Group A: four yes, one no, one without an answer. Group B: two yes.
+// The organiser's set-answer form as the page renders it: with the answer it
+// was rendered from.
+const setAnswer = (t, p, answer, back = 'event') => {
+  const now = t.ctx.repo.getParticipant(p.id);
+  return t.adminPost(`/admin/participants/${p.id}/signup`, { answer, back, seen: answerSeen(now) });
+};
+const rowOf = (body, p) => body.split('<tr>').find((row) => row.includes(`href="/admin/participants/${p.id}"`))?.split('</tr>')[0] ?? '';
+const words = (lang, key, vars) => escape(tr(lang, key, vars));
+
+// Group A: four yes, one no, one without an answer. Group B: three yes.
 async function answeredAndClosed(t) {
-  const { eventId, groupIds: [a, b] } = await eventWithGroups(t, [6, 2]);
+  const { eventId, groupIds: [a, b] } = await eventWithGroups(t, [6, 3]);
   await turnOn(t, eventId);
   await send(t, eventId);
   const [ada, ben, cor, dirk, eva, fem] = people(t, a);
@@ -447,7 +456,7 @@ test('the closed sign-up panel uses the singular for one joiner and one non-join
 test('the organiser sets someone who did not answer to yes after closing', async () => {
   const t = await setup();
   const { eventId, fem } = await answeredAndClosed(t);
-  const res = await t.adminPost(`/admin/participants/${fem.id}/signup`, { answer: 'yes', back: 'event' });
+  const res = await setAnswer(t, fem, 'yes');
   assert.equal(res.statusCode, 303);
   assert.equal(res.headers.location, `/admin/events/${eventId}#signup`);
   assert.equal(t.ctx.repo.getParticipant(fem.id).signup, 'yes');
@@ -458,10 +467,10 @@ test('the organiser sets someone who did not answer to yes after closing', async
   const page = await t.adminGet(`/admin/participants/${fem.id}`);
   assert.ok(page.body.includes(`action="/admin/participants/${fem.id}/signup"`));
   assert.ok(page.body.includes('name="back" value="person"'));
-  const back = await t.adminPost(`/admin/participants/${fem.id}/signup`, { answer: 'no', back: 'person' });
+  const back = await setAnswer(t, fem, 'no', 'person');
   assert.equal(back.headers.location, `/admin/participants/${fem.id}`);
   assert.equal(t.ctx.repo.getParticipant(fem.id).signup, 'no');
-  const elsewhere = await t.adminPost(`/admin/participants/${fem.id}/signup`, { answer: 'yes', back: 'https://example.org' });
+  const elsewhere = await setAnswer(t, fem, 'yes', 'https://example.org');
   assert.equal(elsewhere.headers.location, `/admin/events/${eventId}#signup`);
   const bad = await t.adminPost(`/admin/participants/${fem.id}/signup`, { answer: 'maybe' });
   assert.equal(bad.statusCode, 400);
@@ -487,13 +496,13 @@ test('starting the draw removes who does not join, pairs the rest and invites th
   assert.equal(preview.statusCode, 200);
   const removed = preview.body.split(escape(tr('nl', 'admin.signup.finish.leaving')))[1];
   assert.ok(removed.includes('Eva') && removed.includes('Fem'));
-  assert.equal(preview.body.split(below).length - 1, 1);
+  assert.ok(!preview.body.includes(below));
   assert.ok(preview.body.includes(`action="/admin/events/${eventId}/signup/finish"`));
   assert.ok(preview.body.includes('name="confirm"'));
 
   const unconfirmed = await t.adminPost(`/admin/events/${eventId}/signup/finish`, { formToken: newFormToken() });
   assert.equal(unconfirmed.statusCode, 200);
-  assert.ok(unconfirmed.body.includes(below));
+  assert.ok(unconfirmed.body.includes('name="confirm"'));
   assert.equal(people(t, a).length, 6);
   assert.equal(event(t, eventId).signupDoneAt, null);
 
@@ -506,15 +515,15 @@ test('starting the draw removes who does not join, pairs the rest and invites th
   assert.equal(inA.length, 4);
   assert.ok(validateAssignment(t.ctx.repo.getAssignment(a), inA.map((p) => p.id)));
   const inB = people(t, b);
-  assert.equal(inB.length, 2);
-  assert.ok(inB.every((p) => p.receiverId === null));
+  assert.equal(inB.length, 3);
+  assert.ok(validateAssignment(t.ctx.repo.getAssignment(b), inB.map((p) => p.id)));
   for (const gone of [eva, fem]) assert.equal((await t.app.inject(`/p/${gone.token}`)).statusCode, 404);
   const remaining = [...inA, ...inB];
   assert.deepEqual(rows(t, 'invite'), remaining.map((p) => p.id));
   assert.ok(event(t, eventId).signupDoneAt);
   assert.equal(state(t, eventId), 'done');
   const line = msgs(t).find((l) => l.msg === 'signup_finished');
-  assert.deepEqual([line.joined, line.removed, line.groups_unpaired], [6, 2, 1]);
+  assert.deepEqual([line.joined, line.removed, line.groups_unpaired], [7, 2, 0]);
 
   const again = await t.adminPost(`/admin/events/${eventId}/signup/finish`, { formToken, confirm: '1' });
   assert.equal(again.headers.location, res.headers.location);
@@ -702,8 +711,8 @@ test('someone who already has an answer when sign-up is sent is never mailed abo
   const { eventId, groupIds: [groupId] } = await eventWithGroups(t, [4]);
   await turnOn(t, eventId);
   const [ada, ben] = people(t, groupId);
-  await t.adminPost(`/admin/participants/${ada.id}/signup`, { answer: 'no' });
-  await t.adminPost(`/admin/participants/${ben.id}/signup`, { answer: 'yes' });
+  await setAnswer(t, ada, 'no');
+  await setAnswer(t, ben, 'yes');
   await send(t, eventId);
   for (const p of [ada, ben]) assert.equal(t.ctx.repo.getParticipant(p.id).signupInvitedAt, null);
   assert.equal(rows(t, 'signup').length, 2);
@@ -757,7 +766,7 @@ test('the organiser cannot set an answer once sign-up is done', async () => {
   const { eventId, a } = await answeredAndClosed(t);
   await t.adminPost(`/admin/events/${eventId}/signup/finish`, { formToken: newFormToken(), confirm: '1' });
   const [ada] = people(t, a);
-  const res = await t.adminPost(`/admin/participants/${ada.id}/signup`, { answer: 'no', back: 'event' });
+  const res = await setAnswer(t, ada, 'no');
   assert.equal(res.statusCode, 409);
   assert.equal(t.ctx.repo.getParticipant(ada.id).signup, 'yes');
 });
@@ -770,4 +779,213 @@ test('the group dashboard drops the waiting-for-invitations line while sign-up i
   assert.ok((await t.adminGet(`/admin/groups/${groupId}`)).body.includes(line));
   await turnOn(t, eventId);
   assert.ok(!(await t.adminGet(`/admin/groups/${groupId}`)).body.includes(line));
+});
+
+
+test('the class table shows each sign-up answer and the sign-up mail while sign-up runs', async () => {
+  const t = await setup();
+  const { eventId, groupIds: [groupId] } = await eventWithGroups(t, [4]);
+  await turnOn(t, eventId);
+  const [ada, ben, cor, dirk] = people(t, groupId);
+  await setAnswer(t, dirk, 'no');
+
+  const setupPage = (await t.adminGet(`/admin/groups/${groupId}`)).body;
+  assert.ok(setupPage.includes(`<th scope="col">${words('nl', 'admin.col.signup')}</th>`));
+  assert.ok(setupPage.includes(`<th scope="col">${words('nl', 'admin.col.signupMail')}</th>`));
+  assert.ok(!setupPage.includes(`<th scope="col">${words('nl', 'admin.col.invited')}</th>`));
+  assert.ok(textOf(rowOf(setupPage, ada)).includes(tr('nl', 'admin.status.notYet')));
+  assert.ok(rowOf(setupPage, dirk).includes(`data-label="${words('nl', 'admin.col.signupMail')}"`));
+  assert.ok(textOf(rowOf(setupPage, dirk)).includes(tr('nl', 'admin.signupMail.notNeeded')));
+
+  await send(t, eventId);
+  await t.drain();
+  await answerAs(t, ada, 'yes');
+  await answerAs(t, ben, 'no');
+  const open = (await t.adminGet(`/admin/groups/${groupId}`)).body;
+  const cell = (p) => textOf(rowOf(open, p).split(`data-label="${words('nl', 'admin.col.signup')}">`)[1].split('</td>')[0]);
+  assert.equal(cell(ada).trim(), tr('nl', 'admin.signup.answer.yes'));
+  assert.equal(cell(ben).trim(), tr('nl', 'admin.signup.answer.no'));
+  assert.equal(cell(cor).trim(), tr('nl', 'admin.signup.answer.none'));
+  for (const p of [ada, ben, cor]) assert.ok(textOf(rowOf(open, p)).includes(tr('nl', 'admin.invite.sent')), p.name);
+  assert.ok(open.includes(words('nl', 'admin.summary.signupMailed', { count: 3, total: 4 })));
+  assert.ok(open.includes(words('nl', 'admin.summary.signup', { counts: tr('nl', 'admin.signup.counts', { yes: 1, no: 2, none: 1 }) })));
+  assert.ok(!open.includes(words('nl', 'admin.summary.invited', { count: 0, total: 4 })));
+
+  await t.adminPost(`/admin/events/${eventId}/signup/close`);
+  const closed = (await t.adminGet(`/admin/groups/${groupId}`)).body;
+  assert.ok(textOf(rowOf(closed, cor)).includes(tr('nl', 'admin.signup.answer.noneClosed')));
+});
+
+test('after the draw starts the class table is the one without sign-up', async () => {
+  const t = await setup();
+  const { eventId, groupIds: [groupId] } = await eventWithGroups(t, [3]);
+  await turnOn(t, eventId);
+  await send(t, eventId);
+  for (const p of people(t, groupId)) await answerAs(t, p, 'yes');
+  await t.adminPost(`/admin/events/${eventId}/signup/close`);
+  await t.adminPost(`/admin/events/${eventId}/signup/finish`, { formToken: newFormToken(), confirm: '1' });
+  const page = (await t.adminGet(`/admin/groups/${groupId}`)).body;
+  assert.ok(!page.includes(words('nl', 'admin.col.signup')));
+  assert.ok(!page.includes(words('nl', 'admin.col.signupMail')));
+  assert.ok(page.includes(`<th scope="col">${words('nl', 'admin.col.invited')}</th>`));
+  assert.ok(page.includes(words('nl', 'admin.summary.invited', { count: 0, total: 3 })));
+});
+
+test('with mail off the class table shows the answers but no sign-up mail column', async () => {
+  const t = await setup();
+  const { eventId, groupIds: [groupId] } = await eventWithGroups(t, [3]);
+  await turnOn(t, eventId);
+  t.mailer.enabled = false;
+  await send(t, eventId);
+  const [ada] = people(t, groupId);
+  await answerAs(t, ada, 'yes');
+  const page = (await t.adminGet(`/admin/groups/${groupId}`)).body;
+  assert.ok(page.includes(`<th scope="col">${words('nl', 'admin.col.signup')}</th>`));
+  assert.ok(!page.includes(words('nl', 'admin.col.signupMail')));
+  assert.ok(!page.includes(words('nl', 'admin.col.invited')));
+  assert.ok(!page.includes(words('nl', 'admin.summary.signupMailed', { count: 0, total: 3 })));
+  assert.ok(page.includes(words('nl', 'admin.summary.signup', { counts: tr('nl', 'admin.signup.counts', { yes: 1, no: 0, none: 2 }) })));
+});
+
+test('the draw cannot start while a group has one or two people taking part', async () => {
+  const t = await setup();
+  const { eventId, groupIds: [two, five] } = await eventWithGroups(t, [4, 5]);
+  await turnOn(t, eventId);
+  await send(t, eventId);
+  await t.drain();
+  const [ada, ben] = people(t, two);
+  for (const p of [ada, ben, ...people(t, five)]) await answerAs(t, p, 'yes');
+  await t.adminPost(`/admin/events/${eventId}/signup/close`);
+  const before = t.db.prepare('SELECT count(*) AS n FROM outbox').get().n;
+  const sentBefore = t.mails.length;
+  const fix = words('nl', 'admin.signup.finish.tooSmallFix');
+
+  const preview = await t.adminGet(`/admin/events/${eventId}/signup/finish`);
+  assert.equal(preview.statusCode, 200);
+  assert.ok(preview.body.includes(fix));
+  assert.ok(preview.body.includes(words('nl', 'admin.signup.finish.tooSmallGroup', { group: 'Groep 1', count: 2 })));
+  assert.ok(!preview.body.includes(words('nl', 'admin.signup.finish.tooSmallGroup', { group: 'Groep 2', count: 5 })));
+  assert.ok(!preview.body.includes('name="confirm"'));
+
+  const res = await t.adminPost(`/admin/events/${eventId}/signup/finish`, { formToken: newFormToken(), confirm: '1' });
+  assert.equal(res.statusCode, 409);
+  assert.ok(res.body.includes(fix));
+  assert.ok(!res.body.includes('name="confirm"'));
+  assert.equal(people(t, two).length, 4);
+  assert.equal(people(t, five).length, 5);
+  assert.equal(event(t, eventId).signupDoneAt, null);
+  assert.equal(state(t, eventId), 'closed');
+  await t.drain();
+  assert.equal(t.db.prepare('SELECT count(*) AS n FROM outbox').get().n, before);
+  assert.equal(t.mails.length, sentBefore);
+  assert.ok(people(t, five).every((p) => p.receiverId === null && !p.invitedAt));
+  const line = msgs(t).find((l) => l.msg === 'signup_refused' && l.reason === 'too-small');
+  assert.equal(line.event_id, eventId);
+  assert.equal(line.groups, 1);
+  assert.equal(msgs(t).filter((l) => l.msg === 'signup_finished').length, 0);
+});
+
+test('a group where nobody takes part is named on the confirmation and left empty', async () => {
+  const t = await setup();
+  const { eventId, groupIds: [none, three] } = await eventWithGroups(t, [2, 3]);
+  await turnOn(t, eventId);
+  await send(t, eventId);
+  for (const p of people(t, three)) await answerAs(t, p, 'yes');
+  await t.adminPost(`/admin/events/${eventId}/signup/close`);
+  const preview = await t.adminGet(`/admin/events/${eventId}/signup/finish`);
+  assert.equal(preview.statusCode, 200);
+  assert.ok(preview.body.includes(words('nl', 'admin.signup.finish.empty', { group: 'Groep 1' })));
+  assert.ok(!preview.body.includes(words('nl', 'admin.signup.finish.tooSmallFix')));
+  assert.ok(preview.body.includes('name="confirm"'));
+  const res = await t.adminPost(`/admin/events/${eventId}/signup/finish`, { formToken: newFormToken(), confirm: '1' });
+  assert.equal(res.statusCode, 303, res.body);
+  assert.equal(people(t, none).length, 0);
+  assert.equal(people(t, three).length, 3);
+  assert.ok(people(t, three).every((p) => p.receiverId));
+});
+
+test('a closed sign-up names on the event and class pages who did not answer and has no address', async () => {
+  const t = await setup();
+  const { eventId, groupIds: [a, b] } = await eventWithGroups(t, [3, 3]);
+  await paste(t, a, 'Ida');
+  await turnOn(t, eventId);
+  await send(t, eventId);
+  const [ada] = people(t, a);
+  await answerAs(t, ada, 'yes');
+  t.clock.ms = Date.parse('2026-11-05T10:00:00.000Z');
+  await t.adminPost(`/admin/events/${eventId}/signup/close`);
+  const date = formatDate('nl', '2026-11-05', TZ);
+
+  const eventPage = (await t.adminGet(`/admin/events/${eventId}`)).body;
+  assert.ok(eventPage.includes(words('nl', 'admin.signup.closedOn', { date })));
+  assert.ok(eventPage.includes(words('nl', 'admin.signup.noAnswer', { count: 6 })));
+  assert.ok(eventPage.includes(words('nl', 'admin.signup.noEmailNoAnswer')));
+  const list = eventPage.split(words('nl', 'admin.signup.noEmailNoAnswer'))[1].split('</ul>')[0];
+  assert.ok(list.includes('Ida'));
+  assert.ok(!list.includes('Ben'));
+
+  const classA = (await t.adminGet(`/admin/groups/${a}`)).body;
+  assert.ok(classA.includes(words('nl', 'admin.signup.closedOn', { date })));
+  assert.ok(classA.includes(words('nl', 'admin.signup.noAnswer', { count: 3 })));
+  assert.ok(classA.split(words('nl', 'admin.signup.noEmailNoAnswer'))[1].split('</ul>')[0].includes('Ida'));
+  const classB = (await t.adminGet(`/admin/groups/${b}`)).body;
+  assert.ok(classB.includes(words('nl', 'admin.signup.noAnswer', { count: 3 })));
+  assert.ok(!classB.includes(words('nl', 'admin.signup.noEmailNoAnswer')));
+
+  const finish = (await t.adminGet(`/admin/events/${eventId}/signup/finish`)).body;
+  assert.ok(finish.split(words('nl', 'admin.signup.finish.noEmail'))[1].split('</ul>')[0].includes('Ida'));
+
+  const open = await setup();
+  const opened = await eventWithGroups(open, [3]);
+  await turnOn(open, opened.eventId);
+  await send(open, opened.eventId);
+  const openPage = (await open.adminGet(`/admin/groups/${opened.groupIds[0]}`)).body;
+  assert.ok(!openPage.includes(words('nl', 'admin.signup.noAnswer', { count: 3 })));
+});
+
+test('a sign-up closed by its deadline shows the closing date', async () => {
+  const t = await setup();
+  const { eventId, groupIds: [a] } = await eventWithGroups(t, [3]);
+  await turnOn(t, eventId);
+  await send(t, eventId);
+  t.clock.ms = Date.parse('2026-11-25T10:00:00.000Z');
+  assert.equal(state(t, eventId), 'closed');
+  const date = formatDate('nl', DEADLINE, TZ);
+  assert.ok((await t.adminGet(`/admin/groups/${a}`)).body.includes(words('nl', 'admin.signup.closedOn', { date })));
+  assert.ok((await t.adminGet(`/admin/events/${eventId}`)).body.includes(words('nl', 'admin.signup.noAnswer', { count: 3 })));
+});
+
+test('an organiser answer from a page older than the stored answer is refused and changes nothing', async () => {
+  const t = await setup();
+  const { eventId, groupIds: [a] } = await eventWithGroups(t, [3]);
+  await turnOn(t, eventId);
+  await send(t, eventId);
+  const [ada] = people(t, a);
+  const page = (await t.adminGet(`/admin/events/${eventId}`)).body;
+  const form = page.split(`action="/admin/participants/${ada.id}/signup"`)[1].split('</form>')[0];
+  const seen = /name="seen" value="([^"]*)"/.exec(form)?.[1];
+  assert.equal(seen, answerSeen(t.ctx.repo.getParticipant(ada.id)));
+  t.clock.ms += 60_000;
+  await answerAs(t, ada, 'no');
+
+  const res = await t.adminPost(`/admin/participants/${ada.id}/signup`, { answer: 'yes', back: 'event', seen });
+  assert.equal(res.statusCode, 409);
+  assert.ok(res.body.includes(words('nl', 'admin.signup.error.changed', { name: 'Ada' })));
+  assert.ok(res.body.includes('id="signup"'));
+  assert.equal(t.ctx.repo.getParticipant(ada.id).signup, 'no');
+  const line = msgs(t).find((l) => l.msg === 'signup_refused' && l.reason === 'changed');
+  assert.equal(line.participant_id, ada.id);
+
+  const person = await t.adminPost(`/admin/participants/${ada.id}/signup`, { answer: 'yes', back: 'person', seen });
+  assert.equal(person.statusCode, 409);
+  assert.ok(person.body.includes(`<h1>${ada.name}</h1>`));
+  assert.ok(person.body.includes(words('nl', 'admin.signup.error.changed', { name: 'Ada' })));
+  assert.equal(t.ctx.repo.getParticipant(ada.id).signup, 'no');
+
+  const missing = await t.adminPost(`/admin/participants/${ada.id}/signup`, { answer: 'yes', back: 'event' });
+  assert.equal(missing.statusCode, 409);
+  assert.equal(t.ctx.repo.getParticipant(ada.id).signup, 'no');
+
+  assert.equal((await setAnswer(t, ada, 'yes')).statusCode, 303);
+  assert.equal(t.ctx.repo.getParticipant(ada.id).signup, 'yes');
 });

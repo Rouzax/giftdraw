@@ -24,6 +24,8 @@ The **Participants** (*Deelnemers*) table has one row per person. Click a name t
 
 On a phone the table turns into a list of cards, one per person.
 
+While the event's [sign-up](signup.md) runs, the table also shows each answer and the sign-up mail instead of the invitation; see [The class dashboard during sign-up](signup.md#the-class-dashboard-during-sign-up).
+
 ## Reminders
 
 With email on, the app reminds people by itself. Everything in this section is automatic; you do not have to do anything.

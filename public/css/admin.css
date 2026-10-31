@@ -541,6 +541,15 @@ table.people .email {
   border-left-color: var(--ribbon);
 }
 
+/* A notice with a list inside: paragraphs and list keep the padding even. */
+.notice > :first-child {
+  margin-top: 0;
+}
+
+.notice > :last-child {
+  margin-bottom: 0;
+}
+
 .resend-all p {
   margin: 0 0 0.5rem;
 }

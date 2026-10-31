@@ -456,16 +456,24 @@ export function sendSignup(ctx, eventId) {
 // Starts the draw for the whole event: everyone who does not join is
 // removed, each group is paired from who is left, and the sign-up is done.
 // One transaction with the state check, so a second press finds it done.
-// Invitations follow for every group, as they would without sign-up; each
-// group sends in its own transaction, so one that fails leaves the others
-// invited and can be sent again from its dashboard.
-// Returns {joined, removed, unpairedGroupIds} or {refused: state}.
+// A group with one or two joining could never draw, so nothing happens while
+// there is one; a group nobody joins is left empty. Invitations follow for
+// every group, as they would without sign-up; each group sends in its own
+// transaction, so one that fails leaves the others invited and can be sent
+// again from its dashboard.
+// Returns {joined, removed, unpairedGroupIds}, {refused: state}, or
+// {refused: 'too-small', groupIds}.
 export function finishSignup(ctx, eventId) {
   const { repo } = ctx;
   const now = ctx.nowIso();
   const result = repo.tx(() => {
     const state = signupState(repo.getEvent(eventId), ctx.now(), ctx.config.tz);
     if (state !== 'closed') return { refused: state };
+    const tooSmall = repo.listGroups(eventId).filter((group) => {
+      const count = repo.listParticipants(group.id).filter(joins).length;
+      return count > 0 && count < MIN_GROUP;
+    });
+    if (tooSmall.length) return { refused: 'too-small', groupIds: tooSmall.map((group) => group.id) };
     let joined = 0;
     let removed = 0;
     const unpairedGroupIds = [];

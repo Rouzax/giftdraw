@@ -343,11 +343,28 @@ export function createRepo(db) {
   // sending) row that kept its error_code; its `at` is then the next attempt
   // (the claim time while sending) rather than the time it gave up. A
   // reminder dropped because it no longer applied is no failure.
-  function inviteState(row) {
+  function deliveryOf(row) {
     if (!row) return null;
     if (row.status === 'sent') return 'sent';
     if (row.status === 'gaveup' || row.status === 'failed') return 'failed';
     return row.error_code ? 'retrying' : 'queued';
+  }
+
+  // Of the invitation or the sign-up mail. One skipped because it no longer
+  // applied is no failure, so the state is of the mail before it, if any.
+  // Once one has reached the person, a later resend that fails does not undo
+  // that; the failure shows in the failure column only.
+  function deliveryState(participantId, kind) {
+    const row = db
+      .prepare(`SELECT status, error_code FROM outbox WHERE participant_id = ? AND kind = ?
+                AND NOT (status IN ('failed', 'gaveup') AND ifnull(error_code, '') IN (${SKIP_LIST}))
+                ORDER BY id DESC LIMIT 1`)
+      .get(participantId, kind);
+    const delivered = db
+      .prepare(`SELECT 1 FROM outbox WHERE participant_id = ? AND kind = ? AND status = 'sent' LIMIT 1`)
+      .get(participantId, kind) !== undefined;
+    const state = deliveryOf(row);
+    return delivered && (state === 'failed' || state === 'retrying') ? 'sent' : state;
   }
 
   function mailStatus(participantId) {
@@ -364,20 +381,6 @@ export function createRepo(db) {
     const pending = db
       .prepare(`SELECT count(*) AS n FROM outbox WHERE participant_id = ? AND status IN ('pending', 'sending')`)
       .get(participantId);
-    // An invite skipped because it no longer applied is no failure, so the
-    // column shows the invite before it, if any.
-    const invite = db
-      .prepare(`SELECT status, error_code FROM outbox WHERE participant_id = ? AND kind = 'invite'
-                AND NOT (status IN ('failed', 'gaveup') AND ifnull(error_code, '') IN (${SKIP_LIST}))
-                ORDER BY id DESC LIMIT 1`)
-      .get(participantId);
-    // Once an invitation has reached the person, a later resend that fails
-    // does not undo that; the failure shows in the failure column only.
-    const delivered = db
-      .prepare(`SELECT 1 FROM outbox WHERE participant_id = ? AND kind = 'invite' AND status = 'sent' LIMIT 1`)
-      .get(participantId) !== undefined;
-    let inviteNow = inviteState(invite);
-    if (delivered && (inviteNow === 'failed' || inviteNow === 'retrying')) inviteNow = 'sent';
     return {
       lastReminderAt: reminder.at,
       lastFailure: failure
@@ -389,7 +392,8 @@ export function createRepo(db) {
         }
         : null,
       pendingCount: pending.n,
-      invite: inviteNow,
+      invite: deliveryState(participantId, 'invite'),
+      signup: deliveryState(participantId, 'signup'),
     };
   }
 
