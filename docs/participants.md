@@ -52,7 +52,9 @@ When the organiser starts the draw, people who take part get the usual invitatio
 
 </div>
 
-Once drawing is open, the page shows a bowl of paper slips and one button: **Draw a name** (*Trek een naam*). This is the first screen for anyone who opens their link after drawing opened, even if they never filled in their wishes.
+Once drawing is open, the page shows a bowl of paper slips and one button: **Draw a name** (*Trek een naam*). This is the first screen for anyone who opens their link after drawing opened, even if they never filled in their wishes. Someone who has not told anything yet reads under the button that they can do so afterwards (*Daarna kun je vertellen wat jij leuk vindt.*), so following the older invitation mail does not leave them wondering where the form went.
+
+Every page opens with "Hello ...!" (*Hallo ...!*) and the participant's name, so whoever follows a link can see it is their own page.
 
 Pressing it plays a short animation of about three seconds: the bowl shakes, a slip comes out and unfolds with the name, and confetti falls. Tapping the screen skips straight to the name. People whose device asks for reduced motion get a calmer, shorter version.
 
@@ -91,7 +93,7 @@ With email on, every mail has the participant's name, one big button to their pa
 | Are you sure? | Are you sure you are not taking part in ...? / Weet je zeker dat je niet meedoet aan ...? | At most once, to people who said no. |
 | Invitation | Tell us a little about yourself / Vertel iets over jezelf | When you send the invitations, or start the draw after sign-up. |
 | Invitation into an open group | You can draw a name straight away / Je kunt meteen een naam trekken | A newcomer added after drawing opened. |
-| Drawing is open | You can draw a name now / Je kunt nu een naam trekken | When the group opens. |
+| Drawing is open | You can draw a name now / Je kunt nu een naam trekken | When the group opens. To someone who has not told anything yet, the mail also asks them to tell what they like after drawing. |
 | Wishes reminder | Would you tell us a little about yourself? / Vertel je nog iets over jezelf? | Up to two, before drawing opens. |
 | Draw reminder | Remember to draw a name / Vergeet niet een naam te trekken | Up to two, after drawing opens. |
 | Wishes updated | ... has changed their wishes / ... heeft de wensen aangepast | Their person changed their wishes after they drew. |

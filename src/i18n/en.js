@@ -86,6 +86,7 @@ export default {
   'draw.title': 'You can draw a name',
   'draw.intro': 'Press the button. Then you see who you give a present to.',
   'draw.button': 'Draw a name',
+  'draw.wishesAfter': 'Afterwards you can tell what you like.',
   'draw.skip': 'Tap to see the name straight away',
 
   'result.title': 'Your name',
@@ -136,6 +137,10 @@ export default {
     'You are taking part in the gift draw, and the draw has already started. The link below takes you to your own page. There you draw a name and can tell us what you like.',
   'email.inviteOpen.button': 'Draw a name',
   'email.drawOpen.bodyText': 'The draw has started. Open the link below and draw a name.',
+  'email.drawOpenWishes.subject': 'You can draw a name now',
+  'email.drawOpenWishes.body': 'The draw has started. Press the button, draw a name and tell what you like.',
+  'email.drawOpenWishes.bodyText': 'The draw has started. Open the link below, draw a name and tell what you like.',
+  'email.drawOpenWishes.button': 'Draw a name',
   'email.remindWishes.bodyText':
     'You have not yet filled in what you like. It helps the person looking for a present for you. You do not have to, but you are welcome to.',
   'email.remindDraw.bodyText': 'You have not drawn a name yet. You still can, with the link below.',
@@ -398,6 +403,7 @@ export default {
   'admin.draw.openIntro': 'Everyone with email gets a message that they can draw now. Opening cannot be undone.',
   'admin.draw.openIntroNoMail': 'Once it is open, everyone can draw through their own link. Opening cannot be undone.',
   'admin.draw.openButton': 'Open drawing',
+  'admin.draw.justInvited': 'The invitations have just gone out. If you open now, everyone gets a second email. Wait a few days so people have time to tell something about themselves.',
   'admin.draw.isOpen': 'Drawing is open. You can still swap people who have not drawn yet.',
   'admin.open.error.too-small': 'Drawing can only open with at least 3 participants.',
   'admin.open.error.no-invitations': 'Send the invitations first, then drawing can open.',

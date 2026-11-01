@@ -29,6 +29,16 @@ test('an open group shows the draw screen with one button', async () => {
   assert.ok(!res.body.includes('data-reveal'));
 });
 
+test('the draw screen says wishes come after the draw, only to someone who has told nothing', async () => {
+  const { app, ctx, ada } = await setup();
+  const empty = await app.inject(`/p/${ada.token}`);
+  assert.ok(textOf(empty.body).includes('Hallo Ada!'));
+  assert.ok(textOf(empty.body).includes('Daarna kun je vertellen wat jij leuk vindt.'));
+  ctx.repo.updateParticipant(ada.id, { wishes: { hobbies: 'Knitting', likes: ['tea'] } });
+  const told = await app.inject(`/p/${ada.token}`);
+  assert.ok(!textOf(told.body).includes('Daarna kun je vertellen'));
+});
+
 test('pressing the button redirects to the reveal without drawing yet', async () => {
   const { ctx, post, ada } = await setup();
   const res = await post(`/p/${ada.token}/draw`);
@@ -94,11 +104,12 @@ test('a HEAD request for the reveal does not draw', async () => {
   assert.equal(ctx.repo.getParticipant(ada.id).drawnAt, null);
 });
 
-test('the result names nobody from the group except the receiver', async () => {
+test('the result names nobody from the group except the receiver and the giver', async () => {
   const { app, ada, receiver } = await setup();
   for (const url of [`/p/${ada.token}?reveal=1`, `/p/${ada.token}`]) {
     const res = await app.inject(url);
-    for (const name of NAMES.filter((n) => n !== receiver.name)) {
+    assert.ok(textOf(res.body).includes('Hallo Ada!'));
+    for (const name of NAMES.filter((n) => n !== receiver.name && n !== ada.name)) {
       assert.ok(!res.body.includes(name), `${url} mentions ${name}`);
     }
   }

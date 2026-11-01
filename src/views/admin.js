@@ -599,7 +599,7 @@ function openErrorKey(error, mailEnabled) {
   return error === 'no-invitations' && !mailEnabled ? 'admin.open.error.no-invitations-nomail' : `admin.open.error.${error}`;
 }
 
-function drawPanel(lang, { group, rows, openError, mailEnabled }) {
+function drawPanel(lang, { group, rows, openError, mailEnabled, justInvited }) {
   const arrange = rows.some((r) => r.receiver)
     ? html`<p><a class="with-icon" href="/admin/groups/${group.id}/arrange">${iconText('arrow-left-right', t(lang, 'admin.draw.arrange'))}</a></p>`
     : '';
@@ -607,6 +607,7 @@ function drawPanel(lang, { group, rows, openError, mailEnabled }) {
     ? html`<p>${t(lang, 'admin.draw.isOpen')}</p>`
     : html`<p>${t(lang, mailEnabled ? 'admin.draw.openIntro' : 'admin.draw.openIntroNoMail')}</p>
 ${!group.invitationsSentAt && openError !== 'no-invitations' ? html`<p class="hint">${t(lang, openErrorKey('no-invitations', mailEnabled))}</p>` : ''}
+${mailEnabled && justInvited ? html`<p class="hint">${t(lang, 'admin.draw.justInvited')}</p>` : ''}
 <form method="post" action="/admin/groups/${group.id}/open" class="stack">
 <label class="check"><input type="checkbox" name="confirm" value="1" required> <span>${t(lang, 'admin.delete.confirm')}</span></label>
 <button type="submit" class="primary with-icon">${iconText('door-open', t(lang, 'admin.draw.openButton'))}</button>
@@ -653,7 +654,7 @@ function signupLine(lang, event, state) {
 
 export function groupView(lang, {
   event, group, rows, warnings, mailEnabled, tz, error = null, values = null, pasteError = null, pasteText = '',
-  openError = null, done = null, givenUpCount = 0, signupState = 'off',
+  openError = null, done = null, givenUpCount = 0, signupState = 'off', justInvited = false,
 }) {
   const signing = SIGNUP_ACTIVE.has(signupState);
   const title = group.name;
@@ -681,7 +682,7 @@ ${invitePanelBody(lang, {
     failed: rows.filter((r) => r.participant.email && r.mail.invite === 'failed').length,
   })}
 </section>
-${drawPanel(lang, { group, rows, openError, mailEnabled })}`}
+${drawPanel(lang, { group, rows, openError, mailEnabled, justInvited })}`}
 <section class="panel wide">
 <h2>${t(lang, 'admin.participants.title')}</h2>
 ${resendAllPanel(lang, group.id, givenUpCount, mailEnabled)}

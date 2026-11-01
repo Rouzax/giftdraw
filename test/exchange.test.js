@@ -41,7 +41,7 @@ test('exchangeLine leaves braces in a place alone', () => {
 const VIEWS = {
   welcome: () => welcomeView({ participant: ada, event, group, lang: 'nl', tz: TZ, editHref: '/x', langAction: '/l' }),
   waiting: () => waitingView({ participant: ada, event, group, lang: 'nl', tz: TZ, editHref: '/x', langAction: '/l' }),
-  about: () => aboutFormView({ event, group, wishes: null, lang: 'nl', tz: TZ, formAction: '/x', langAction: '/l' }),
+  about: () => aboutFormView({ participant: ada, event, group, wishes: null, lang: 'nl', tz: TZ, formAction: '/x', langAction: '/l' }),
   result: () => resultView({ participant: ada, receiver: ben, event, group, lang: 'nl', tz: TZ, editHref: '/x', langAction: '/l' }),
   card: () => cardView({ participant: ada, receiver: ben, event, group, lang: 'nl', tz: TZ }),
 };
@@ -49,7 +49,7 @@ const VIEWS = {
 for (const [name, view] of Object.entries(VIEWS)) {
   test(`the ${name} screen shows the time and the escaped place`, () => {
     const body = view().body.toString();
-    assert.ok(body.includes('om 10:30 bij'), body);
+    assert.ok(body.includes('om 10:30.</p>'), body);
     assert.ok(textOf(body).includes(escape(PLACE)));
     assert.ok(!body.includes('<b>'));
   });
@@ -75,9 +75,8 @@ test('a participant page shows the stored place escaped', async () => {
   t.ctx.repo.updateGroup(seeded.group.id, { exchangeTime: '10:30', exchangePlace: PLACE });
   const res = await t.app.inject(`/p/${seeded.people[0].token}`);
   assert.equal(res.statusCode, 200);
-  const flat = res.body.replace(/<\/?span[^>]*>/g, '').replace(/<svg class="icon icon-map-pin".*?<\/svg>/, '');
-  assert.ok(flat.includes(`om 10:30 bij ${escape(PLACE)}.`));
-  assert.ok(res.body.includes('bij <span class="nowrap"><svg class="icon icon-map-pin"'));
+  assert.ok(textOf(res.body).includes('We geven de cadeautjes op vrijdag 18 december om 10:30.'));
+  assert.ok(res.body.includes(`</svg>${escape(PLACE)}</p>`));
   assert.ok(!res.body.includes('<b>'));
 });
 
