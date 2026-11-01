@@ -16,6 +16,15 @@ import { formPanel } from '../views/questions.js';
 // before most have had a chance to tell what they like.
 const JUST_INVITED_MS = 86_400_000;
 
+// Most of the people with an address got their invitation within the last
+// day. Counted per person, because a later press of the invite button for a
+// single newcomer moves the group's invitationsSentAt as well.
+function justInvited(people, now) {
+  const withEmail = people.filter((p) => p.email);
+  const recent = withEmail.filter((p) => p.invitedAt && now.getTime() - Date.parse(p.invitedAt) < JUST_INVITED_MS);
+  return recent.length * 2 > withEmail.length;
+}
+
 export const ID = /^\d{1,15}$/;
 const FLASH_COOKIE = 'giftdraw_flash';
 
@@ -169,8 +178,7 @@ export function adminShared(ctx, { sendPage, sendError }) {
       mailEnabled: ctx.mailer.enabled,
       givenUpCount: repo.countGivenUp(group.id),
       signupState: signup,
-      justInvited: Boolean(group.invitationsSentAt)
-        && ctx.now() - Date.parse(group.invitationsSentAt) < JUST_INVITED_MS,
+      justInvited: justInvited(people, ctx.now()),
       tz: config.tz,
       ...extra,
     });

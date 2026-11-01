@@ -10,6 +10,7 @@ export default {
   'lang.switch': 'Taal',
 
   'common.exchange': 'We geven de cadeautjes op {when}.',
+  'common.place': 'Plaats',
   'common.exchangeAt': 'We geven de cadeautjes op {when} bij {place}.',
   'common.dateTime': '{date} om {time}',
 

@@ -57,16 +57,32 @@ test('opening within a day of the invitations warns about a second mail', async 
   assert.equal(page.body.includes(hint), false);
 });
 
-test('the second-mail warning stays away with mail off and once the draw is open', async () => {
-  const off = await setup({ invited: false, withEmail: false });
+test('the second-mail warning stays away with mail off, without addresses and once the draw is open', async () => {
+  const hint = 'Als je nu opent, krijgt iedereen een tweede e-mail.';
+  const off = await setup({ invited: false });
   off.ctx.mailer.enabled = false;
   await off.adminPost(`/admin/groups/${off.groupId}/invite`);
-  const hint = 'Als je nu opent, krijgt iedereen een tweede e-mail.';
   assert.equal((await off.adminGet(`/admin/groups/${off.groupId}`)).body.includes(hint), false);
+  const noEmail = await setup({ invited: false, withEmail: false });
+  await noEmail.adminPost(`/admin/groups/${noEmail.groupId}/invite`);
+  assert.equal((await noEmail.adminGet(`/admin/groups/${noEmail.groupId}`)).body.includes(hint), false);
   const open = await setup({ invited: false });
   await open.adminPost(`/admin/groups/${open.groupId}/invite`);
   openGroup(open.ctx, open.groupId);
   assert.equal((await open.adminGet(`/admin/groups/${open.groupId}`)).body.includes(hint), false);
+});
+
+test('one newcomer invited later does not bring the second-mail warning back', async () => {
+  const t = await setup({ invited: false });
+  await t.adminPost(`/admin/groups/${t.groupId}/invite`);
+  t.clock.ms += 10 * 86_400_000;
+  // What inviting a newcomer leaves behind: one fresh invitedAt, and the
+  // group's invitationsSentAt moved to now.
+  const [eva] = t.ctx.repo.addParticipantsWithAssignment(t.groupId, [{ name: 'Eva', email: 'eva@example.com', language: 'nl' }], () => null, t.ctx.nowIso());
+  t.ctx.repo.updateParticipant(eva.id, { invitedAt: t.ctx.nowIso() });
+  t.ctx.repo.markInvitationsSent(t.groupId, t.ctx.nowIso());
+  const page = await t.adminGet(`/admin/groups/${t.groupId}`);
+  assert.equal(page.body.includes('Als je nu opent, krijgt iedereen een tweede e-mail.'), false);
 });
 
 test('saving the event settings says it was saved', async () => {

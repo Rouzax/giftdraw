@@ -9,6 +9,7 @@ export default {
   'lang.switch': 'Language',
 
   'common.exchange': 'We give the presents on {when}.',
+  'common.place': 'Place',
   'common.exchangeAt': 'We give the presents on {when}, at {place}.',
   'common.dateTime': '{date} at {time}',
 
@@ -86,7 +87,7 @@ export default {
   'draw.title': 'You can draw a name',
   'draw.intro': 'Press the button. Then you see who you give a present to.',
   'draw.button': 'Draw a name',
-  'draw.wishesAfter': 'Afterwards you can tell what you like.',
+  'draw.wishesAfter': 'Afterwards you can tell us what you like.',
   'draw.skip': 'Tap to see the name straight away',
 
   'result.title': 'Your name',
@@ -138,8 +139,8 @@ export default {
   'email.inviteOpen.button': 'Draw a name',
   'email.drawOpen.bodyText': 'The draw has started. Open the link below and draw a name.',
   'email.drawOpenWishes.subject': 'You can draw a name now',
-  'email.drawOpenWishes.body': 'The draw has started. Press the button, draw a name and tell what you like.',
-  'email.drawOpenWishes.bodyText': 'The draw has started. Open the link below, draw a name and tell what you like.',
+  'email.drawOpenWishes.body': 'The draw has started. Press the button, draw a name and tell us what you like.',
+  'email.drawOpenWishes.bodyText': 'The draw has started. Open the link below, draw a name and tell us what you like.',
   'email.drawOpenWishes.button': 'Draw a name',
   'email.remindWishes.bodyText':
     'You have not yet filled in what you like. It helps the person looking for a present for you. You do not have to, but you are welcome to.',

@@ -16,7 +16,7 @@ On the event page, fill in **New group** (*Nieuwe groep*) and press **Create gro
 | **Place of the exchange** (*Plaats van het ruilen*) | no | One line, at most 200 characters, for example "Yogastudio De Lotus, Dorpsstraat 1". |
 | **Drawing opens automatically on** (*Trekken gaat automatisch open op*) | no | On this date drawing opens by itself at 09:00, but only if the invitations were sent by then. It must be on or before the exchange date. While sign-up runs it must be after the sign-up closing date. See [Open the draw](open.md#let-it-open-by-itself). |
 
-The time and place, when set, appear next to the date in every mail, on every participant screen and on the printed card. In Dutch that reads "We geven de cadeautjes op maandag 14 december om 10:30 bij Yogastudio De Lotus, Dorpsstraat 1."; in English "We give the presents on Monday 14 December at 10:30, at Yogastudio De Lotus, Dorpsstraat 1."
+The time and place, when set, appear with the date in every mail, on every participant screen and on the printed card. In mails it is one sentence: in Dutch "We geven de cadeautjes op maandag 14 december om 10:30 bij Yogastudio De Lotus, Dorpsstraat 1."; in English "We give the presents on Monday 14 December at 10:30, at Yogastudio De Lotus, Dorpsstraat 1." On participant screens and the printed card the place has its own line under the date, marked with a pin.
 
 The form for a new group starts filled in with the date, time, place and opening date of the group you created last (the opening date only if it is still ahead), so groups that meet in the same place need no retyping. Change the name and whatever differs.
 
