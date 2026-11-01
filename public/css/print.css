@@ -102,6 +102,10 @@ body {
   overflow-wrap: anywhere;
 }
 
+.card .theme .date + .date {
+  margin-top: 0.125rem;
+}
+
 .card .wishes h2 {
   margin: 0 0 0.5rem;
   font-size: 1.375rem;

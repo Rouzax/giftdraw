@@ -87,6 +87,7 @@ export default {
   'draw.title': 'Je mag een naam trekken',
   'draw.intro': 'Druk op de knop. Dan zie je voor wie jij een cadeautje geeft.',
   'draw.button': 'Trek een naam',
+  'draw.wishesAfter': 'Daarna kun je vertellen wat jij leuk vindt.',
   'draw.skip': 'Tik om meteen de naam te zien',
 
   'result.title': 'Jouw lootje',
@@ -137,6 +138,10 @@ export default {
     'Je doet mee met lootjes trekken, en het trekken is al begonnen. Via de link hieronder kom je op je eigen pagina. Daar trek je een naam en kun je vertellen wat je leuk vindt.',
   'email.inviteOpen.button': 'Trek een naam',
   'email.drawOpen.bodyText': 'Het trekken is begonnen. Open de link hieronder en trek een naam.',
+  'email.drawOpenWishes.subject': 'Je kunt nu een naam trekken',
+  'email.drawOpenWishes.body': 'Het trekken is begonnen. Druk op de knop, trek een naam en vertel wat je leuk vindt.',
+  'email.drawOpenWishes.bodyText': 'Het trekken is begonnen. Open de link hieronder, trek een naam en vertel wat je leuk vindt.',
+  'email.drawOpenWishes.button': 'Trek een naam',
   'email.remindWishes.bodyText':
     'Je hebt nog niet ingevuld wat je leuk vindt. Dat helpt degene die een cadeautje voor jou zoekt. Het hoeft niet, het mag.',
   'email.remindDraw.bodyText': 'Je hebt nog geen naam getrokken. Dat kan nog steeds, via de link hieronder.',
@@ -400,6 +405,7 @@ export default {
   'admin.draw.openIntro': 'Iedereen met e-mail krijgt bericht dat er getrokken kan worden. Openen kan niet ongedaan worden.',
   'admin.draw.openIntroNoMail': 'Na het openen kan iedereen via de eigen link trekken. Openen kan niet ongedaan worden.',
   'admin.draw.openButton': 'Trekken openen',
+  'admin.draw.justInvited': 'De uitnodigingen zijn net verstuurd. Als je nu opent, krijgt iedereen een tweede e-mail. Wacht een paar dagen, dan hebben mensen tijd om iets over zichzelf te vertellen.',
   'admin.draw.isOpen': 'Trekken is open. Wie nog niet getrokken heeft, kun je nog wisselen.',
   'admin.open.error.too-small': 'Trekken kan pas open met minstens 3 deelnemers.',
   'admin.open.error.no-invitations': 'Verstuur eerst de uitnodigingen, daarna kan het trekken open.',

@@ -27,6 +27,12 @@ h1 {
   line-height: 1.2;
 }
 
+.greeting {
+  margin: 0 0 0.5rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
 .lead {
   margin: 0 0 1.25rem;
   font-size: 1.5rem;
@@ -100,6 +106,10 @@ h1 {
   font-weight: 700;
   /* The organiser's place may hold an unbroken token such as a map link. */
   overflow-wrap: anywhere;
+}
+
+.theme .date + .date {
+  margin-top: 0.25rem;
 }
 
 .button {

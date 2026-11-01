@@ -25,7 +25,8 @@ In the Drawing panel, tick **Yes, I am sure** (*Ja, ik weet het zeker*) and pres
 What happens:
 
 - The group's participants can draw from now on. The panel says **Drawing is open. You can still swap people who have not drawn yet.** and the event page shows the group as **Drawing open** (*Trekken open*).
-- With email on, everyone with an email address gets the mail "You can draw a name now" (*Je kunt nu een naam trekken*), with a **Draw a name** button.
+- With email on, everyone with an email address gets the mail "You can draw a name now" (*Je kunt nu een naam trekken*), with a **Draw a name** button. To someone who has not told anything about themselves yet, the mail also asks them to do that; they can, right after drawing. Someone whose invitation was still waiting to be sent gets that one invitation only, worded to say they can draw.
+- If you open within a day of sending the invitations, the panel warns first: everyone has just had the invitation and now gets a second mail. Waiting a few days gives people time to tell what they like before they draw. The choice is yours; the warning does not stop you.
 - With email off nobody is told: let people know they can open their link and draw.
 
 **Opening cannot be undone.** Afterwards you can still add and remove people and swap those who have not drawn; see [Changes after opening](changes.md).

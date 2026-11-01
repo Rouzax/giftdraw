@@ -43,6 +43,32 @@ test('a group of people without email still gets the button that lets the draw o
   assert.equal(page.body.includes('Iedereen met e-mail is uitgenodigd.'), false);
 });
 
+test('opening within a day of the invitations warns about a second mail', async () => {
+  const t = await setup({ invited: false });
+  const hint = 'Als je nu opent, krijgt iedereen een tweede e-mail.';
+  let page = await t.adminGet(`/admin/groups/${t.groupId}`);
+  assert.equal(page.body.includes(hint), false);
+  await t.adminPost(`/admin/groups/${t.groupId}/invite`);
+  t.clock.ms += 23 * 3_600_000;
+  page = await t.adminGet(`/admin/groups/${t.groupId}`);
+  assert.ok(page.body.includes(hint));
+  t.clock.ms += 2 * 3_600_000;
+  page = await t.adminGet(`/admin/groups/${t.groupId}`);
+  assert.equal(page.body.includes(hint), false);
+});
+
+test('the second-mail warning stays away with mail off and once the draw is open', async () => {
+  const off = await setup({ invited: false, withEmail: false });
+  off.ctx.mailer.enabled = false;
+  await off.adminPost(`/admin/groups/${off.groupId}/invite`);
+  const hint = 'Als je nu opent, krijgt iedereen een tweede e-mail.';
+  assert.equal((await off.adminGet(`/admin/groups/${off.groupId}`)).body.includes(hint), false);
+  const open = await setup({ invited: false });
+  await open.adminPost(`/admin/groups/${open.groupId}/invite`);
+  openGroup(open.ctx, open.groupId);
+  assert.equal((await open.adminGet(`/admin/groups/${open.groupId}`)).body.includes(hint), false);
+});
+
 test('saving the event settings says it was saved', async () => {
   const t = await setup();
   const eventId = t.group.eventId;

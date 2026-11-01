@@ -11,18 +11,19 @@ import { joins } from '../signup.js';
 const TEXT_MAX = 1000;
 const checked = (on) => (on ? raw(' checked') : '');
 
-// The place gets its own pin inside the sentence, so the sentence is split
-// around a marker the way givesTo splits around the name.
-function exchangeText(lang, group, tz) {
-  if (!group.exchangePlace) return exchangeLine(lang, group, tz);
-  const [before, after = ''] = exchangeLine(lang, { ...group, exchangePlace: '{place}' }, tz).split('{place}');
-  return html`${before}${iconInline('map-pin', group.exchangePlace)}${after}`;
+// The date sentence and the place, each on its own line: a place such as a
+// studio and street wraps badly behind the date on a phone. Mails, which
+// have no icons, keep the one sentence of exchangeLine.
+function exchangeParts(lang, group, tz) {
+  return [exchangeLine(lang, { ...group, exchangePlace: null }, tz), group.exchangePlace].filter(Boolean);
 }
 
 function themeBlock({ event, group, lang, tz }) {
+  const [when, place] = exchangeParts(lang, group, tz);
   return html`<section class="theme">
 <p>${themeText(event, lang)}</p>
-<p class="date">${icon('calendar')}${exchangeText(lang, group, tz)}</p>
+<p class="date">${icon('calendar')}${when}</p>
+${place ? html`<p class="date">${icon('map-pin')}${place}</p>` : ''}
 </section>`;
 }
 
@@ -222,7 +223,7 @@ function typedBlock(lines, lang, title) {
 // in her language and name the participant, and they name no button, whose
 // label is in the participant's language.
 export function aboutFormView({
-  event, group, wishes, lang, tz, formAction, langAction, showLangSwitch, outdated = false, stale = null, behalf = null,
+  participant, event, group, wishes, lang, tz, formAction, langAction, showLangSwitch, outdated = false, stale = null, behalf = null,
 }) {
   const answers = readAnswers(wishes);
   const form = wishForm(event);
@@ -238,7 +239,8 @@ ${typedBlock(stale, lang, t(noteLang, `${prefix}.typedTitle`, vars))}`;
   } else if (outdated) {
     notice = html`<p class="notice" role="alert">${t(noteLang, `${prefix}.outdated`, vars)}</p>`;
   }
-  const body = html`<h1>${t(lang, 'about.title')}</h1>
+  const body = html`${greeting(lang, participant)}
+<h1>${t(lang, 'about.title')}</h1>
 ${notice}
 <p class="lead">${t(lang, 'about.intro')}</p>
 ${themeBlock({ event, group, lang, tz })}
@@ -267,13 +269,24 @@ ${lifting ? raw('<div class="lift"><i></i></div>') : ''}
 </div>`;
 }
 
-export function drawView({ lang, drawAction, langAction, showLangSwitch }) {
-  const body = html`<h1>${t(lang, 'draw.title')}</h1>
+// Screens whose heading is the task, not the person, still open with the
+// name, so whoever follows a link sees it is their own page.
+function greeting(lang, participant) {
+  return html`<p class="greeting">${t(lang, 'welcome.greeting', { name: participant.name })}</p>`;
+}
+
+// Someone who has not told anything yet may arrive from the invitation that
+// asked for it; the result page is where that can still be done.
+export function drawView({ participant, event, lang, drawAction, langAction, showLangSwitch }) {
+  const after = hasWishes(participant.wishes, wishForm(event)) ? '' : html`<p>${t(lang, 'draw.wishesAfter')}</p>`;
+  const body = html`${greeting(lang, participant)}
+<h1>${t(lang, 'draw.title')}</h1>
 <p class="lead">${t(lang, 'draw.intro')}</p>
 ${bowl()}
 <form method="post" action="${drawAction}">
 <button type="submit" class="button">${iconInline('gift', t(lang, 'draw.button'))}</button>
 </form>
+${after}
 ${footer({ lang, langAction, showLangSwitch })}`;
   return { title: t(lang, 'draw.title'), body };
 }
@@ -306,7 +319,7 @@ export function resultView({
   participant, receiver, event, group, lang, tz, reveal, editHref, editText = null, langAction, showLangSwitch,
 }) {
   // Someone who draws before filling in anything is asked to, not told to "change" nothing.
-  const ownText = t(lang, hasWishes(participant?.wishes, wishForm(event)) ? 'result.edit' : 'result.fillIn');
+  const ownText = t(lang, hasWishes(participant.wishes, wishForm(event)) ? 'result.edit' : 'result.fillIn');
   const heading = givesTo(lang, receiver.name, reveal);
   const top = reveal
     ? html`<div class="reveal" data-reveal>
@@ -316,7 +329,8 @@ ${heading}
 <button type="button" class="skip" data-skip hidden>${t(lang, 'draw.skip')}</button>
 </div>`
     : heading;
-  const body = html`${top}
+  const body = html`${greeting(lang, participant)}
+${top}
 <div class="result-rest">
 ${themeBlock({ event, group, lang, tz })}
 ${wishCard({ receiver, event, lang })}
@@ -349,7 +363,7 @@ function cardSize(lines, ...texts) {
 // The printed counterpart of the result screen, for someone without a device.
 export function cardView({ participant, receiver, event, group, lang, tz }) {
   const lines = wishLines(receiver.wishes, wishForm(event), lang);
-  const size = cardSize(lines, themeText(event, lang), exchangeLine(lang, group, tz));
+  const size = cardSize(lines, themeText(event, lang), ...exchangeParts(lang, group, tz));
   const [before, after = ''] = t(lang, 'result.givesTo').split('{name}');
   const body = html`<article class="card${size ? ` ${size}` : ''}">
 <p class="card-for">${t(lang, 'card.for', { name: participant.name })}</p>

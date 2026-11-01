@@ -1,4 +1,4 @@
-import { wishLines } from '../answers.js';
+import { hasWishes, wishLines } from '../answers.js';
 import { html, withBreaks } from '../html.js';
 import { exchangeLine, formatDate, t, themeText } from '../i18n/index.js';
 import { endsInMark, wishForm } from '../questions.js';
@@ -80,8 +80,12 @@ function buttonHtml(href, label, primary) {
 export function renderEmail(kind, { lang, participant, receiver, event, group, link, tz, now }) {
   if (!KEYS[kind]) throw new Error(`unknown email kind: ${kind}`);
   // Someone invited into a group that is already open gets no separate
-  // draw-open mail, so their invitation says they can draw.
-  const key = kind === 'invite' && group.openedAt ? 'inviteOpen' : KEYS[kind];
+  // draw-open mail, so their invitation says they can draw. A draw-open mail
+  // to someone who has told nothing yet asks for that too, as the
+  // invitation before it did.
+  let key = KEYS[kind];
+  if (kind === 'invite' && group.openedAt) key = 'inviteOpen';
+  if (kind === 'draw-open' && !hasWishes(participant.wishes, wishForm(event))) key = 'drawOpenWishes';
   const vars = { name: RECEIVER_KINDS.has(kind) ? receiver.name : participant.name, event: event.name };
   if (DEADLINE_KINDS.has(kind)) vars.deadline = formatDate(lang, event.signupDeadline, tz);
   if (kind === 'remind-signup') {

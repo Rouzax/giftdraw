@@ -12,6 +12,10 @@ import { behalfPage, printPage, renderAdminPage } from '../views/layout.js';
 import { eventView, groupView, participantView, QUESTION_DONE } from '../views/admin.js';
 import { formPanel } from '../views/questions.js';
 
+// Opening this soon after the invitations sends everyone a second mail
+// before most have had a chance to tell what they like.
+const JUST_INVITED_MS = 86_400_000;
+
 export const ID = /^\d{1,15}$/;
 const FLASH_COOKIE = 'giftdraw_flash';
 
@@ -165,6 +169,8 @@ export function adminShared(ctx, { sendPage, sendError }) {
       mailEnabled: ctx.mailer.enabled,
       givenUpCount: repo.countGivenUp(group.id),
       signupState: signup,
+      justInvited: Boolean(group.invitationsSentAt)
+        && ctx.now() - Date.parse(group.invitationsSentAt) < JUST_INVITED_MS,
       tz: config.tz,
       ...extra,
     });

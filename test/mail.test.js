@@ -232,6 +232,17 @@ test('an invitation into an open group says the draw is open', () => {
   assert.equal(en.subject, 'Gift Draw: You can draw a name straight away');
 });
 
+test('a draw-open mail asks someone who has told nothing yet to do that too', () => {
+  const empty = render('draw-open', 'nl');
+  assert.ok(empty.html.includes('trek een naam en vertel wat je leuk vindt'));
+  assert.ok(empty.text.includes('trek een naam en vertel wat je leuk vindt'));
+  const told = render('draw-open', 'nl', { participant: { ...ben } });
+  assert.ok(told.html.includes('Druk op de knop en trek een naam.'));
+  assert.ok(!told.html.includes('vertel wat je leuk vindt'));
+  assert.equal(empty.subject, told.subject);
+  assert.ok(render('draw-open', 'en').text.includes('draw a name and tell what you like'));
+});
+
 test('an unknown kind throws', () => {
   assert.throws(() => render('nope', 'nl'), /unknown email kind/);
 });

@@ -44,6 +44,7 @@ test('the about form has every wish field, the theme and the date', async () => 
   const res = await app.inject(`/p/${ada.token}/about`);
   assert.equal(res.statusCode, 200);
   assert.ok(res.body.includes(`action="/p/${ada.token}/about"`));
+  assert.ok(res.body.includes(`<p class="greeting">Hallo ${ada.name}!</p>`));
   for (const name of ['q_hobbies', 'd_pets_other', 'q_avoid', 'q_other', 'd_likes_chocolate']) {
     assert.ok(res.body.includes(`name="${name}"`), name);
   }

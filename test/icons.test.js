@@ -63,8 +63,8 @@ test('participant screens put icons next to their words', async () => {
   const welcome = (await t.app.inject(`/p/${ada.token}`)).body;
   assertNextTo(welcome, 'pencil', tr('nl', 'welcome.button'));
   assert.match(welcome, /<p class="date"><svg class="icon icon-calendar"[^>]*>(?:(?!<\/svg>).)*<\/svg>We geven de cadeautjes op /);
-  // The pin shares a nowrap box with the first word, so a line never ends on it.
-  assert.match(welcome, /bij <span class="nowrap"><svg class="icon icon-map-pin"[^>]*>(?:(?!<\/svg>).)*<\/svg>De<\/span> Lotus\./);
+  // The place has its own line under the date, led by the pin.
+  assert.match(welcome, /We geven de cadeautjes op [^<]* om 10:30\.<\/p>\n<p class="date"><svg class="icon icon-map-pin"[^>]*>(?:(?!<\/svg>).)*<\/svg>De Lotus<\/p>/);
   assertNoStyle(welcome);
 
   assertNoStyle((await t.app.inject(`/p/${ada.token}/about`)).body);
