@@ -26,7 +26,7 @@ What happens:
 
 - The group's participants can draw from now on. The panel says **Drawing is open. You can still swap people who have not drawn yet.** and the event page shows the group as **Drawing open** (*Trekken open*).
 - With email on, everyone with an email address gets the mail "You can draw a name now" (*Je kunt nu een naam trekken*), with a **Draw a name** button. To someone who has not told anything about themselves yet, the mail also asks them to do that; they can, right after drawing. Someone whose invitation was still waiting to be sent gets that one invitation only, worded to say they can draw.
-- If you open within a day of sending the invitations, the panel warns first: everyone has just had the invitation and now gets a second mail. Waiting a few days gives people time to tell what they like before they draw. The choice is yours; the warning does not stop you.
+- With email on, if most people got their invitation less than a day ago, the panel warns first: everyone has just had the invitation and now gets a second mail. Waiting a few days gives people time to tell what they like before they draw. The choice is yours; the warning does not stop you.
 - With email off nobody is told: let people know they can open their link and draw.
 
 **Opening cannot be undone.** Afterwards you can still add and remove people and swap those who have not drawn; see [Changes after opening](changes.md).
@@ -47,6 +47,7 @@ Give the group a date under **Drawing opens automatically on** (*Trekken gaat au
 - It only opens if the invitations were sent (or, with email off, the links marked as shared) by then. If they were not, the dashboard warns **Drawing only opens once the invitations have been sent.** and the group waits; once you send them, it opens at the next check, which runs every minute.
 - The date must be on or before the exchange date, and not in the past.
 - While sign-up runs, a group does not open by itself, even when its date has passed. Once you start the draw its invitations are out, so it opens at the next check if its date has passed by then and it has pairs.
+- Opening by itself gives no warning about a second mail. If the date has already passed when the invitations go out, people get the invitation and "You can draw a name now" within a minute of each other, so give people a few days between the two.
 - You can still open drawing yourself earlier with the button.
 
 Next: [help someone in person](in-person.md).

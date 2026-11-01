@@ -54,7 +54,7 @@ When the organiser starts the draw, people who take part get the usual invitatio
 
 Once drawing is open, the page shows a bowl of paper slips and one button: **Draw a name** (*Trek een naam*). This is the first screen for anyone who opens their link after drawing opened, even if they never filled in their wishes. Someone who has not told anything yet reads under the button that they can do so afterwards (*Daarna kun je vertellen wat jij leuk vindt.*), so following the older invitation mail does not leave them wondering where the form went.
 
-Every page opens with "Hello ...!" (*Hallo ...!*) and the participant's name, so whoever follows a link can see it is their own page.
+Every screen of the participant's page opens with "Hello ...!" (*Hallo ...!*) and their name, so whoever follows a link can see it is their own page.
 
 Pressing it plays a short animation of about three seconds: the bowl shakes, a slip comes out and unfolds with the name, and confetti falls. Tapping the screen skips straight to the name. People whose device asks for reduced motion get a calmer, shorter version.
 

@@ -23,7 +23,7 @@ function themeBlock({ event, group, lang, tz }) {
   return html`<section class="theme">
 <p>${themeText(event, lang)}</p>
 <p class="date">${icon('calendar')}${when}</p>
-${place ? html`<p class="date">${icon('map-pin')}${place}</p>` : ''}
+${place ? html`<p class="date">${icon('map-pin', { label: t(lang, 'common.place') })}${place}</p>` : ''}
 </section>`;
 }
 
@@ -278,7 +278,7 @@ function greeting(lang, participant) {
 // Someone who has not told anything yet may arrive from the invitation that
 // asked for it; the result page is where that can still be done.
 export function drawView({ participant, event, lang, drawAction, langAction, showLangSwitch }) {
-  const after = hasWishes(participant.wishes, wishForm(event)) ? '' : html`<p>${t(lang, 'draw.wishesAfter')}</p>`;
+  const after = hasWishes(participant.wishes, wishForm(event)) ? '' : html`<p class="lead">${t(lang, 'draw.wishesAfter')}</p>`;
   const body = html`${greeting(lang, participant)}
 <h1>${t(lang, 'draw.title')}</h1>
 <p class="lead">${t(lang, 'draw.intro')}</p>

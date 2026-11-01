@@ -475,7 +475,7 @@ h1 {
     flex-direction: column;
     justify-content: center;
     min-height: 12rem;
-    /* Headroom for the confetti, so it stays clear of the app name. */
+    /* Headroom for the confetti, so it stays clear of the greeting. */
     padding-top: 4rem;
   }
 

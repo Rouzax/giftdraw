@@ -240,7 +240,7 @@ test('a draw-open mail asks someone who has told nothing yet to do that too', ()
   assert.ok(told.html.includes('Druk op de knop en trek een naam.'));
   assert.ok(!told.html.includes('vertel wat je leuk vindt'));
   assert.equal(empty.subject, told.subject);
-  assert.ok(render('draw-open', 'en').text.includes('draw a name and tell what you like'));
+  assert.ok(render('draw-open', 'en').text.includes('draw a name and tell us what you like'));
 });
 
 test('an unknown kind throws', () => {
