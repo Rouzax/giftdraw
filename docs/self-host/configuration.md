@@ -37,6 +37,7 @@ Leave `SMTP_HOST` unset to run with email off. See [Email](email.md).
 | `SMTP_PASS` | none | SMTP password. |
 | `SMTP_FROM` | none | The sender people see, for example `Gift Draw <gifts@example.com>`. Required when `SMTP_HOST` is set. |
 | `SMTP_NAME` | the `APP_URL` domain | The name the app gives the mail server when it connects (the EHLO name), for example `gifts.example.com`. Must be a domain name. When the `APP_URL` host is a name without a dot, such as `localhost`, or an IP address, and this is unset, the mail library picks a name itself, which can be an address such as `[127.0.0.1]`. |
+| `SMTP_MAX_MESSAGES` | `10` | How many mails the app sends over one connection to the mail server before it opens a new one, 1 to 1000. Some shared hosting mail servers pass the first 10 mails of a connection on at once and hold the rest back for later. |
 | `SMTP_SEND_INTERVAL` | `5` | Seconds to wait between two mails, 0 to 300. With 5, an invitation round for 60 people takes about five minutes. `0` sends without waiting. |
 
 ## Other

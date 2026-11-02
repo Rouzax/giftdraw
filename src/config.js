@@ -81,6 +81,7 @@ function parseTimeZone(env) {
 
 const HOST_NAME = /^(?=.{1,253}$)[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$/i;
 const SEND_INTERVAL_MAX = 300;
+const MAX_MESSAGES_MAX = 1000;
 
 // The name the app greets the mail server with (EHLO). Without it the mail
 // library falls back to the container's host name or an address literal
@@ -105,6 +106,19 @@ function parseSendInterval(env) {
   return Number(raw) * 1000;
 }
 
+// Some shared mail hosts pass only the first few messages of a connection
+// straight on and hold the rest in their queue for later, so the pool opens
+// a fresh connection after this many. Ten matches a common hosting limit and
+// costs little elsewhere: one reconnect per ten mails.
+function parseMaxMessages(env) {
+  const raw = value(env, 'SMTP_MAX_MESSAGES');
+  if (raw === null) return 10;
+  if (!/^\d+$/.test(raw) || Number(raw) < 1 || Number(raw) > MAX_MESSAGES_MAX) {
+    fail('SMTP_MAX_MESSAGES', `must be a whole number from 1 to ${MAX_MESSAGES_MAX}`);
+  }
+  return Number(raw);
+}
+
 function parseSmtp(env, appHost) {
   const host = value(env, 'SMTP_HOST');
   if (host === null) return null;
@@ -118,6 +132,7 @@ function parseSmtp(env, appHost) {
     from,
     name: parseSmtpName(env, appHost),
     sendIntervalMs: parseSendInterval(env),
+    maxMessages: parseMaxMessages(env),
   };
 }
 
