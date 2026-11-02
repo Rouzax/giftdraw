@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { performance } from 'node:perf_hooks';
 import { drainOutbox } from '../src/mail/outbox.js';
 import { makeTestApp, seedGroup } from './helpers.js';
 
@@ -345,6 +346,59 @@ test('once stopping, a drain finishes the send in flight and starts no other', a
   // Claimed but never attempted: requeueStale hands it back after a restart.
   assert.equal(outboxRow(db, second).status, 'sending');
   assert.deepEqual(await drainOutbox(ctx), { sent: 0, failed: 0 });
+});
+
+// The fake mailer records when each mail reached it, on the monotonic clock
+// the pacing uses.
+async function pacedSetup(intervalMs) {
+  const t = await setup({ configOverrides: { smtp: { sendIntervalMs: intervalMs } } });
+  const sentAt = [];
+  const send = t.mailer.send;
+  t.mailer.send = async (message) => {
+    sentAt.push(performance.now());
+    return send(message);
+  };
+  return { ...t, sentAt };
+}
+
+test('with a send interval, mails are spaced out, also across drains', async () => {
+  const { ctx, mails, ada, ben, cor, drain, sentAt } = await pacedSetup(60);
+  ctx.repo.enqueue(ada.id, 'invite', ctx.nowIso());
+  ctx.repo.enqueue(ben.id, 'invite', ctx.nowIso());
+  assert.deepEqual(await drain(), { sent: 2, failed: 0 });
+  ctx.repo.enqueue(cor.id, 'invite', ctx.nowIso());
+  assert.deepEqual(await drain(), { sent: 1, failed: 0 });
+  assert.deepEqual(mails.map((m) => m.to), [ada.email, ben.email, cor.email]);
+  // A few ms of slack: timers may fire early by a rounding step.
+  for (let i = 1; i < sentAt.length; i += 1) assert.ok(sentAt[i] - sentAt[i - 1] >= 55, `gap ${i}`);
+});
+
+test('a failed send counts for the interval, a skipped row does not', async () => {
+  const { ctx, mailer, ada, ben, cor, drain, sentAt } = await pacedSetup(100);
+  ctx.repo.updateParticipant(ben.id, { email: null });
+  mailer.fail = () => Object.assign(new Error('down'), { code: 'ECONNECTION' });
+  ctx.repo.enqueue(ada.id, 'invite', ctx.nowIso());
+  ctx.repo.enqueue(ben.id, 'invite', ctx.nowIso());
+  ctx.repo.enqueue(cor.id, 'invite', ctx.nowIso());
+  assert.deepEqual(await drain(), { sent: 0, failed: 3 });
+  assert.equal(sentAt.length, 2);
+  // One pause, not two: the skip in between did not reset the clock.
+  const gap = sentAt[1] - sentAt[0];
+  assert.ok(gap >= 95 && gap < 190, `gap ${gap}`);
+});
+
+test('stopping during a pause ends the drain without claiming the next row', async () => {
+  const { ctx, db, mails, ada, ben } = await pacedSetup(5_000);
+  ctx.repo.enqueue(ada.id, 'invite', ctx.nowIso());
+  const second = ctx.repo.enqueue(ben.id, 'invite', ctx.nowIso());
+  const started = performance.now();
+  const running = drainOutbox(ctx);
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  ctx.state.stopping = true;
+  assert.deepEqual(await running, { sent: 1, failed: 0 });
+  assert.ok(performance.now() - started < 1_000);
+  assert.equal(mails.length, 1);
+  assert.equal(outboxRow(db, second).status, 'pending');
 });
 
 test('a given-up draw-open or invite sent again after the participant drew is skipped as stale', async () => {

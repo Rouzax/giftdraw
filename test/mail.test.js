@@ -287,6 +287,17 @@ test('mailer uses implicit TLS on 465 and no auth without a user', () => {
   assert.equal(seen[0].secure, true);
   assert.equal(seen[0].requireTLS, false);
   assert.equal(seen[0].auth, undefined);
+  assert.ok(!Object.hasOwn(seen[0], 'name'));
+});
+
+test('mailer greets the server with the configured name', () => {
+  const seen = [];
+  const smtp = { host: 'mail.example.com', port: 587, user: null, pass: null, from: 'gifts@example.com', name: 'gifts.example.com' };
+  createMailer({ smtp }, (o) => {
+    seen.push(o);
+    return {};
+  });
+  assert.equal(seen[0].name, 'gifts.example.com');
 });
 
 test('mailer close shuts the pool, and is a no-op when mail is off', async () => {

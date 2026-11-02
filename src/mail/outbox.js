@@ -1,3 +1,4 @@
+import { performance } from 'node:perf_hooks';
 import { wishForm } from '../questions.js';
 import { reminderKind } from '../reminders.js';
 import { signupActive, signupState } from '../signup.js';
@@ -6,6 +7,9 @@ import { RECEIVER_KINDS, renderEmail } from './templates.js';
 
 const BATCH = 50;
 const MINUTE = 60_000;
+// How often a pause between mails checks for shutdown, so a stop never waits
+// out the whole interval.
+const PAUSE_STEP_MS = 250;
 // Delay before the next try, indexed by the attempt that just failed. A
 // failure on the attempt past the end of this list gives the row up.
 const BACKOFF_MS = [1, 5, 30, 120].map((m) => m * MINUTE);
@@ -100,12 +104,34 @@ function recordSent(ctx, row, fields) {
   }
 }
 
+// Mail servers and spam filters at the receiving end trust a steady trickle
+// more than a burst, so mails that reach the server are spaced out by
+// SMTP_SEND_INTERVAL, across drains too. The clock is the monotonic one: this
+// is real waiting, and the app clock may be fixed or jump. A skipped row
+// sends nothing, so it does not hold up the next. Returns false when
+// shutdown cut the pause short.
+async function pace(ctx, interval) {
+  const last = ctx.state.lastSendAt;
+  if (interval === 0 || last === undefined) return true;
+  for (;;) {
+    if (ctx.state.stopping) return false;
+    const left = last + interval - performance.now();
+    if (left <= 0) return true;
+    await new Promise((resolve) => setTimeout(resolve, Math.min(left, PAUSE_STEP_MS)));
+  }
+}
+
 async function sendOne(ctx, row) {
   const fields = UNNAMED_KINDS.has(row.kind)
     ? { outbox_id: row.id, kind: row.kind }
     : { outbox_id: row.id, participant_id: row.participantId, kind: row.kind };
   try {
-    await ctx.mailer.send(prepare(ctx, row));
+    const message = prepare(ctx, row);
+    try {
+      await ctx.mailer.send(message);
+    } finally {
+      ctx.state.lastSendAt = performance.now();
+    }
   } catch (err) {
     const skipped = err instanceof Skip;
     const code = errorCode(err);
@@ -132,10 +158,16 @@ async function sendOne(ctx, row) {
 async function drain(ctx) {
   const result = { sent: 0, failed: 0 };
   if (!ctx.mailer.enabled) return result;
+  const interval = ctx.config.smtp?.sendIntervalMs ?? 0;
+  // With pacing, one row is claimed at a time, after the pause: a row that
+  // sat claimed through many pauses would pass the scheduler's stale window
+  // and be handed back while this drain still means to send it.
+  const batch = interval > 0 ? 1 : BATCH;
   let rows;
   do {
     if (ctx.state.stopping) break;
-    rows = ctx.repo.claimDue(ctx.nowIso(), BATCH);
+    if (!(await pace(ctx, interval))) break;
+    rows = ctx.repo.claimDue(ctx.nowIso(), batch);
     // One at a time: the pool has two connections and mail volume is small,
     // so ordering and a gentle send rate matter more than throughput.
     for (const row of rows) {
@@ -145,7 +177,7 @@ async function drain(ctx) {
       if (await sendOne(ctx, row)) result.sent += 1;
       else result.failed += 1;
     }
-  } while (rows.length === BATCH);
+  } while (rows.length === batch);
   return result;
 }
 

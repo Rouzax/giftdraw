@@ -34,7 +34,7 @@ function parseAppUrl(env) {
     fail('APP_URL', 'must be an absolute URL');
   }
   if (url.protocol !== 'http:' && url.protocol !== 'https:') fail('APP_URL', 'must use http or https');
-  return { appUrl: raw.replace(/\/+$/, ''), appOrigin: url.origin };
+  return { appUrl: raw.replace(/\/+$/, ''), appOrigin: url.origin, appHost: url.hostname };
 }
 
 // Returns null for a valid entry, otherwise the problem to report.
@@ -79,7 +79,31 @@ function parseTimeZone(env) {
   return tz;
 }
 
-function parseSmtp(env) {
+const HOST_NAME = /^(?=.{1,253}$)[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$/i;
+const SEND_INTERVAL_MAX = 300;
+
+// The name the app greets the mail server with (EHLO). Without it the mail
+// library falls back to the container's host name or an address literal
+// such as [127.0.0.1], which spam filters count against the mail. The site's
+// own domain is the natural default; a bare name like localhost or an IP
+// address gives no better greeting, so those leave the library's choice.
+function parseSmtpName(env, appHost) {
+  const raw = value(env, 'SMTP_NAME');
+  if (raw === null) return HOST_NAME.test(appHost) && isIP(appHost) === 0 ? appHost : null;
+  if (!HOST_NAME.test(raw) || isIP(raw) !== 0) fail('SMTP_NAME', 'must be a domain name such as gifts.example.com');
+  return raw;
+}
+
+function parseSendInterval(env) {
+  const raw = value(env, 'SMTP_SEND_INTERVAL');
+  if (raw === null) return 5_000;
+  if (!/^\d+$/.test(raw) || Number(raw) > SEND_INTERVAL_MAX) {
+    fail('SMTP_SEND_INTERVAL', `must be a whole number of seconds from 0 to ${SEND_INTERVAL_MAX}`);
+  }
+  return Number(raw) * 1000;
+}
+
+function parseSmtp(env, appHost) {
   const host = value(env, 'SMTP_HOST');
   if (host === null) return null;
   const from = value(env, 'SMTP_FROM');
@@ -90,11 +114,13 @@ function parseSmtp(env) {
     user: value(env, 'SMTP_USER'),
     pass: value(env, 'SMTP_PASS'),
     from,
+    name: parseSmtpName(env, appHost),
+    sendIntervalMs: parseSendInterval(env),
   };
 }
 
 export function loadConfig(env) {
-  const { appUrl, appOrigin } = parseAppUrl(env);
+  const { appUrl, appOrigin, appHost } = parseAppUrl(env);
 
   const adminAuth = value(env, 'ADMIN_AUTH');
   if (adminAuth !== 'proxy' && adminAuth !== 'password') fail('ADMIN_AUTH', 'must be proxy or password');
@@ -127,7 +153,7 @@ export function loadConfig(env) {
     adminUserHeader: (value(env, 'ADMIN_USER_HEADER') ?? 'remote-user').toLowerCase(),
     adminPassword,
     sessionSecret,
-    smtp: parseSmtp(env),
+    smtp: parseSmtp(env, appHost),
     assetVersion: assetHash(PUBLIC_DIR),
   };
 }

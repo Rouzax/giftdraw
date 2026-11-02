@@ -134,9 +134,33 @@ test('smtp is null without SMTP_HOST and filled with it', () => {
     user: 'mailer',
     pass: 'mail-pass',
     from: 'Gift Draw <draw@example.com>',
+    name: 'gifts.example.com',
+    sendIntervalMs: 5000,
   });
   throwsNaming(passwordEnv({ SMTP_HOST: 'smtp.example.com' }), 'SMTP_FROM');
   throwsNaming(passwordEnv({ SMTP_HOST: 'smtp.example.com', SMTP_FROM: 'draw@example.com', SMTP_PORT: 'x' }), 'SMTP_PORT');
+});
+
+const smtpEnv = (extra = {}) => passwordEnv({ SMTP_HOST: 'smtp.example.com', SMTP_FROM: 'draw@example.com', ...extra });
+
+test('SMTP_NAME defaults to the APP_URL domain and can be set', () => {
+  assert.equal(loadConfig(smtpEnv({ SMTP_NAME: 'mail.Example.org' })).smtp.name, 'mail.Example.org');
+  // A name or address that makes no better greeting leaves the mail library's own choice.
+  for (const appUrl of ['http://localhost:3000', 'http://192.0.2.10:3000', 'http://[2001:db8::1]:3000']) {
+    assert.equal(loadConfig(smtpEnv({ APP_URL: appUrl })).smtp.name, null, appUrl);
+  }
+});
+
+test('an SMTP_NAME that is not a domain name throws naming it', () => {
+  for (const name of ['localhost', '192.0.2.10', 'gifts.example.com\r\nRCPT TO:<x@example.com>', 'bad_name.example.com', '-a.example.com']) {
+    throwsNaming(smtpEnv({ SMTP_NAME: name }), 'SMTP_NAME');
+  }
+});
+
+test('SMTP_SEND_INTERVAL is whole seconds from 0 to 300, default 5', () => {
+  assert.equal(loadConfig(smtpEnv({ SMTP_SEND_INTERVAL: '0' })).smtp.sendIntervalMs, 0);
+  assert.equal(loadConfig(smtpEnv({ SMTP_SEND_INTERVAL: '300' })).smtp.sendIntervalMs, 300_000);
+  for (const interval of ['301', '-1', '2.5', '5s']) throwsNaming(smtpEnv({ SMTP_SEND_INTERVAL: interval }), 'SMTP_SEND_INTERVAL');
 });
 
 test('no error message echoes a secret value', () => {
