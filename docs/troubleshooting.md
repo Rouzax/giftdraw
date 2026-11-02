@@ -51,7 +51,7 @@ Tick **Yes, I am sure** (*Ja, ik weet het zeker*) next to the button first; with
 
 ### Drawing did not open on its automatic date
 
-It only opens once the invitations were sent. The dashboard then shows **Drawing only opens once the invitations have been sent.** Send them; drawing opens within a minute because the date has passed. Also check that the app was running: the opening happens at 09:00 or, if the app was down then, as soon as it is back. While the event's sign-up is on, no group opens by itself; it can once you have [started the draw](guide/signup.md#start-the-draw).
+It only opens once the invitations were sent. The dashboard then shows **Drawing only opens once the invitations have been sent.** Send them; drawing opens at the next check, usually within a minute, because the date has passed. Right after a large mail round that check can wait a few minutes until the round has gone out. Also check that the app was running: the opening happens at 09:00 or, if the app was down then, as soon as it is back. While the event's sign-up is on, no group opens by itself; it can once you have [started the draw](guide/signup.md#start-the-draw).
 
 ### A card says "Print again"
 

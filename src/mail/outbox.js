@@ -163,11 +163,15 @@ async function drain(ctx) {
   // sat claimed through many pauses would pass the scheduler's stale window
   // and be handed back while this drain still means to send it.
   const batch = interval > 0 ? 1 : BATCH;
+  // Only rows due when the drain started: a paced pass can outlast the first
+  // retry backoff, and taking the retries too would keep the drain, and the
+  // scheduler tick that awaits it, going until every row gave up.
+  const dueBy = ctx.nowIso();
   let rows;
   do {
     if (ctx.state.stopping) break;
     if (!(await pace(ctx, interval))) break;
-    rows = ctx.repo.claimDue(ctx.nowIso(), batch);
+    rows = ctx.repo.claimDue(ctx.nowIso(), batch, dueBy);
     // One at a time: the pool has two connections and mail volume is small,
     // so ordering and a gentle send rate matter more than throughput.
     for (const row of rows) {

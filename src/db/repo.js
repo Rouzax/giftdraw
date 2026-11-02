@@ -276,13 +276,14 @@ export function createRepo(db) {
   }
 
   // While a row is 'sending', next_attempt_at holds the claim time so
-  // requeueStale can tell a crashed send from a running one.
-  function claimDue(now, limit) {
+  // requeueStale can tell a crashed send from a running one. dueBy, when
+  // earlier than now, leaves rows that came due after it for a later drain.
+  function claimDue(now, limit, dueBy = now) {
     return tx(() => {
       const ids = db
         .prepare(`SELECT id FROM outbox WHERE status = 'pending' AND next_attempt_at <= ?
                   ORDER BY next_attempt_at, id LIMIT ?`)
-        .all(now, limit)
+        .all(dueBy, limit)
         .map((r) => r.id);
       const claim = db.prepare(
         `UPDATE outbox SET status = 'sending', attempts = attempts + 1, next_attempt_at = ? WHERE id = ?`,
