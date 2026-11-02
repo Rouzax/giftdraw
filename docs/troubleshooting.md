@@ -152,6 +152,7 @@ The dashboard shows them as sent, so the mail server accepted them; what happens
 - The sender domain of `SMTP_FROM` has SPF, DKIM and DMARC records that allow your mail server. Most mail programs can show a message's original headers, where `spf=pass`, `dkim=pass` and `dmarc=pass` should appear.
 - The app introduces itself with a real domain name. If the headers show the app's greeting as an address such as `[127.0.0.1]`, set `SMTP_NAME` to your domain; see [Email](self-host/email.md#turn-email-on).
 - `SMTP_SEND_INTERVAL` is not `0`, so a whole class is not mailed in the same few seconds.
+- The first mails of a round arrive and the rest come hours later: your mail server holds back mails past a limit per connection. Ask your provider for the limit and set `SMTP_MAX_MESSAGES` at or below it (10 by default).
 
 Ask people to look in their spam folder and mark the mail as not spam; that also helps the next mails from the same sender.
 

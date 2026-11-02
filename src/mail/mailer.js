@@ -22,6 +22,7 @@ export function createMailer(config, createTransport = nodemailer.createTranspor
     auth: smtp.user ? { user: smtp.user, pass: smtp.pass } : undefined,
     pool: true,
     maxConnections: 2,
+    maxMessages: smtp.maxMessages,
     connectionTimeout: 10000,
     greetingTimeout: 10000,
     socketTimeout: 30000,

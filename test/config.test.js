@@ -136,6 +136,7 @@ test('smtp is null without SMTP_HOST and filled with it', () => {
     from: 'Gift Draw <draw@example.com>',
     name: 'gifts.example.com',
     sendIntervalMs: 5000,
+    maxMessages: 10,
   });
   throwsNaming(passwordEnv({ SMTP_HOST: 'smtp.example.com' }), 'SMTP_FROM');
   throwsNaming(passwordEnv({ SMTP_HOST: 'smtp.example.com', SMTP_FROM: 'draw@example.com', SMTP_PORT: 'x' }), 'SMTP_PORT');
@@ -161,6 +162,12 @@ test('SMTP_SEND_INTERVAL is whole seconds from 0 to 300, default 5', () => {
   assert.equal(loadConfig(smtpEnv({ SMTP_SEND_INTERVAL: '0' })).smtp.sendIntervalMs, 0);
   assert.equal(loadConfig(smtpEnv({ SMTP_SEND_INTERVAL: '300' })).smtp.sendIntervalMs, 300_000);
   for (const interval of ['301', '-1', '2.5', '5s']) throwsNaming(smtpEnv({ SMTP_SEND_INTERVAL: interval }), 'SMTP_SEND_INTERVAL');
+});
+
+test('SMTP_MAX_MESSAGES is a whole number from 1 to 1000, default 10', () => {
+  assert.equal(loadConfig(smtpEnv({ SMTP_MAX_MESSAGES: '1' })).smtp.maxMessages, 1);
+  assert.equal(loadConfig(smtpEnv({ SMTP_MAX_MESSAGES: '1000' })).smtp.maxMessages, 1000);
+  for (const max of ['0', '1001', '-1', '2.5', 'ten']) throwsNaming(smtpEnv({ SMTP_MAX_MESSAGES: max }), 'SMTP_MAX_MESSAGES');
 });
 
 test('no error message echoes a secret value', () => {

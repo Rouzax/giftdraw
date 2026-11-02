@@ -253,13 +253,13 @@ test('mailer is disabled without smtp and send rejects', async () => {
   await assert.rejects(mailer.send({ to: 'ada@example.com', subject: 's', html: 'h', text: 't' }));
 });
 
-test('mailer uses a small pool, timeouts and STARTTLS on 587', async () => {
+test('mailer uses a small pool that reconnects after maxMessages, timeouts and STARTTLS on 587', async () => {
   const seen = [];
   const factory = (options) => {
     seen.push(options);
     return { sendMail: async (message) => seen.push(message) };
   };
-  const smtp = { host: 'mail.example.com', port: 587, user: 'u', pass: 'p', from: 'Gifts <gifts@example.com>' };
+  const smtp = { host: 'mail.example.com', port: 587, user: 'u', pass: 'p', from: 'Gifts <gifts@example.com>', maxMessages: 10 };
   const mailer = createMailer({ smtp }, factory);
   assert.equal(mailer.enabled, true);
   assert.deepEqual(seen[0], {
@@ -270,6 +270,7 @@ test('mailer uses a small pool, timeouts and STARTTLS on 587', async () => {
     auth: { user: 'u', pass: 'p' },
     pool: true,
     maxConnections: 2,
+    maxMessages: 10,
     connectionTimeout: 10000,
     greetingTimeout: 10000,
     socketTimeout: 30000,
