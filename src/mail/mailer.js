@@ -25,6 +25,8 @@ export function createMailer(config, createTransport = nodemailer.createTranspor
     connectionTimeout: 10000,
     greetingTimeout: 10000,
     socketTimeout: 30000,
+    // The EHLO name; without one the library picks its own (see config.js).
+    ...(smtp.name ? { name: smtp.name } : {}),
   });
   return {
     enabled: true,
