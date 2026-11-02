@@ -16,7 +16,7 @@ On the group dashboard, the **Invitations** (*Uitnodigingen*) panel says how man
 
 What happens:
 
-- Everyone with an email address gets a welcome mail, usually within a minute, in their own language. The subject is "Gift Draw: Tell us a little about yourself" (*Lootjes trekken: Vertel iets over jezelf*). It has a big **Go to my page** button, the exchange date, the theme, and the link written out. See [the mails participants get](../participants.md#the-mails).
+- Everyone with an email address gets a welcome mail in their own language. The mails go out a few seconds apart, so in a large group the last ones can take some minutes. The subject is "Gift Draw: Tell us a little about yourself" (*Lootjes trekken: Vertel iets over jezelf*). It has a big **Go to my page** button, the exchange date, the theme, and the link written out. See [the mails participants get](../participants.md#the-mails).
 - The dashboard notes **Invitations sent on ...** and the **Invited** (*Uitgenodigd*) column shows each mail's state: **Queued** (*In de wachtrij*), **Sent** (*Verstuurd*), **Failed, retrying** (*Mislukt, wordt opnieuw geprobeerd*) or **Failed** (*Mislukt*). People without email show **Not applicable** (*Niet van toepassing*).
 - Nothing is sent to people without email. Give them their link yourself, see below, or [help them in person](in-person.md).
 
