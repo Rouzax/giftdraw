@@ -374,7 +374,7 @@ test('with a send interval, mails are spaced out, also across drains', async () 
 });
 
 test('a failed send counts for the interval, a skipped row does not', async () => {
-  const { ctx, mailer, ada, ben, cor, drain, sentAt } = await pacedSetup(100);
+  const { ctx, mailer, ada, ben, cor, drain, sentAt } = await pacedSetup(200);
   ctx.repo.updateParticipant(ben.id, { email: null });
   mailer.fail = () => Object.assign(new Error('down'), { code: 'ECONNECTION' });
   ctx.repo.enqueue(ada.id, 'invite', ctx.nowIso());
@@ -384,7 +384,24 @@ test('a failed send counts for the interval, a skipped row does not', async () =
   assert.equal(sentAt.length, 2);
   // One pause, not two: the skip in between did not reset the clock.
   const gap = sentAt[1] - sentAt[0];
-  assert.ok(gap >= 95 && gap < 190, `gap ${gap}`);
+  assert.ok(gap >= 195 && gap < 400, `gap ${gap}`);
+});
+
+test('a paced drain leaves retries that came due during it for the next drain', async () => {
+  const { ctx, db, clock, mailer, ada, drain, sentAt } = await pacedSetup(10);
+  mailer.fail = () => Object.assign(new Error('down'), { code: 'ECONNECTION' });
+  const id = ctx.repo.enqueue(ada.id, 'invite', ctx.nowIso());
+  // The retry is due a minute after the failure; the clock passes that
+  // while the drain is still running, as a long paced round would.
+  const markFailed = ctx.repo.markFailed;
+  ctx.repo.markFailed = (...args) => {
+    markFailed(...args);
+    clock.ms += 2 * MINUTE;
+  };
+  assert.deepEqual(await drain(), { sent: 0, failed: 1 });
+  assert.equal(sentAt.length, 1);
+  assert.equal(outboxRow(db, id).status, 'pending');
+  assert.deepEqual(await drain(), { sent: 0, failed: 1 });
 });
 
 test('stopping during a pause ends the drain without claiming the next row', async () => {

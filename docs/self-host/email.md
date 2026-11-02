@@ -34,7 +34,7 @@ Sending through a regular mailbox provider often needs an app password rather th
 
 Two optional settings help mail get past spam filters; the defaults suit most setups:
 
-- `SMTP_NAME` is the name the app introduces itself with to the mail server. It defaults to the domain in `APP_URL`. Set it only when that domain is `localhost` or an IP address, or when your provider asks for a specific name.
+- `SMTP_NAME` is the name the app introduces itself with to the mail server. It defaults to the domain in `APP_URL`. Set it only when that is a name without a dot, such as `localhost`, or an IP address, or when your provider asks for a specific name.
 - `SMTP_SEND_INTERVAL` is the wait between two mails, 5 seconds by default. Receiving mail services treat a large group of mails that all arrive in the same second with suspicion, so a sign-up or invitation round goes out gradually instead. Set it to `0` to send without waiting.
 
 Whether mail lands in the inbox depends most on the sender domain: its SPF, DKIM and DMARC records must allow your mail server to send for it. Your mail provider's documentation explains which records to add.

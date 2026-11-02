@@ -54,7 +54,7 @@ Besides the invitations, the draw-open mail and the reminders:
 - **Your person has changed** (*"Je lootje is veranderd"*): to a giver who had drawn and gets a new person because someone joined or dropped out. See [Changes after opening](changes.md).
 - **Sign-up reminders and "Are you sure?"**: only while the event's sign-up is open. See [What the app sends by itself](signup.md#what-the-app-sends-by-itself).
 
-All other mail goes out within a minute.
+All other mail goes out within a minute. A round for a whole group goes out a few seconds per mail, so the last ones can take some minutes.
 
 ## When a mail fails
 

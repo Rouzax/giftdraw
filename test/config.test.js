@@ -146,13 +146,13 @@ const smtpEnv = (extra = {}) => passwordEnv({ SMTP_HOST: 'smtp.example.com', SMT
 test('SMTP_NAME defaults to the APP_URL domain and can be set', () => {
   assert.equal(loadConfig(smtpEnv({ SMTP_NAME: 'mail.Example.org' })).smtp.name, 'mail.Example.org');
   // A name or address that makes no better greeting leaves the mail library's own choice.
-  for (const appUrl of ['http://localhost:3000', 'http://192.0.2.10:3000', 'http://[2001:db8::1]:3000']) {
+  for (const appUrl of ['http://localhost:3000', 'http://giftdraw:3000', 'http://192.0.2.10:3000', 'http://[2001:db8::1]:3000']) {
     assert.equal(loadConfig(smtpEnv({ APP_URL: appUrl })).smtp.name, null, appUrl);
   }
 });
 
 test('an SMTP_NAME that is not a domain name throws naming it', () => {
-  for (const name of ['localhost', '192.0.2.10', 'gifts.example.com\r\nRCPT TO:<x@example.com>', 'bad_name.example.com', '-a.example.com']) {
+  for (const name of ['localhost', '192.0.2.10', 'gifts.example.com\r\nRCPT TO:<x@example.com>', 'bad_name.example.com', '-a.example.com', '999.1.1.1', '1.2.3']) {
     throwsNaming(smtpEnv({ SMTP_NAME: name }), 'SMTP_NAME');
   }
 });

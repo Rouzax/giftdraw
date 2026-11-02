@@ -85,12 +85,14 @@ const SEND_INTERVAL_MAX = 300;
 // The name the app greets the mail server with (EHLO). Without it the mail
 // library falls back to the container's host name or an address literal
 // such as [127.0.0.1], which spam filters count against the mail. The site's
-// own domain is the natural default; a bare name like localhost or an IP
-// address gives no better greeting, so those leave the library's choice.
+// own domain is the natural default; a name without a dot like localhost or
+// an IP address gives no better greeting, so those leave the library's
+// choice. A top-level label is never all digits, which rules out IPv4 and
+// look-alikes such as 999.1.1.1.
 function parseSmtpName(env, appHost) {
   const raw = value(env, 'SMTP_NAME');
-  if (raw === null) return HOST_NAME.test(appHost) && isIP(appHost) === 0 ? appHost : null;
-  if (!HOST_NAME.test(raw) || isIP(raw) !== 0) fail('SMTP_NAME', 'must be a domain name such as gifts.example.com');
+  if (raw === null) return HOST_NAME.test(appHost) && !/\.\d+$/.test(appHost) ? appHost : null;
+  if (!HOST_NAME.test(raw) || /\.\d+$/.test(raw)) fail('SMTP_NAME', 'must be a domain name such as gifts.example.com');
   return raw;
 }
 
