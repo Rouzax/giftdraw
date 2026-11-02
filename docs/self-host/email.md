@@ -32,6 +32,13 @@ SMTP_FROM=Gift Draw <gifts@example.com>
 
 Sending through a regular mailbox provider often needs an app password rather than your normal password; check your provider's instructions for SMTP access.
 
+Two optional settings help mail get past spam filters; the defaults suit most setups:
+
+- `SMTP_NAME` is the name the app introduces itself with to the mail server. It defaults to the domain in `APP_URL`. Set it only when that domain is `localhost` or an IP address, or when your provider asks for a specific name.
+- `SMTP_SEND_INTERVAL` is the wait between two mails, 5 seconds by default. Receiving mail services treat a large group of mails that all arrive in the same second with suspicion, so a sign-up or invitation round goes out gradually instead. Set it to `0` to send without waiting.
+
+Whether mail lands in the inbox depends most on the sender domain: its SPF, DKIM and DMARC records must allow your mail server to send for it. Your mail provider's documentation explains which records to add.
+
 ## What the app sends
 
 | Mail | Sent when |
@@ -50,6 +57,6 @@ Reminders only go out between 09:00 and 20:00 in the app's time zone (`TZ`) and 
 
 ## The queue
 
-Mail goes out through a queue in the database, which the app works through every minute, and right away after you press a button that sends mail. A failed send is retried after 1, 5, 30 and 120 minutes, and then marked as failed on the dashboard with a **Send again** button. Mail waiting in the queue survives a restart.
+Mail goes out through a queue in the database, which the app works through every minute, and right away after you press a button that sends mail. Mails go out one at a time, `SMTP_SEND_INTERVAL` seconds apart, so after a round for a whole class some show as queued for a few minutes. A failed send is retried after 1, 5, 30 and 120 minutes, and then marked as failed on the dashboard with a **Send again** button. Mail waiting in the queue survives a restart.
 
 Log lines for mail never contain addresses or message text. A failure is logged as `mail_failed` with a `code` field, such as `ECONNECTION` or `EAUTH`, that names the problem. See [Troubleshooting](../troubleshooting.md#mails-stay-queued) when mail does not arrive.

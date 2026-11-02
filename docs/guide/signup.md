@@ -48,7 +48,7 @@ Check that every group is complete, then press **Send now** (*Nu versturen*). Th
 
 With email on:
 
-- Everyone with an email address gets the sign-up mail at once, in their own language: "Are you taking part in ...?" (*Doe je mee aan ...?*) with the event's name. It shows the theme, the exchange date, time and place of their group, the closing date, and two buttons: **Yes, I'm taking part** (*Ja, ik doe mee*) and **No, not this time** (*Nee, deze keer niet*).
+- Everyone with an email address gets the sign-up mail in their own language, one mail every few seconds, so for a large event the last ones go out some minutes later: "Are you taking part in ...?" (*Doe je mee aan ...?*) with the event's name. It shows the theme, the exchange date, time and place of their group, the closing date, and two buttons: **Yes, I'm taking part** (*Ja, ik doe mee*) and **No, not this time** (*Nee, deze keer niet*).
 - People without an email address get nothing. Give them their link yourself, as in [Share a link yourself](invitations.md#share-a-link-yourself), or answer for them.
 - People whose answer you already set get nothing, now or later; see [Answer for someone](#answer-for-someone).
 

@@ -134,7 +134,7 @@ Nobody in it took part, so it was left empty. Add people to the group: from 3 pe
 
 ### Mails stay "Queued"
 
-Check that the container is running; the queue is worked through every minute. Then look for `mail_failed` lines in `docker logs giftdraw`: the `code` field names the problem, for example a connection or login error. Fix the SMTP settings and restart the container; queued mails then go out.
+Right after a sign-up or invitation round, that is expected for a few minutes: mails go out one at a time, `SMTP_SEND_INTERVAL` seconds apart (5 by default), so a round for 60 people takes about five minutes. If mails stay queued longer, check that the container is running; the queue is worked through every minute. Then look for `mail_failed` lines in `docker logs giftdraw`: the `code` field names the problem, for example a connection or login error. Fix the SMTP settings and restart the container; queued mails then go out.
 
 ### The dashboard shows a mail failure
 
@@ -144,6 +144,16 @@ The mail server refused the message or could not be reached, and the automatic r
 - **Every mail fails, or the reason is a refused sender**: check `SMTP_HOST`, `SMTP_PORT`, the login, and that the server accepts `SMTP_FROM` as sender. After fixing and restarting, press **Send all failed mail again** on each group.
 
 An invitation that reached the person earlier stays marked as sent; only the failed resend shows in the failure column. [When a mail fails](guide/follow-up.md#when-a-mail-fails) lists every reason.
+
+### Mails are sent but land in spam or arrive late
+
+The dashboard shows them as sent, so the mail server accepted them; what happens next is up to the receiving mail service. Check, in this order:
+
+- The sender domain of `SMTP_FROM` has SPF, DKIM and DMARC records that allow your mail server. Most mail programs can show a message's original headers, where `spf=pass`, `dkim=pass` and `dmarc=pass` should appear.
+- The app introduces itself with a real domain name. If the headers show the app's greeting as an address such as `[127.0.0.1]`, set `SMTP_NAME` to your domain; see [Email](self-host/email.md#turn-email-on).
+- `SMTP_SEND_INTERVAL` is not `0`, so a whole class is not mailed in the same few seconds.
+
+Ask people to look in their spam folder and mark the mail as not spam; that also helps the next mails from the same sender.
 
 ### Someone did not get a reminder
 
