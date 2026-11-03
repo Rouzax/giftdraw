@@ -161,6 +161,16 @@ function answerCounts(lang, people, state) {
     : t(lang, 'admin.signup.counts', { yes, no, none: people.length - yes - no });
 }
 
+// The colour of a line in the answer lists, so a group reads at a glance.
+// Once closed, no answer means not taking part, so it looks like a no.
+function answerTone(p, state) {
+  if (p.signup === 'yes') return 'yes';
+  if (p.signup === 'no' || state === 'closed') return 'no';
+  return 'open';
+}
+
+const ANSWER_LINE_KINDS = { yes: 'done', no: 'failed', open: 'waiting' };
+
 function answerLists(lang, groups, state) {
   return groups.map(({ group, people }) => {
     const yes = people.filter(joins).length;
@@ -171,11 +181,14 @@ function answerLists(lang, groups, state) {
     return html`<h3>${group.name}</h3>
 <p>${counts}</p>
 ${warn}
-<ul class="group-list">${people.map((p) => html`<li>
+<ul class="group-list answers">${people.map((p) => {
+      const tone = answerTone(p, state);
+      return html`<li class="answer-${tone}">
 <a href="/admin/participants/${p.id}">${p.name}</a>
-<span class="muted">${answerText(lang, p, state)}</span>
+${status(ANSWER_LINE_KINDS[tone], answerText(lang, p, state), tone === 'open' ? 'muted' : 'answer')}
 ${setAnswerForm(lang, p, 'event')}
-</li>`)}</ul>`;
+</li>`;
+    })}</ul>`;
   });
 }
 

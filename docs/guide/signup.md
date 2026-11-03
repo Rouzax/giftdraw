@@ -66,9 +66,9 @@ The buttons in the mail open the person's own page, which says **Almost done: ta
 
 After answering, the page says **You are taking part.** (*Je doet mee.*) or **You are not taking part this time.** (*Je doet deze keer niet mee.*) and what comes next. There is no answer button on that page, so an accidental second tap cannot change the answer: to change it they press **Change your answer** (*Antwoord veranderen*) first, and then choose again. They can change their answer as often as they like until the end of the closing date. [What participants see](../participants.md#signing-up) shows the pages.
 
-The panel on the event page shows per group how many said yes, no and not yet, and each person's answer. A group with 1 or 2 yes answers shows **At least 3 participants are needed for drawing.** (*Er zijn minstens 3 deelnemers nodig om te kunnen trekken.*)
+The panel on the event page shows per group how many said yes, no and not yet, and each person's answer. Each person's line is coloured by their answer, so a group reads at a glance: green with a check mark for yes, red with a cross for no, and plain with an hourglass for not yet. After closing, someone who did not answer turns red too, because they are not taking part. A group with 1 or 2 yes answers shows **At least 3 participants are needed for drawing.** (*Er zijn minstens 3 deelnemers nodig om te kunnen trekken.*)
 
-![The open sign-up: counts and answers per group, with buttons to set an answer](../images/organiser-signup-open.webp){ .shot }
+![The open sign-up: counts and answers per group, each line coloured by its answer, with buttons to set an answer](../images/organiser-signup-open.webp){ .shot }
 
 ### The class dashboard during sign-up
 

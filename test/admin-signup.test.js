@@ -448,6 +448,24 @@ test('the sign-up panel lists each group with its answers and a button to change
   assert.ok(closed.body.includes(`href="/admin/events/${eventId}/signup/finish"`));
 });
 
+test('each answer line in the sign-up panel is coloured by its answer, and no answer turns to no on closing', async () => {
+  const t = await setup();
+  const { eventId, groupIds: [a] } = await eventWithGroups(t, [3]);
+  await turnOn(t, eventId);
+  await send(t, eventId);
+  const [ada, ben, cor] = people(t, a);
+  await answerAs(t, ada, 'yes');
+  await answerAs(t, ben, 'no');
+  // The class of the line that links to this person.
+  const tone = (body, p) => new RegExp(`<li class="answer-([a-z]+)">\\s*<a href="/admin/participants/${p.id}"`).exec(body)?.[1];
+  const open = (await t.adminGet(`/admin/events/${eventId}`)).body;
+  assert.deepEqual([ada, ben, cor].map((p) => tone(open, p)), ['yes', 'no', 'open']);
+  await t.adminPost(`/admin/events/${eventId}/signup/close`);
+  const closed = (await t.adminGet(`/admin/events/${eventId}`)).body;
+  assert.deepEqual([ada, ben, cor].map((p) => tone(closed, p)), ['yes', 'no', 'no']);
+  assert.ok(textOf(closed).includes(tr('nl', 'admin.signup.answer.noneClosed')));
+});
+
 test('the closed sign-up panel uses the singular for one joiner and one non-joiner', async () => {
   const t = await setup();
   const { eventId, groupIds: [a] } = await eventWithGroups(t, [2]);

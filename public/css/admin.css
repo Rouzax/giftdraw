@@ -373,6 +373,39 @@ button.danger {
   font-weight: 700;
 }
 
+/* Sign-up answers: each line takes the colour of its answer, so a whole
+   group can be read at a glance. The bar and the words carry it too, for
+   whoever cannot tell the tints apart. */
+.answers li {
+  margin-bottom: 0.25rem;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 0;
+  border-left: 4px solid var(--line);
+  border-radius: 0.25rem;
+}
+
+.answers li.answer-yes {
+  border-left-color: var(--ribbon);
+  background: var(--yes-bg);
+}
+
+.answers li.answer-no {
+  border-left-color: var(--accent-dark);
+  background: var(--no-bg);
+}
+
+.answers .answer {
+  font-weight: 700;
+}
+
+.answer-yes .answer {
+  color: var(--ribbon);
+}
+
+.answer-no .answer {
+  color: var(--accent-dark);
+}
+
 .badge {
   padding: 0.05rem 0.5rem;
   border: 1px solid var(--line);
