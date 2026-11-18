@@ -1,6 +1,6 @@
 # Alpine 3.24. Pinned by digest so a rebuild uses the
 # same base; bump it deliberately.
-FROM node:22.23.4-alpine@sha256:fe4f6d74e20370acb04ad889077d14d0f64a9c8ea6a42bc60cddf1e844699914
+FROM node:26.13.1-alpine@sha256:6bd9ab43c0ec0190ca7b2d193906cb8b7edf6e7f4afa43ddeccd6452710bffb5
 
 # tini runs as PID 1 so SIGTERM from docker stop reaches Node and the app can
 # finish its shutdown instead of being killed after the stop timeout.
