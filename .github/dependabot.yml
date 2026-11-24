@@ -23,12 +23,18 @@ updates:
       minor-and-patch:
         update-types: [minor, patch]
 
+  # Node patch releases and new digests auto-merge; minors are reviewed. A
+  # Node major moves CI's node-version and package.json engines with it, by
+  # hand.
   - package-ecosystem: docker
     directory: /
     schedule:
       interval: weekly
     cooldown:
       default-days: 7
+    ignore:
+      - dependency-name: node
+        update-types: [version-update:semver-major]
 
   # The documentation build (Zensical, pinned with hashes). Not auto-merged:
   # dependabot-automerge.yml only takes npm updates.

@@ -32,3 +32,25 @@ jobs:
 
       - name: Docker build
         run: docker build -t giftdraw:ci .
+
+      # Base updates and the weekly rebuild ship without review, so the image
+      # has to start and answer, not just build. Proxy auth needs no secrets.
+      - name: Smoke test image
+        run: |
+          docker run -d --name giftdraw-ci \
+            -e APP_URL=http://localhost:3000 \
+            -e ADMIN_AUTH=proxy -e TRUSTED_PROXIES=127.0.0.1 \
+            giftdraw:ci
+          for _ in $(seq 30); do
+            if docker exec giftdraw-ci wget -qO- http://127.0.0.1:3000/health 2>/dev/null; then
+              ok=1; break
+            fi
+            sleep 1
+          done
+          docker logs giftdraw-ci
+          [ "${ok:-}" = 1 ] || { echo "Image did not answer on /health"; exit 1; }
+          # The package managers are removed in the Dockerfile; a base image
+          # that adds another one in a new place should fail here.
+          if docker exec giftdraw-ci sh -c 'command -v npm || command -v npx || command -v yarn || command -v corepack'; then
+            echo "A package manager is still in the image"; exit 1
+          fi
