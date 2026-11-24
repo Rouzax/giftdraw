@@ -21,15 +21,22 @@ jobs:
         id: meta
         uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
 
-      # Only npm minor/patch updates qualify. Majors can break the app;
-      # Actions updates run in the privileged release workflow; Docker base
-      # images change the runtime. Those all stay manual.
-      # --auto waits for the ruleset's required checks before merging.
+      # Qualifies: npm minor/patch updates, and a Node patch release or a new
+      # digest of the same Node version for the base image (a digest update
+      # has no update-type). Majors can break the app; Node minors change the
+      # runtime more than a fix does; Actions updates run in the privileged
+      # release workflow. Those all stay manual. A merged Dockerfile change
+      # ships with the next weekly auto-release.
+      # --auto waits for the ruleset's required checks, which build the image
+      # and start it, before merging.
       - name: Enable auto-merge
         if: >-
-          steps.meta.outputs.package-ecosystem == 'npm_and_yarn' &&
-          (steps.meta.outputs.update-type == 'version-update:semver-minor' ||
-           steps.meta.outputs.update-type == 'version-update:semver-patch')
+          (steps.meta.outputs.package-ecosystem == 'npm_and_yarn' &&
+           (steps.meta.outputs.update-type == 'version-update:semver-minor' ||
+            steps.meta.outputs.update-type == 'version-update:semver-patch')) ||
+          (steps.meta.outputs.package-ecosystem == 'docker' &&
+           steps.meta.outputs.update-type != 'version-update:semver-major' &&
+           steps.meta.outputs.update-type != 'version-update:semver-minor')
         run: gh pr merge --auto --squash "$PR_URL"
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}

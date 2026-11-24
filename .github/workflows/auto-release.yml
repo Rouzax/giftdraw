@@ -1,8 +1,9 @@
 name: Auto release
 
 # Weekly patch release of whatever has merged since the last tag, so
-# auto-merged dependency updates ship without a manual tag. Manual tags
-# still release through release.yml directly.
+# auto-merged dependency updates ship without a manual tag. A week with
+# nothing to release rebuilds the last tag instead, so Alpine fixes reach
+# :latest either way. Manual tags still release through release.yml directly.
 on:
   schedule:
     - cron: '0 6 * * 1'
@@ -20,6 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       tag: ${{ steps.next.outputs.tag }}
+      rebuild: ${{ steps.next.outputs.rebuild }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -32,7 +34,8 @@ jobs:
         run: |
           LAST=$(git describe --tags --abbrev=0 --match 'v*')
           if git diff --quiet "$LAST" HEAD -- src public package.json package-lock.json .npmrc Dockerfile; then
-            echo "No image changes since $LAST, nothing to release."
+            echo "No image changes since $LAST, rebuilding it."
+            echo "rebuild=$LAST" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           VERSION="${LAST#v}"
@@ -65,6 +68,20 @@ jobs:
     uses: ./.github/workflows/release.yml
     with:
       tag: ${{ needs.check.outputs.tag }}
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
+      attestations: write
+
+  # The tag was tested and released already; only the base packages change.
+  rebuild:
+    needs: check
+    if: needs.check.outputs.rebuild != ''
+    uses: ./.github/workflows/release.yml
+    with:
+      tag: ${{ needs.check.outputs.rebuild }}
+      rebuild: true
     permissions:
       contents: write
       packages: write
